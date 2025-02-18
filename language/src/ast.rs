@@ -1,38 +1,59 @@
-// A program consists of a list of function definitions
-pub struct Program(Vec<ADTDefinition>, Vec<FunctionDefinition>);
+use std::fmt::{Debug, Display, Formatter};
 
-pub struct FID(String); // Function ID, (also including ADT constructors)
-pub struct VID(String); // Variable ID
-pub struct AID(String); // ADT ID
+// A program consists of a list of definitions
+#[derive(Debug, Clone)]
+pub struct Program(pub Vec<Definition>);
 
-struct ADTDefinition {
-    id: AID,
-    constructors: Vec<ConstructorDefinition> 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FID(pub String); // Function ID, (also including ADT constructors)
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VID(pub String); // Variable ID
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AID(pub String); // ADT ID
+
+#[derive(Debug, Clone)]
+pub enum Definition {
+    ADTDefinition(ADTDefinition),
+    FunctionDefinition(FunctionDefinition)
 }
 
-struct ConstructorDefinition {
-    id: VID,
-    argument: TupleType
+#[derive(Debug, Clone)]
+pub struct ADTDefinition {
+    pub id: AID,
+    pub constructors: Vec<ConstructorDefinition> 
 }
 
-pub struct TupleType(Vec<Type>); // Type of a tuple is a list of other types
+#[derive(Debug, Clone)]
+pub struct ConstructorDefinition {
+    pub id: FID,
+    pub argument: TupleType
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TupleType(pub Vec<Type>); // Type of a tuple is a list of other types
 // Any general type
-enum Type {
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Type {
     Tuple(TupleType),
     Int,
     ADT(AID)
 }
 
-struct TypeSignature {
-    argument_type: TupleType,
-    result_type: Type,
-    is_fip: bool
+#[derive(Debug, Clone)]
+pub struct FunctionDefinition {
+    pub id: FID,
+    pub body: Expression,
+    pub signature: FunctionSignature
 }
 
-struct FunctionDefinition {
-    id: FID,
-    body: Expression,
-    signature: TypeSignature
+#[derive(Debug, Clone)]
+pub struct FunctionSignature {
+    pub argument_type: TupleType,
+    pub result_type: Type,
+    pub is_fip: bool
 }
 
 // Expressions are something that has a result, for example
@@ -40,31 +61,114 @@ struct FunctionDefinition {
 // 4 * 5
 // Cons (0, Nil)
 // (1, 5, Nil)
-enum Expression {
+#[derive(Debug, Clone)]
+pub enum Expression {
     Tuple(TupleExpression),
     FunctionCall(FID, Box<TupleExpression>),
     Integer(i32),
     Match(MatchExpression),
-
-    Equals()
+    Operation(Operator, Box<Expression>, Box<Expression>)
 }
 
-enum Operator {
+#[derive(Debug, Clone)]
+pub enum Operator {
     Equal, NotEqual, Less, LessOrEq, Greater, GreaterOrEqual,
     Add, Sub, Mul, Div 
 }
 
 // An expression to create a tuple is a list of other expressions
-struct TupleExpression(Vec<Expression>);
+#[derive(Debug, Clone)]
+pub struct TupleExpression(pub Vec<Expression>);
 
-struct MatchExpression {
-    variable: VID,
-    cases: Vec<MatchCase>
+#[derive(Debug, Clone)]
+pub struct MatchExpression {
+    pub variable: VID, // What to match on
+    pub cases: Vec<MatchCase>
 }
 
 // A case in a match statement
-struct MatchCase {
-    constructor_id: FID,
-    variables: Vec<VID>,
-    body: Expression
+#[derive(Debug, Clone)]
+pub struct MatchCase {
+    pub constructor_id: FID,
+    pub variables: Vec<VID>, // Variables that gets populated by tuple
+    pub body: Expression // Code to execute if the case matches
+}
+
+fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
+    write!(f, "{}", "\t".repeat(indent))
+}
+
+impl Display for Program {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        for definition in &self.0 {
+            writeln!(f, "{definition}")?;
+            writeln!(f)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for Definition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            Definition::ADTDefinition(def) => write!(f, "{def}"),
+            Definition::FunctionDefinition(def) => write!(f, "{def}")
+        }
+    }
+}
+
+impl Display for ADTDefinition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "enum {} = \n", self.id.0)?;
+        write_indent(f, 1)?;
+
+        write!(f, "{}", self.constructors[0])?;
+        for cons in self.constructors.iter().skip(1) {
+            writeln!(f, ",")?;
+            write_indent(f, 1)?;
+            write!(f, "{cons}")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for ConstructorDefinition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{} {}", self.id.0, self.argument)
+    }
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Int => write!(f, "Int"),
+            Type::ADT(id) => write!(f, "{}", id.0),
+            Type::Tuple(tuple_type) => write!(f, "{tuple_type}")
+        }
+    }
+}
+
+impl Display for TupleType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+
+        let mut iter = self.0.iter();
+        if let Some(t) = iter.next() {
+            write!(f, "{t}")?;
+        }
+
+        for t in iter {
+            write!(f, ", {t}")?;
+        }
+
+        write!(f, ")")
+    }
+}
+
+impl Display for FunctionDefinition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        todo!()
+    }
 }
