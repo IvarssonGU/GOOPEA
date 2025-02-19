@@ -7,9 +7,9 @@ lalrpop_mod!(pub grammar);
 mod lexer;
 
 fn main() {
-    let program = grammar::ProgramParser::new()
-        .parse("enum Hej = A (Int, ((Int), A, ()))")
-        .unwrap();
+    let code = "enum Hej = A (Int, ((Int), A, ()))\n(Int, Int): ()\ntest (a, b) =";
+
+    let program = grammar::ProgramParser::new().parse(code).unwrap();
     println!("{:#?}\n{}", program, program);
 }
 

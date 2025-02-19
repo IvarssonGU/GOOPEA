@@ -46,6 +46,7 @@ pub enum Type {
 pub struct FunctionDefinition {
     pub id: FID,
     pub body: Expression,
+    pub variables: Vec<VID>, // Variables that gets populated by tuple
     pub signature: FunctionSignature
 }
 
@@ -66,6 +67,7 @@ pub enum Expression {
     Tuple(TupleExpression),
     FunctionCall(FID, Box<TupleExpression>),
     Integer(i32),
+    Variable(VID),
     Match(MatchExpression),
     Operation(Operator, Box<Expression>, Box<Expression>)
 }
@@ -98,6 +100,24 @@ fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
     write!(f, "{}", "\t".repeat(indent))
 }
 
+impl Display for VID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Display for FID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Display for AID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl Display for Program {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         for definition in &self.0 {
@@ -120,7 +140,7 @@ impl Display for Definition {
 
 impl Display for ADTDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "enum {} = \n", self.id.0)?;
+        write!(f, "enum {} = \n", self.id)?;
         write_indent(f, 1)?;
 
         write!(f, "{}", self.constructors[0])?;
@@ -136,7 +156,7 @@ impl Display for ADTDefinition {
 
 impl Display for ConstructorDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} {}", self.id.0, self.argument)
+        write!(f, "{} {}", self.id, self.argument)
     }
 }
 
@@ -144,31 +164,74 @@ impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Int => write!(f, "Int"),
-            Type::ADT(id) => write!(f, "{}", id.0),
+            Type::ADT(id) => write!(f, "{}", id),
             Type::Tuple(tuple_type) => write!(f, "{tuple_type}")
         }
     }
 }
 
+fn write_tuple<T: Display>(f: &mut Formatter<'_>, elements: &Vec<T>) -> std::fmt::Result {
+    write!(f, "(")?;
+
+    let mut iter = elements.iter();
+    if let Some(t) = iter.next() {
+        write!(f, "{t}")?;
+    }
+
+    for t in iter {
+        write!(f, ", {t}")?;
+    }
+
+    write!(f, ")")
+}
+
 impl Display for TupleType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(")?;
-
-        let mut iter = self.0.iter();
-        if let Some(t) = iter.next() {
-            write!(f, "{t}")?;
-        }
-
-        for t in iter {
-            write!(f, ", {t}")?;
-        }
-
-        write!(f, ")")
+        write_tuple(f, &self.0)
     }
 }
 
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        todo!()
+        writeln!(f, "{}", self.signature)?;
+        write!(f, "{} ", self.id)?;
+        write_tuple(f, &self.variables)?;
+        writeln!(f, " =")?;
+
+        write_expression(f, &self.body, 1);
+        writeln!(f)
+    }
+}
+
+impl Display for FunctionSignature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.is_fip { write!(f, "fip ")?; }
+
+        write!(f, "{}: {}", self.argument_type, self.result_type)
+    }
+}
+
+fn write_expression(f: &mut Formatter, expression: &Expression, indent: usize) -> std::fmt::Result {
+    write_indent(f, indent)?;
+
+    match expression {
+        Expression::Integer(x) => write!(f, "{x}"),
+        Expression::Variable(id) => write!(f, "{id}"),
+        Expression::Tuple(tuple) => {
+            writeln!(f, "(")?;
+
+            let mut iter = tuple.0.iter();
+            if let Some(e) = iter.next() {
+                write_expression(f, e, indent+1)?;
+            }
+        
+            for e in iter {
+                writeln!(f, ",")?;
+                write_expression(f, e, indent+1)?;
+            }
+
+            writeln!(f, ")")
+        }
+        _ => todo!()
     }
 }
