@@ -13,6 +13,15 @@ Definition: Definition = {
         let mut constructors = vec![first];
         constructors.extend(rest.into_iter());
         Definition::ADTDefinition(ADTDefinition { id: AID(id.to_string()), constructors })
+    },
+
+    <signature: FunctionSignature> <id: Identifier> <variables: TuplePattern> Equals => {
+        Definition::FunctionDefinition(FunctionDefinition {
+            id: FID(id.to_string()),
+            variables,
+            signature,
+            body: Expression::Integer(1)
+        })
     }
 }
 
@@ -24,7 +33,6 @@ Type: Type = {
     Identifier => Type::ADT(AID(<>.to_string())),
     TupleType => Type::Tuple(<>),
     "Int" => Type::Int
-
 }
 
 TupleType: TupleType = {
@@ -40,4 +48,12 @@ FunctionSignature: FunctionSignature = {
     }
 }
 
+TuplePattern: Vec<VID> = {
+    "(" <mut others: (<Identifier> ",")*> <last: Identifier?> ")" => {
+        if let Some(last) = last { others.push(last); }
+        others.into_iter().map(|x| VID(x.to_string())).collect::<Vec<_>>()
+    }
+}
+
 Identifier: &'input str = r"[[:alpha:]]\w*"  => <>;
+Equals: () = "=" => ();
