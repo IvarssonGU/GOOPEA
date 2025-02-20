@@ -14,16 +14,16 @@ AID: AID = r"[A-Z]\w*"  => AID(<>.to_string());
 FID: FID = r"[A-Z]\w*"  => FID(<>.to_string());
 
 Definition: Definition = {
-    "enum" <id: AID> "=" <first: Constructor> <rest: ("," <Constructor>)*> ","? => {
+    "enum" <id: AID> "=" <first: Constructor> <rest: ("," <Constructor>)*> => {
         let mut constructors = vec![first];
         constructors.extend(rest.into_iter());
         Definition::ADTDefinition(ADTDefinition { id, constructors })
     },
 
-    <signature: FunctionSignature> <id: FID> <variables: TuplePattern> Equals <body: Expression> => {
+    <signature: FunctionSignature> <id: FID> <variable: VID> Equals <body: Expression> => {
         Definition::FunctionDefinition(FunctionDefinition {
             id,
-            variables,
+            variable,
             signature,
             body
         })
@@ -31,7 +31,7 @@ Definition: Definition = {
 }
 
 Constructor: ConstructorDefinition = {
-    <id: FID> <argument: TupleType> => ConstructorDefinition { id, argument } 
+    <id: FID> <argument: Type> => ConstructorDefinition { id, argument } 
 }
 
 Type: Type = {
@@ -48,7 +48,7 @@ TupleType: TupleType = {
 }
 
 FunctionSignature: FunctionSignature = {
-    <fip: "fip"?> <argument_type: TupleType> ":" <result_type: Type> => {
+    <fip: "fip"?> <argument_type: Type> ":" <result_type: Type> => {
         FunctionSignature { is_fip: fip.is_some(), argument_type, result_type }
     }
 }
@@ -85,10 +85,13 @@ Expression: Expression = {
     <e1: Expression> "<" <e2: Expression> => Expression::Operation(Operator::Less, Box::new(e1), Box::new(e2)),
     <e1: Expression> "<=" <e2: Expression> => Expression::Operation(Operator::LessOrEqual, Box::new(e1), Box::new(e2)),
 
-    /*#[precedence(level="5")]
-    "match" <variable: VID> <cases: MatchCase+> => {
-        Expression::Match(MatchExpression { variable, cases })
-    }*/
+    #[precedence(level="5")]
+    "match" <variable: VID> "{" <cases: MatchCase+> "}" => {
+        Expression::ADTMatch(ADTMatchExpression { variable, cases })
+    },
+
+    "match" <match_var: VID> <pattern_vars: TuplePattern> ":" <body: Expression> => 
+        Expression::TupleMatch(TupleMatchExpression { match_var, pattern_vars, body: Box::new(body) })
 }
 
 /*
@@ -104,16 +107,18 @@ amb () = match x
 // OR IS IT
 
 ():()
-amb () = match x
+amb () = match x {
             A (): ...
-            B (): match y 
+            B (): match y {
                 C (): ...
+            },
             D (): ...
+        }
 
 */
 
-MatchCase: MatchCase = {
-    <cons_id: FID> <vars: TuplePattern> ":" <body: Expression> => MatchCase { cons_id, vars, body }
+MatchCase: ADTMatchCase = {
+    <cons_id: FID> <var: VID> ":" <body: Expression> => ADTMatchCase { cons_id, var, body }
 }
 
 TupleExpression: TupleExpression = {
