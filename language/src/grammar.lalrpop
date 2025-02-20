@@ -9,7 +9,7 @@ pub Program: Program = {
     Definition* => Program(<>)
 }
 
-VID: VID = r"[a-z]\w*"  => VID(<>.to_string());
+VID: VID = r"_|[a-z]\w*"  => VID(<>.to_string());
 AID: AID = r"[A-Z]\w*"  => AID(<>.to_string());
 FID: FID = r"[A-Z]\w*"  => FID(<>.to_string());
 
@@ -93,29 +93,6 @@ Expression: Expression = {
     "match" <match_var: VID> <pattern_vars: TuplePattern> ":" <body: Expression> => 
         Expression::TupleMatch(TupleMatchExpression { match_var, pattern_vars, body: Box::new(body) })
 }
-
-/*
-//Ambiguity without brackets or tabs
-
-():()
-amb () = match x
-            A (): ...
-            B (): match y 
-                C (): ...
-                D (): ...
-
-// OR IS IT
-
-():()
-amb () = match x {
-            A (): ...
-            B (): match y {
-                C (): ...
-            },
-            D (): ...
-        }
-
-*/
 
 MatchCase: ADTMatchCase = {
     <cons_id: FID> <var: VID> ":" <body: Expression> => ADTMatchCase { cons_id, var, body }

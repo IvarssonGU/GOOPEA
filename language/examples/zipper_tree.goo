@@ -1,0 +1,29 @@
+enum Tree = 
+    Bin (Tree, Tree),
+    Tip Int
+
+enum TZipper = 
+    Top (),
+    BinL (TZipper, TZipper),
+    BinR (TZipper, TZipper)
+
+fip (Tree, TZipper): Tree
+Down vars = match vars (t, ctx):
+    match t {
+        Bin subtrees: match subtrees (l, r):
+            Down(l, BinL (ctx, r))
+        Tip x: App(Tip (x + 1), ctx)
+    }
+
+fip (Tree, TZipper): Tree
+App vars = match vars (t, ctx):
+    match ctx {
+        Top _: t
+        BinR vars: match vars (l, up):
+            App(Bin (l, t), up)
+        BinL vars: match vars (up, r):
+            Down(r, BinR (t, up))
+    }
+
+fip Tree: Tree
+TMap t = Down(t, Top ())

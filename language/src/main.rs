@@ -15,6 +15,26 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+    use std::fs;
+    use crate::ast::Program;
+    use crate::grammar;
+
+    fn parse_example(path: &Path) -> Program {
+        let code = fs::read_to_string(path).unwrap();
+        grammar::ProgramParser::new().parse(&code).unwrap()
+    }
+
+    #[test]
+    fn parse_reverse() {
+        parse_example(Path::new("examples/reverse.goo"));
+    }
+
+    #[test]
+    fn parse_zipper_tree() {
+        parse_example(Path::new("examples/zipper_tree.goo"));
+    }
+
     use crate::lexer::lexer;
     
     #[test]
