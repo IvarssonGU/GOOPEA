@@ -74,7 +74,7 @@ pub enum Expression {
 
 #[derive(Debug, Clone)]
 pub enum Operator {
-    Equal, NotEqual, Less, LessOrEq, Greater, GreaterOrEqual,
+    Equal, NotEqual, Less, LessOrEqual, Greater, GreaterOrEqual,
     Add, Sub, Mul, Div 
 }
 
@@ -91,13 +91,15 @@ pub struct MatchExpression {
 // A case in a match statement
 #[derive(Debug, Clone)]
 pub struct MatchCase {
-    pub constructor_id: FID,
-    pub variables: Vec<VID>, // Variables that gets populated by tuple
+    pub cons_id: FID,
+    pub vars: Vec<VID>, // Variables that gets populated by tuple
     pub body: Expression // Code to execute if the case matches
 }
 
+// ====== Pretty Print Code ======
+
 fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
-    write!(f, "{}", "\t".repeat(indent))
+    write!(f, "{}", "    ".repeat(indent))
 }
 
 impl Display for VID {
@@ -198,7 +200,8 @@ impl Display for FunctionDefinition {
         write_tuple(f, &self.variables)?;
         writeln!(f, " =")?;
 
-        write_expression(f, &self.body, 1);
+        write_indent(f, 1)?;
+        write_expression(f, &self.body, 1)?;
         writeln!(f)
     }
 }
@@ -211,27 +214,99 @@ impl Display for FunctionSignature {
     }
 }
 
-fn write_expression(f: &mut Formatter, expression: &Expression, indent: usize) -> std::fmt::Result {
-    write_indent(f, indent)?;
+fn expression_size(expression: &Expression) -> usize {
+    match expression {
+        Expression::Integer(x) => x.to_string().len(),
+        Expression::Variable(vid) => vid.0.len(),
+        Expression::FunctionCall(fid, expr) => fid.0.len() + 1 + tuple_expression_size(expr),
+        Expression::Tuple(expr) => tuple_expression_size(expr),
+        Expression::Operation(op, e1, e2) => {
+            let op_size = match op {
+                Operator::GreaterOrEqual|Operator::LessOrEqual|Operator::Equal|Operator::NotEqual => 2,
+                _ => 1
+            };
 
+            op_size + expression_size(e1) + expression_size(e2)
+        },
+        _ => todo!()
+    }
+}
+
+fn tuple_expression_size(expression: &TupleExpression) -> usize {
+    2 + 2 * (expression.0.len() - 1) + expression.0.iter().map(|x| expression_size(x)).sum::<usize>()
+}
+
+const MAX_EXPRESSION_SIZE: usize = 20;
+fn write_expression(f: &mut Formatter, expression: &Expression, indent: usize) -> std::fmt::Result {
     match expression {
         Expression::Integer(x) => write!(f, "{x}"),
         Expression::Variable(id) => write!(f, "{id}"),
-        Expression::Tuple(tuple) => {
-            writeln!(f, "(")?;
+        Expression::Tuple(tuple) => write_tuple_expression(f, tuple, indent),
+        Expression::FunctionCall(id, arg) => {
+            write!(f, "{id} ")?;
+            write_tuple_expression(f, arg, indent)
+        },
+        Expression::Operation(op, e1, e2) => {
+            let symbol = match op {
+                Operator::Add => "+",
+                Operator::Sub => "-",
+                Operator::Div => "/",
+                Operator::Mul => "*",
+                Operator::Greater => ">",
+                Operator::GreaterOrEqual => ">=",
+                Operator::Less => "<",
+                Operator::LessOrEqual => "<=",
+                Operator::Equal => "==",
+                Operator::NotEqual => "!="
+            };
 
-            let mut iter = tuple.0.iter();
-            if let Some(e) = iter.next() {
-                write_expression(f, e, indent+1)?;
+            if expression_size(expression) > MAX_EXPRESSION_SIZE {
+                write_expression(f, e1, indent)?;
+                writeln!(f, " {symbol}")?;
+                write_indent(f, indent)?;
+                write_expression(f, e2, indent)
+            } else {
+                write_expression(f, e1, indent)?;
+                write!(f, " {} ", symbol)?;
+                write_expression(f, e2, indent)
             }
-        
-            for e in iter {
-                writeln!(f, ",")?;
-                write_expression(f, e, indent+1)?;
-            }
-
-            writeln!(f, ")")
-        }
+        },
         _ => todo!()
+    }
+}
+
+fn write_tuple_expression(f: &mut Formatter, tuple: &TupleExpression, indent: usize) -> std::fmt::Result {
+    if tuple_expression_size(tuple) > MAX_EXPRESSION_SIZE {
+        writeln!(f, "(")?;
+
+        let mut iter = tuple.0.iter();
+        if let Some(e) = iter.next() {
+            write_indent(f, indent+1)?;
+            write_expression(f, e, indent+1)?;
+        }
+
+        for e in iter {
+            writeln!(f, ",")?;
+            write_indent(f, indent+1)?;
+            write_expression(f, e, indent+1)?;
+        }
+
+        writeln!(f)?;
+        write_indent(f, indent)?;
+        write!(f, ")")
+    } else {
+        write!(f, "(")?;
+
+        let mut iter = tuple.0.iter();
+        if let Some(e) = iter.next() {
+            write_expression(f, e, indent+1)?;
+        }
+
+        for e in iter {
+            write!(f, ", ")?;
+            write_expression(f, e, indent+1)?;
+        }
+
+        write!(f, ")")
     }
 }

@@ -1,4 +1,5 @@
 use crate::ast::*;
+use std::str::FromStr;
 
 grammar;
 
@@ -8,29 +9,33 @@ pub Program: Program = {
     Definition* => Program(<>)
 }
 
+VID: VID = r"[a-z]\w*"  => VID(<>.to_string());
+AID: AID = r"[A-Z]\w*"  => AID(<>.to_string());
+FID: FID = r"[A-Z]\w*"  => FID(<>.to_string());
+
 Definition: Definition = {
-    "enum" <id: Identifier> "=" <first: Constructor> <rest: ("," <Constructor>)*> ","? => {
+    "enum" <id: AID> "=" <first: Constructor> <rest: ("," <Constructor>)*> ","? => {
         let mut constructors = vec![first];
         constructors.extend(rest.into_iter());
-        Definition::ADTDefinition(ADTDefinition { id: AID(id.to_string()), constructors })
+        Definition::ADTDefinition(ADTDefinition { id, constructors })
     },
 
-    <signature: FunctionSignature> <id: Identifier> <variables: TuplePattern> Equals => {
+    <signature: FunctionSignature> <id: FID> <variables: TuplePattern> Equals <body: Expression> => {
         Definition::FunctionDefinition(FunctionDefinition {
-            id: FID(id.to_string()),
+            id,
             variables,
             signature,
-            body: Expression::Integer(1)
+            body
         })
     }
 }
 
 Constructor: ConstructorDefinition = {
-    <id: Identifier> <argument: TupleType> => ConstructorDefinition { id: FID(id.to_string()), argument } 
+    <id: FID> <argument: TupleType> => ConstructorDefinition { id, argument } 
 }
 
 Type: Type = {
-    Identifier => Type::ADT(AID(<>.to_string())),
+    AID => Type::ADT(<>),
     TupleType => Type::Tuple(<>),
     "Int" => Type::Int
 }
@@ -49,11 +54,74 @@ FunctionSignature: FunctionSignature = {
 }
 
 TuplePattern: Vec<VID> = {
-    "(" <mut others: (<Identifier> ",")*> <last: Identifier?> ")" => {
+    "(" <mut others: (<VID> ",")*> <last: VID?> ")" => {
         if let Some(last) = last { others.push(last); }
-        others.into_iter().map(|x| VID(x.to_string())).collect::<Vec<_>>()
+        others
     }
 }
 
-Identifier: &'input str = r"[[:alpha:]]\w*"  => <>;
+Expression: Expression = {
+    #[precedence(level="0")]
+    VID => Expression::Variable(<>),
+    Number => Expression::Integer(<>),
+    TupleExpression => Expression::Tuple(<>),
+
+    #[precedence(level="1")]
+    <id: FID> <arg: TupleExpression> => Expression::FunctionCall(id, Box::new(arg)),
+
+    #[precedence(level="2")] #[assoc(side="left")]
+    <e1: Expression> "*" <e2: Expression> => Expression::Operation(Operator::Mul, Box::new(e1), Box::new(e2)),
+    <e1: Expression> "/" <e2: Expression> => Expression::Operation(Operator::Div, Box::new(e1), Box::new(e2)),
+
+    #[precedence(level="3")] #[assoc(side="left")]
+    <e1: Expression> "+" <e2: Expression> => Expression::Operation(Operator::Add, Box::new(e1), Box::new(e2)),
+    <e1: Expression> "-" <e2: Expression> => Expression::Operation(Operator::Sub, Box::new(e1), Box::new(e2)),
+
+    #[precedence(level="4")] #[assoc(side="left")]
+    <e1: Expression> "==" <e2: Expression> => Expression::Operation(Operator::Equal, Box::new(e1), Box::new(e2)),
+    <e1: Expression> "!=" <e2: Expression> => Expression::Operation(Operator::NotEqual, Box::new(e1), Box::new(e2)),
+    <e1: Expression> ">" <e2: Expression> => Expression::Operation(Operator::Greater, Box::new(e1), Box::new(e2)),
+    <e1: Expression> ">=" <e2: Expression> => Expression::Operation(Operator::GreaterOrEqual, Box::new(e1), Box::new(e2)),
+    <e1: Expression> "<" <e2: Expression> => Expression::Operation(Operator::Less, Box::new(e1), Box::new(e2)),
+    <e1: Expression> "<=" <e2: Expression> => Expression::Operation(Operator::LessOrEqual, Box::new(e1), Box::new(e2)),
+
+    /*#[precedence(level="5")]
+    "match" <variable: VID> <cases: MatchCase+> => {
+        Expression::Match(MatchExpression { variable, cases })
+    }*/
+}
+
+/*
+//Ambiguity without brackets or tabs
+
+():()
+amb () = match x
+            A (): ...
+            B (): match y 
+                C (): ...
+                D (): ...
+
+// OR IS IT
+
+():()
+amb () = match x
+            A (): ...
+            B (): match y 
+                C (): ...
+            D (): ...
+
+*/
+
+MatchCase: MatchCase = {
+    <cons_id: FID> <vars: TuplePattern> ":" <body: Expression> => MatchCase { cons_id, vars, body }
+}
+
+TupleExpression: TupleExpression = {
+    "(" <mut others: (<Expression> ",")*> <last: Expression?> ")" => {
+        if let Some(last) = last { others.push(last); }
+        TupleExpression(others)
+    }
+}
+
+Number: i32 = r"(\+|-)?[0-9]+" => i32::from_str(<>).unwrap();
 Equals: () = "=" => ();
