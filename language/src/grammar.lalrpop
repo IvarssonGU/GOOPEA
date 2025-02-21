@@ -1,29 +1,54 @@
 use crate::ast::*;
-use std::str::FromStr;
+use crate::lexer::{Token, LexicalError};
 
 grammar;
 
-identifier = r"";
+extern {
+    type Location = usize;
+    type Error = LexicalError;
+
+    enum Token {
+        "id" => Token::Identifier(<String>),
+        "int" => Token::Integer(<i64>),
+        "(" => Token::LParen,
+        ")" => Token::RParen,
+        "{" => Token::LBrace,
+        "}" => Token::RBrace,
+        ":" => Token::Colon,
+        "," => Token::Comma,
+        "=" => Token::Equal,
+        "_" => Token::Wildcard,
+        "fip" => Token::Fip,
+        "match" => Token::Match,
+        "enum" => Token::Enum,
+        "+-" => Token::PlusMinus(<String>),
+        "*/" => Token::MultiplyDivide(<String>),
+        "cmp" => Token::Comparator(<String>),
+        ";" => Token::EOL
+    }
+}
 
 pub Program: Program = {
     Definition* => Program(<>)
 }
 
-VID: VID = r"_|[a-z]\w*"  => VID(<>.to_string());
-AID: AID = r"[A-Z]\w*"  => AID(<>.to_string());
-FID: FID = r"[A-Z]\w*"  => FID(<>.to_string());
+#[inline]
+Pattern: Option<String> = {
+    "id" => Some(<>),
+    "_" => None
+}
 
 Definition: Definition = {
-    "enum" <id: AID> "=" <first: Constructor> <rest: ("," <Constructor>)*> => {
+    "enum" <id: "id"> "=" <first: Constructor> <rest: ("," <Constructor>)*> ";" => {
         let mut constructors = vec![first];
         constructors.extend(rest.into_iter());
         Definition::ADTDefinition(ADTDefinition { id, constructors })
     },
 
-    <signature: FunctionSignature> <id: FID> <variable: VID> Equals <body: Expression> => {
+    <signature: FunctionSignature> <id: "id"> <variable: Pattern> "=" <body: Expression> ";" => {
         Definition::FunctionDefinition(FunctionDefinition {
             id,
-            variable,
+            variable: variable.unwrap_or_else(|| generate_wildcard_vid()),
             signature,
             body
         })
@@ -31,13 +56,15 @@ Definition: Definition = {
 }
 
 Constructor: ConstructorDefinition = {
-    <id: FID> <argument: Type> => ConstructorDefinition { id, argument } 
+    <id: "id"> <argument: Type> => ConstructorDefinition { id, argument } 
 }
 
 Type: Type = {
-    AID => Type::ADT(<>),
+    "id" => {
+        if <> == "Int" { Type::Int }
+        else { Type::ADT(<>) }
+    },
     TupleType => Type::Tuple(<>),
-    "Int" => Type::Int
 }
 
 TupleType: TupleType = {
@@ -47,6 +74,7 @@ TupleType: TupleType = {
     }
 }
 
+#[inline]
 FunctionSignature: FunctionSignature = {
     <fip: "fip"?> <argument_type: Type> ":" <result_type: Type> => {
         FunctionSignature { is_fip: fip.is_some(), argument_type, result_type }
@@ -54,7 +82,7 @@ FunctionSignature: FunctionSignature = {
 }
 
 TuplePattern: Vec<VID> = {
-    "(" <mut others: (<VID> ",")*> <last: VID?> ")" => {
+    "(" <mut others: (<"id"> ",")*> <last: "id"?> ")" => {
         if let Some(last) = last { others.push(last); }
         others
     }
@@ -62,48 +90,77 @@ TuplePattern: Vec<VID> = {
 
 Expression: Expression = {
     #[precedence(level="0")]
-    VID => Expression::Variable(<>),
-    Number => Expression::Integer(<>),
+    "id" => Expression::Variable(<>),
+    "int" => Expression::Integer(<>),
     TupleExpression => Expression::Tuple(<>),
 
     #[precedence(level="1")]
-    <id: FID> <arg: TupleExpression> => Expression::FunctionCall(id, Box::new(arg)),
+    <id: "id"> <arg: Expression> => Expression::FunctionCall(id, Box::new(arg)),
 
     #[precedence(level="2")] #[assoc(side="left")]
-    <e1: Expression> "*" <e2: Expression> => Expression::Operation(Operator::Mul, Box::new(e1), Box::new(e2)),
-    <e1: Expression> "/" <e2: Expression> => Expression::Operation(Operator::Div, Box::new(e1), Box::new(e2)),
+    <e1: Expression> <op: "*/"> <e2: Expression> => {
+        Expression::Operation(
+            if op == "*" { Operator::Mul } else { Operator::Div }, 
+            Box::new(e1), 
+            Box::new(e2)
+        )
+    },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <e1: Expression> "+" <e2: Expression> => Expression::Operation(Operator::Add, Box::new(e1), Box::new(e2)),
-    <e1: Expression> "-" <e2: Expression> => Expression::Operation(Operator::Sub, Box::new(e1), Box::new(e2)),
+    <e1: Expression> <op: "+-"> <e2: Expression> => {
+        Expression::Operation(
+            if op == "+" { Operator::Add } else { Operator::Sub }, 
+            Box::new(e1), 
+            Box::new(e2)
+        )
+    },
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <e1: Expression> "==" <e2: Expression> => Expression::Operation(Operator::Equal, Box::new(e1), Box::new(e2)),
-    <e1: Expression> "!=" <e2: Expression> => Expression::Operation(Operator::NotEqual, Box::new(e1), Box::new(e2)),
-    <e1: Expression> ">" <e2: Expression> => Expression::Operation(Operator::Greater, Box::new(e1), Box::new(e2)),
-    <e1: Expression> ">=" <e2: Expression> => Expression::Operation(Operator::GreaterOrEqual, Box::new(e1), Box::new(e2)),
-    <e1: Expression> "<" <e2: Expression> => Expression::Operation(Operator::Less, Box::new(e1), Box::new(e2)),
-    <e1: Expression> "<=" <e2: Expression> => Expression::Operation(Operator::LessOrEqual, Box::new(e1), Box::new(e2)),
+    <e1: Expression> <op: "cmp"> <e2: Expression> => {
+        let operation = match op.as_str() {
+            "==" => Operator::Equal,
+            "!=" => Operator::NotEqual,
+            "<" => Operator::Less,
+            "<=" => Operator::LessOrEqual,
+            ">" => Operator::Greater,
+            ">=" => Operator::GreaterOrEqual,
+            _ => panic!("???")
+        };
+
+        Expression::Operation(operation, Box::new(e1), Box::new(e2))
+    },
 
     #[precedence(level="5")]
-    "match" <variable: VID> "{" <cases: MatchCase+> "}" => {
+    "match" <variable: "id"> "{" <cases: MatchCases> "}" => {
         Expression::ADTMatch(ADTMatchExpression { variable, cases })
     },
 
-    "match" <match_var: VID> <pattern_vars: TuplePattern> ":" <body: Expression> => 
+    "match" <match_var: "id"> <pattern_vars: TuplePattern> ":" <body: Expression> => 
         Expression::TupleMatch(TupleMatchExpression { match_var, pattern_vars, body: Box::new(body) })
 }
 
-MatchCase: ADTMatchCase = {
-    <cons_id: FID> <var: VID> ":" <body: Expression> => ADTMatchCase { cons_id, var, body }
+#[inline]
+MatchCases: Vec<ADTMatchCase> = {
+    <first: MatchCase> <rest: ("," <MatchCase>)*> => {
+        let mut cases = vec![first];
+        cases.extend(rest);
+        cases
+    }
 }
 
+#[inline]
+MatchCase: ADTMatchCase = {
+    <cons_id: "id"> <var: Pattern> ":" <body: Expression> => ADTMatchCase { 
+        cons_id, 
+        var: var.unwrap_or_else(|| generate_wildcard_vid()),
+        body 
+    }
+}
+
+#[inline]
 TupleExpression: TupleExpression = {
     "(" <mut others: (<Expression> ",")*> <last: Expression?> ")" => {
         if let Some(last) = last { others.push(last); }
         TupleExpression(others)
     }
 }
-
-Number: i32 = r"(\+|-)?[0-9]+" => i32::from_str(<>).unwrap();
-Equals: () = "=" => ();

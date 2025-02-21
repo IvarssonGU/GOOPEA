@@ -1,4 +1,7 @@
+#![feature(formatting_options)]
+
 use lalrpop_util::lalrpop_mod;
+use lexer::Lexer;
 
 mod ast;
 
@@ -7,9 +10,9 @@ lalrpop_mod!(pub grammar);
 mod lexer;
 
 fn main() {
-    let code = "enum Hej = A (Int, ((Int), A, ()))\nfip (Int, Int): ()\nTest vars = match a (x, y): x";
+    let code = "enum Hej = A (Int, ((Int), A, ()));\nfip (Int, Int): ()\nTest vars = match a (x, y): (RunLong 1);";
 
-    let program = grammar::ProgramParser::new().parse(code).unwrap();
+    let program = grammar::ProgramParser::new().parse(Lexer::new(code)).unwrap();
     println!("{:#?}\n{}", program, program);
 }
 
@@ -22,7 +25,7 @@ mod tests {
 
     fn parse_example(path: &Path) -> Program {
         let code = fs::read_to_string(path).unwrap();
-        grammar::ProgramParser::new().parse(&code).unwrap()
+        grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap()
     }
 
     #[test]
@@ -35,7 +38,7 @@ mod tests {
         parse_example(Path::new("examples/zipper_tree.goo"));
     }
 
-    use crate::lexer::lexer;
+    use crate::lexer::{lexer, Lexer};
     
     fn lexer_test(file: &Path) -> usize {
         let src = std::fs::read_to_string(file).unwrap();
@@ -48,11 +51,11 @@ mod tests {
 
     #[test]
     fn lexer_test_reverse() {
-        assert_eq!(lexer_test(Path::new("examples/reverse.goo")), 77)
+        assert_eq!(lexer_test(Path::new("examples/reverse.goo")), 81)
     }
 
     #[test]
     fn lexer_test_zipper_tree() {
-        assert_eq!(lexer_test(Path::new("examples/zipper_tree.goo")), 177)
+        assert_eq!(lexer_test(Path::new("examples/zipper_tree.goo")), 185)
     }
 }
