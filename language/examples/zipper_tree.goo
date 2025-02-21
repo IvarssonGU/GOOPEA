@@ -1,17 +1,24 @@
+// this is a test file
 enum Tree = 
     Bin (Tree, Tree),
     Tip Int
 
+    //
 enum TZipper = 
-    Top (),
+    Top (),                 
     BinL (TZipper, TZipper),
     BinR (TZipper, TZipper)
 
+//
+// multiline
+// comment
+//
+
 fip (Tree, TZipper): Tree
-Down vars = match vars (t, ctx):
+Down vars = match vars (t, ctx):    
     match t {
         Bin subtrees: match subtrees (l, r):
-            Down(l, BinL (ctx, r))
+            Down(l, BinL (ctx, r)) //Down comment
         Tip x: App(Tip (x + 1), ctx)
     }
 
