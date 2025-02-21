@@ -19,7 +19,10 @@ mod tests {
     
     #[test]
     fn lexer_test() {
-        let tokens = lexer("1()");
-        println!("{:?}", tokens);
+        let src = std::fs::read_to_string("src/testsyntax.txt").unwrap();
+        let tokens = lexer(src.as_str());
+        tokens.iter().for_each(|token| println!("{:#?}", token));
+        
+        assert_eq!(tokens.len(), 107);
     }
 }

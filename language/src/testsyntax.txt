@@ -1,0 +1,20 @@
+enum IntList = Nil | Cons IntList Int
+
+(IntList, IntList) -> IntList
+fip reverse_helper arr acc = match arr
+            Nil => acc,
+            Cons xs x => reverse_helper (Cons acc x) xs
+    
+IntList -> IntList
+fip reverse arr => reverse_helper arr Nil
+
+IntList -> String
+show_list_helper arr = match arr
+    Nil => "]",
+    Cons xs x => (int_to_string x) + ", " + (show_list_helper xs)
+
+IntList -> String
+show_list arr = "[" + show_list_helper(arr)
+
+() -> ()
+main = println(show_list_helper(reverse(Cons (Cons Nil 1) 2)))
