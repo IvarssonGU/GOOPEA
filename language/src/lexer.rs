@@ -18,9 +18,6 @@ impl From<ParseIntError> for LexicalError {
 #[logos(skip r"[ \t\n\f]+", skip r"#.*\n?", error = LexicalError)]
 // #[logos(error = String)]
 pub enum Token {
-    #[token("()")]
-    Unit,
-
     #[token("(")]
     LParen,
     #[token(")")]
@@ -35,24 +32,31 @@ pub enum Token {
     RBrace,
     #[token(":")]
     Colon,
-    #[token("=>")]
-    ThickArrow,
     #[token(",")]
     Comma,
     #[token("=")]
     Equal,
-    #[token("+")]
-    Plus,
+    #[token("_", priority = 3)]
+    Wildcard,
+
+    #[token("fip")]
+    Fip,
+    #[token("match")]
+    Match,
+    #[token("enum")]
+    Enum,
+
+    #[regex("[+-]", |lex| lex.slice().to_string())]
+    PlusMinus(String),
+    #[regex("[*/]", |lex| lex.slice().to_string())]
+    MultiplyDivide(String),
+    #[regex("<|>|<=|>=|==|!=", |lex| lex.slice().to_string())]
+    Comparator(String),
 
     #[regex("[1-9][0-9]*", |lex| lex.slice().parse())]
     Integer(i64),
-
-    #[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| lex.slice().to_owned())]
-    String(String),
-
-    #[regex("fip|enum|match", |lex| lex.slice().to_owned())]
-    Keyword(String),
-
+    // #[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| lex.slice().to_owned())]
+    // String(String),
     #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
     Identifier(String),
 }

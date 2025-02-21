@@ -37,12 +37,22 @@ mod tests {
 
     use crate::lexer::lexer;
     
-    #[test]
-    fn lexer_test() {
-        let src = std::fs::read_to_string("src/testsyntax.txt").unwrap();
+    fn lexer_test(file: &Path) -> usize {
+        let src = std::fs::read_to_string(file).unwrap();
         let tokens = lexer(src.as_str());
+
         tokens.iter().for_each(|token| println!("{:#?}", token));
         
-        assert_eq!(tokens.len(), 107);
+        tokens.len()
+    }
+
+    #[test]
+    fn lexer_test_reverse() {
+        assert_eq!(lexer_test(Path::new("examples/reverse.goo")), 77)
+    }
+
+    #[test]
+    fn lexer_test_zipper_tree() {
+        assert_eq!(lexer_test(Path::new("examples/zipper_tree.goo")), 177)
     }
 }
