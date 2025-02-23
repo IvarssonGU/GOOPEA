@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display, Formatter, Result};
 
 // A program consists of a list of definitions
 #[derive(Debug, Clone)]
@@ -45,6 +45,7 @@ pub enum Type {
 #[derive(Debug, Clone)]
 pub struct FunctionDefinition {
     pub id: FID,
+    pub args: Vec<String>,
     pub body: Expression,
     pub signature: FunctionSignature
 }
@@ -64,10 +65,12 @@ pub struct FunctionSignature {
 #[derive(Debug, Clone)]
 pub enum Expression {
     Tuple(TupleExpression),
-    FunctionCall(FID, Box<TupleExpression>),
+    FunctionCall(FID, TupleExpression),
+    Identifier(VID),
     Integer(i32),
     Match(MatchExpression),
-    Operation(Operator, Box<Expression>, Box<Expression>)
+    Operation(Operator, Box<Expression>, Box<Expression>),
+    Constructor(FID, Vec<Expression>)
 }
 
 #[derive(Debug, Clone)]
@@ -82,16 +85,23 @@ pub struct TupleExpression(pub Vec<Expression>);
 
 #[derive(Debug, Clone)]
 pub struct MatchExpression {
-    pub variable: VID, // What to match on
+    pub exp: Box<Expression>, // What to match on
     pub cases: Vec<MatchCase>
 }
 
 // A case in a match statement
 #[derive(Debug, Clone)]
 pub struct MatchCase {
-    pub constructor_id: FID,
-    pub variables: Vec<VID>, // Variables that gets populated by tuple
-    pub body: Expression // Code to execute if the case matches
+    pub pattern: Pattern,
+    pub body: Expression,
+}
+
+#[derive(Debug, Clone)]
+pub enum Pattern {
+    Identifier(VID),
+    Integer(i32),
+    Wildcard,
+    Constructor(FID, Vec<Pattern>)
 }
 
 fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
@@ -170,5 +180,22 @@ impl Display for TupleType {
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         todo!()
+    }
+}
+
+impl Display for Operator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Operator::Equal => write!(f, "=="),
+            Operator::NotEqual => write!(f, "!="),
+            Operator::Less => write!(f, "<"),
+            Operator::LessOrEq => write!(f, "<="),
+            Operator::Greater => write!(f, ">"),
+            Operator::GreaterOrEqual => write!(f, ">="),
+            Operator::Add => write!(f, "+"),
+            Operator::Sub => write!(f, "-"),
+            Operator::Mul => write!(f, "*"),
+            Operator::Div => write!(f, "/"),
+        }
     }
 }
