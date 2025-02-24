@@ -22,6 +22,7 @@ mod tests {
     use std::fs;
     use crate::ast::Program;
     use crate::grammar;
+    use crate::lexer::{Lexer, Token, lexer};
 
     fn parse_example(path: &Path) -> Program {
         let code = fs::read_to_string(path).unwrap();
@@ -37,13 +38,10 @@ mod tests {
     fn parse_zipper_tree() {
         parse_example(Path::new("examples/zipper_tree.goo"));
     }
-
-    use crate::lexer;
-    use crate::lexer::Token;
     
-    fn lexer_test(file: &Path) -> Vec<lexer::Token> {
+    fn lexer_test(file: &Path) -> Vec<Token> {
         let src = std::fs::read_to_string(file).unwrap();
-        let tokens = lexer::lexer(src.as_str());
+        let tokens = lexer(src.as_str());
 
         tokens.iter().for_each(|token| println!("{:#?}", token));
         
