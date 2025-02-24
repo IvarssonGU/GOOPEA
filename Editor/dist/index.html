@@ -1,12 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CodeMirror 6</title>
-  </head>
-  <body>
-    <div id="editor"></div>
-    <script src="/Editor.e31bb0bc.js"></script>
-  </body>
+<head>
+	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+	<!-- <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.13.4/codemirror.css'> -->
+	<link rel="stylesheet" href="/css.5c396bf7.css">
+
+	<title>GOOPEA playground</title>
+<script src="/css.5c396bf7.js"></script></head>
+<body>
+	<h1>GOOPEA playground</h1>
+
+	<div class="textareas">
+		<table>
+			<tr>
+				<th>Code</th>
+				<th>
+					<button type="button" id="run-button">Run</button>
+				</th>
+			</tr>
+		</table>
+		<!-- <div id="editor"></div> -->
+		<textarea rows="15" cols="50" id="code" name="code" placeholder="write your code here"></textarea>
+	</div>
+	
+	<div class="textareas">
+		<table>
+			<tr>
+				<th>Ouput</th>
+			</tr>
+		</table>
+		<textarea rows="15" cols="50" id="output" name="output" readonly="true" placeholder="your code will output here"></textarea>
+	</div>
+	
+	<!-- <div class="split left">
+		<div class="centered">
+			<table>
+				<tr>
+					<th>Code</th>
+					<th>
+						<button type="button" id="run-button" onclick="run_button_clicked()">Run</button>
+					</th>
+				</tr>
+			</table>
+			<textarea rows="15" cols="50" id="code" name="code" placeholder="write your code here" onchange="save()"></textarea>
+		</div>
+	</div>
+	
+	<div class="split right">
+		<div class="centered">
+			<table>
+				<tr>
+					<th>Ouput</th>
+				</tr>
+			</table>
+			<textarea rows="15" cols="50" id="output" name="output" readonly="true" placeholder="your code will output here"></textarea>
+		</div>
+	</div>  -->
+	
+	
+	<script src="/editor.68c1a03e.js"></script> <!-- "glue code" --> 
+	<script src="/js.ecb796d1.js"></script>
+	<!-- <script src="./index.js"></script> -->
+</body> 	
 </html>
