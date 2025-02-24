@@ -9,7 +9,6 @@ pub struct Compiler {
     cons_map: HashMap<String, u32>,
     data_map: HashMap<String, (String, u32)>,
     var_counter: i32
-
 }
 
 impl Compiler {
@@ -63,7 +62,7 @@ impl Compiler {
                 Type::Int => output.push_str("int "),
                 Type::ADT(id) => {
                     output += &id.0;
-                    output.push(' ');
+                    output.push_str("* " );
                 }
                 _ => todo!(),
             }
@@ -75,7 +74,8 @@ impl Compiler {
         output.push_str(") {");
         self.emit_line(&output.as_str());
         self.indent();
-        self.compile_exp(&fun.body);
+        let result = self.compile_exp(&fun.body);
+        self.emit_line(&format!("return {};", result));
         self.unindent();
         self.emit_line("}");
         return
@@ -89,7 +89,7 @@ impl Compiler {
                 let ((data, constructor_num), tag) = {
                     let data: &(String, u32) = self.data_map.get(cons).unwrap();
                     let tag = self.cons_map.get(cons).unwrap();
-                    (data.clone(), *tag)  // Clone values to avoid holding references
+                    (data.clone(), *tag)
                 };
                 let id = self.get_unique_var_id();
                 self.emit_line(&format!("{}* var{} = malloc(sizeof({}));", data, id, data));
@@ -117,22 +117,74 @@ impl Compiler {
                 format!("{}({});",name, results.join(", "))
             },
             Expression::Match(match_expression) => {
-                let result = self.compile_exp(&match_expression.exp);
-                for case in match_expression.cases.iter() {
-                    
-                }
+                let return_var: String = format!("var{}", self.get_unique_var_id());
+                self.emit_line(&format!("int {};", return_var));
+                let match_exp = self.compile_exp(&match_expression.exp);
+                for (i, case) in match_expression.cases.iter().enumerate() {
+                    let comparison = self.compile_pattern(case.pattern.clone(), match_exp.clone());
+                    let mut branch = "else ";
+                    if i == 0 {
+                        branch = "";
+                    }
+                    self.emit_line(&format!("{}if ({}) {{", branch, comparison));
+                    self.indent();
+                    self.compile_bindings(case.pattern.clone(), match_exp.clone());
 
-                return String::new()
+                    let body: String = self.compile_exp(&case.body);
+                    self.emit_line(&format!("{} = {};", return_var, body));
+                    self.unindent();
+                    self.emit_line("}");
+                }
+                return return_var;
             }
             _ => todo!()
         };
+    }
+
+    fn compile_bindings(&mut self, pattern: Pattern, match_exp: String) {
+        match pattern {
+            Pattern::Identifier(VID(id)) => {
+                self.emit_line(&format!("{} = {};", id, match_exp));
+            }
+            Pattern::Constructor(FID(id),patterns ) => {
+                let tag = self.get_tag(&id);
+                match patterns.as_slice() {
+                    [_pattern] => todo!(),
+                    filled => {
+                        for (i, pattern) in filled.iter().enumerate() {
+                            self.emit_line(&format!("{} = {}->data.constructor_{}.field_{};", Compiler::get_id_from_pattern(pattern), match_exp, tag, i))
+                        }
+                    }
+                }
+            }
+            _ => ()
+        }
+    }
+
+    fn get_id_from_pattern(pattern : &Pattern) -> &String {
+        match pattern {
+            Pattern::Identifier(VID(id)) => id,
+            _ => todo!()
+        }
+    }
+
+    fn compile_pattern(&mut self, pattern: Pattern, result: String) -> String {
+        match pattern {
+            Pattern::Integer(n) => format!("{} == {}", n, result),
+            Pattern::Identifier(VID(_id)) => "1".to_string(), //Bindings are handled later
+            Pattern::Wildcard => "1".to_string(),
+            Pattern::Constructor(FID(id), _patterns) => { //Binding are handled later, still not recursive...
+                let tag = self.get_tag(&id);
+                format!("{} == {}->tag", tag, result)
+            }
+        }
     }
 
     fn compile_adt(&mut self, data: ADTDefinition) {
         self.add_to_cons_map(data.clone());
         self.add_to_data_map(data.clone());
         self.emit_line(&format!("typedef struct {} {};", data.id.0, data.id.0));
-        self.emit_line("typedef struct {");
+        self.emit_line(&format!("struct {} {{", data.id.0));
         self.indent();
         self.emit_line("int tag;");
         self.emit_line("union {");
@@ -141,7 +193,7 @@ impl Compiler {
         self.unindent();
         self.emit_line("} data;");
         self.unindent();
-        self.emit_line(("} ".to_string() + &data.id.0 + &";".to_string()).as_str());
+        self.emit_line("};");
     }
 
     fn compile_constructors(&mut self, constructors: Vec<ConstructorDefinition>) {
@@ -244,6 +296,10 @@ impl Compiler {
     fn get_unique_var_id(&mut self) -> i32 {
         self.var_counter += 1;
         return self.var_counter
+    }
+
+    fn get_tag(&self, cons: &String) -> u32 {
+        *self.cons_map.get(cons).unwrap()
     }
     
     pub fn get_output(&self) -> &str {
