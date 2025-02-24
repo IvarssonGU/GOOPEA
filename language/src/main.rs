@@ -56,6 +56,6 @@ mod tests {
 
     #[test]
     fn lexer_test_zipper_tree() {
-        assert_eq!(lexer_test(Path::new("examples/zipper_tree.goo"))len(), 160)
+        assert_eq!(lexer_test(Path::new("examples/zipper_tree.goo")).len(), 160)
     }
 }
