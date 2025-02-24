@@ -40,7 +40,7 @@ impl From<ParseIntError> for LexicalError {
 }
 
 #[derive(Logos, Debug, Clone, PartialEq)]
-#[logos(skip r"[ \t\n\f]+", skip r"//.*\n?", error = LexicalError)]
+#[logos(skip r"[ \t\r\n\f]+", skip r"//.*\n?", error = LexicalError)]
 // #[logos(error = String)]
 pub enum Token {
     #[token("(")]
@@ -53,12 +53,15 @@ pub enum Token {
     RBrace,
     #[token(":")]
     Colon,
+    #[token(";")]
+    EOL,
     #[token(",")]
     Comma,
     #[token("=")]
     Equal,
     #[token("_", priority = 3)]
     Wildcard,
+    
 
     #[token("fip")]
     Fip,
