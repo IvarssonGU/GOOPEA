@@ -38,6 +38,8 @@ Pattern: Option<String> = {
     "_" => None
 }
 
+
+
 Definition: Definition = {
     "enum" <id: "id"> "=" <first: Constructor> <rest: ("," <Constructor>)*> ";" => {
         let mut constructors = vec![first];

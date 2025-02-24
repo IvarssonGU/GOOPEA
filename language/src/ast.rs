@@ -103,7 +103,7 @@ pub struct TupleMatchExpression {
 }
 
 pub fn generate_wildcard_vid() -> VID {
-    Alphanumeric.sample_string(&mut rand::rng(), 8)
+    Alphanumeric.sample_string(&mut rand::rng(), 16)
 }
 
 // ====== Pretty Print Code ======

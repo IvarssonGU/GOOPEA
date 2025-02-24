@@ -4,6 +4,7 @@ use lalrpop_util::lalrpop_mod;
 use lexer::Lexer;
 
 mod ast;
+mod ast2;
 
 lalrpop_mod!(pub grammar);
 
@@ -51,11 +52,11 @@ mod tests {
 
     #[test]
     fn lexer_test_reverse() {
-        assert_eq!(lexer_test(Path::new("examples/reverse.goo")), 81)
+        assert_eq!(lexer_test(Path::new("examples/reverse.goo")), 68)
     }
 
     #[test]
     fn lexer_test_zipper_tree() {
-        assert_eq!(lexer_test(Path::new("examples/zipper_tree.goo")), 185)
+        assert_eq!(lexer_test(Path::new("examples/zipper_tree.goo")), 160)
     }
 }

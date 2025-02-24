@@ -1,13 +1,13 @@
 // this is a test file
 enum Tree = 
-    Bin (Tree, Tree),
+    Bin(Tree, Tree),
     Tip Int;
 
     //
 enum TZipper = 
-    Top (),                 
-    BinL (TZipper, TZipper),
-    BinR (TZipper, TZipper);
+    Top,                 
+    BinL(TZipper, TZipper),
+    BinR(TZipper, TZipper);
 
 //
 // multiline
@@ -15,22 +15,22 @@ enum TZipper =
 //
 
 fip (Tree, TZipper): Tree
-Down vars = match vars (t, ctx):    
+Down(t, ctx):    
     match t {
-        Bin subtrees: match subtrees (l, r):
-            Down(l, BinL (ctx, r)), //Down comment
-        Tip x: App(Tip (x + 1), ctx)
+        Bin(l, r):
+            Down(l, BinL(ctx, r)), //Down comment
+        Tip x: App(Tip(x + 1), ctx)
     };
 
 fip (Tree, TZipper): Tree
-App vars = match vars (t, ctx):
+App(t, ctx):
     match ctx {
-        Top _: t,
-        BinR vars: match vars (l, up):
-            App(Bin (l, t), up),
-        BinL vars: match vars (up, r):
-            Down(r, BinR (t, up))
+        Top: t,
+        BinR(l, up):
+            App(Bin(l, t), up),
+        BinL(up, r):
+            Down(r, BinR(t, up))
     };
 
 fip Tree: Tree
-TMap t = Down(t, Top ());
+TMap t = Down(t, Top);
