@@ -2,6 +2,7 @@ use ast::*;
 
 mod ast;
 mod code;
+mod cast;
 
 fn main() {
     let data = ADTDefinition {
@@ -25,14 +26,14 @@ fn main() {
                 body: Expression::Integer(0)
             },
             MatchCase {
-                pattern: Pattern::Constructor(FID("Cons".to_string()), vec![Pattern::Identifier(VID("x".to_string())), Pattern::Identifier(VID("rest".to_string()))]),
+                pattern: Pattern::Constructor(FID("Cons".to_string()), vec![Some(VID("x".to_string())), Some(VID("rest".to_string()))]),
                 body: Expression::Operation(
                     Operator::Add, 
                     Box::new(Expression::Identifier(VID("x".to_string()))), 
                     Box::new(Expression::FunctionCall(FID("sum".to_string()), TupleExpression(vec![Expression::Identifier(VID("rest".to_string()))]))))
             }
         ]
-    });
+    }, Type::ADT(AID("".to_string())));
     let exp2 = Expression::Match(MatchExpression {
         exp: Box::new(Expression::Identifier(VID("n".to_string()))),
         cases: vec![
@@ -53,7 +54,7 @@ fn main() {
             }
         ]
 
-    });
+    }, Type::Int);
     let fun = FunctionDefinition {
         id: FID("sum".to_string()),
         args: vec!["xs".to_string()],
@@ -74,8 +75,11 @@ fn main() {
             is_fip: false
         }
     };
-    let prog= Program(vec![Definition::ADTDefinition(data), Definition::FunctionDefinition(fun2), Definition::FunctionDefinition(fun)]);
+    let prog= Program {
+        adt_definitions: vec![data],
+        fun_definitions: vec![fun2, fun]
+    };
     let mut compiler: code::Compiler = code::Compiler::new();
-    compiler.compile(prog);
-    println!("{}", compiler.get_output());
+    let result = compiler.compile(prog);
+    println!("{:?}", result);
 }

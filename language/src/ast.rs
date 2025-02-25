@@ -1,9 +1,12 @@
 use std::fmt::{Debug, Display, Formatter, Result};
 
 // A program consists of a list of definitions
-#[derive(Debug, Clone)]
-pub struct Program(pub Vec<Definition>);
 
+#[derive(Debug, Clone)]
+pub struct Program {
+    pub adt_definitions: Vec<ADTDefinition>,
+    pub fun_definitions: Vec<FunctionDefinition>
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FID(pub String); // Function ID, (also including ADT constructors)
 
@@ -13,11 +16,7 @@ pub struct VID(pub String); // Variable ID
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AID(pub String); // ADT ID
 
-#[derive(Debug, Clone)]
-pub enum Definition {
-    ADTDefinition(ADTDefinition),
-    FunctionDefinition(FunctionDefinition)
-}
+
 
 #[derive(Debug, Clone)]
 pub struct ADTDefinition {
@@ -68,7 +67,7 @@ pub enum Expression {
     FunctionCall(FID, TupleExpression),
     Identifier(VID),
     Integer(i32),
-    Match(MatchExpression),
+    Match(MatchExpression, Type),
     Operation(Operator, Box<Expression>, Box<Expression>),
     Constructor(FID, Vec<Expression>)
 }
@@ -101,14 +100,14 @@ pub enum Pattern {
     Identifier(VID),
     Integer(i32),
     Wildcard,
-    Constructor(FID, Vec<Pattern>)
+    Constructor(FID, Vec<Option<VID>>)
 }
 
 fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
     write!(f, "{}", "\t".repeat(indent))
 }
 
-impl Display for Program {
+/* impl Display for Program {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         for definition in &self.0 {
             writeln!(f, "{definition}")?;
@@ -126,7 +125,7 @@ impl Display for Definition {
             Definition::FunctionDefinition(def) => write!(f, "{def}")
         }
     }
-}
+} */
 
 impl Display for ADTDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {

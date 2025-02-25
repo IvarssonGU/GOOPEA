@@ -1,309 +1,205 @@
-use std::{collections::HashMap, fmt::format};
 
-use crate::ast::*;
+use std::collections::HashMap;
+
+use crate::{ast::*, cast::{self, Statement}};
+
+
+
 
 pub struct Compiler {
-    num_of_constructors: u32,
-    output: String,
-    depth: u32,
-    cons_map: HashMap<String, u32>,
-    data_map: HashMap<String, (String, u32)>,
-    var_counter: i32
+    cons_map: HashMap<String, (u32, Vec<bool>)>,
+    tag_counter: u32,
+    generated_statements: Vec<cast::Statement>,
+    var_counter: u32
+
 }
+
+
+//    data List = Nil | Cons Int List
+//    data Blah = Cons klfd fk dsaj dsaji List
 
 impl Compiler {
     pub fn new() -> Self {
         Compiler {
-            num_of_constructors: 0,
-            output: String::new(),
-            depth: 0,
             cons_map: HashMap::new(),
-            data_map: HashMap::new(),
+            tag_counter: 0,
+            generated_statements: Vec::new(),
             var_counter: 0
         }
     }
 
-    fn add_to_cons_map(&mut self, def : ADTDefinition) {
-        for cons in def.constructors {
-            let cons_id = cons.id.0;
-            self.cons_map.insert(cons_id, self.num_of_constructors);
-            self.num_of_constructors += 1;
-        }
+    fn lookup_cons(&self, cons: &String) -> (u32, Vec<bool>) {
+        self.cons_map.get(cons).unwrap().clone()
     }
 
-    fn add_to_data_map(&mut self, def : ADTDefinition) {
-        for (i, cons) in def.constructors.iter().enumerate() {
-            let cons_id = cons.id.0.clone();
-            self.data_map.insert(cons_id, (def.id.0.clone(), i as u32));
-        }
-    }
-
-    pub fn compile(&mut self, prog : Program) {
-        for def in prog.0 {
-            match def {
-                Definition::ADTDefinition(ddef) => self.compile_adt(ddef),
-                Definition::FunctionDefinition(fdef) => self.compile_fun(fdef)
+    pub fn compile(&mut self, prog: Program) -> cast::Program {
+        for def in prog.adt_definitions {
+            for cons in def.constructors {
+                self.compile_constructor(&cons);
             }
-            self.emit_char('\n');
         }
+
+        let mut defs = Vec::new();
+        for fun in prog.fun_definitions {
+            defs.push(self.compile_definition(&fun));
+        }
+        defs
     }
 
-    fn compile_fun(&mut self, fun : FunctionDefinition) {
-        let mut output = match fun.signature.result_type {
-            Type::Int => "int ".to_string(),
-            Type::ADT(id) => id.0 + "* ",
-            _ => todo!()
-        };
-        output += &fun.id.0;
-        output.push('(');
-        let args = fun.signature.argument_type.0;
-        for (i , t) in args.iter().enumerate() {
+    fn next_var(&mut self) -> String {
+        let ctr = self.var_counter;
+        self.var_counter += 1;
+        format!("var{}", ctr)
+    }
+
+
+    fn next_tag(&mut self) -> u32 {
+        let tag = self.tag_counter;
+        self.tag_counter += 1;
+        tag
+    }
+
+    fn add_to_cons_map(&mut self, constructor: &String, types: Vec<bool>) {
+        let tag = self.next_tag();
+        self.cons_map.insert(constructor.to_string(), (tag, types));
+    }
+
+    fn compile_constructor(&mut self, constructor: &ConstructorDefinition) {
+        let mut types = Vec::new();
+        for t in &constructor.argument.0 {
             match t {
-                Type::Int => output.push_str("int "),
-                Type::ADT(id) => {
-                    output += &id.0;
-                    output.push_str("* " );
-                }
-                _ => todo!(),
-            }
-            output.push_str(fun.args[i].as_str());
-            if i + 1 != args.len() {
-                output.push(',');
+                Type::Int => types.push(true),
+                _ => types.push(false)
             }
         }
-        output.push_str(") {");
-        self.emit_line(&output.as_str());
-        self.indent();
-        let result = self.compile_exp(&fun.body);
-        self.emit_line(&format!("return {};", result));
-        self.unindent();
-        self.emit_line("}");
-        return
+        self.add_to_cons_map(&constructor.id.0, types);
     }
 
-    fn compile_exp(&mut self, exp: &Expression) -> String{
-        return match exp {
-            Expression::Integer(i) => i.to_string(),
-            Expression::Identifier(VID(n)) => n.to_string(),
-            Expression::Constructor(FID(cons), exps) => {
-                let ((data, constructor_num), tag) = {
-                    let data: &(String, u32) = self.data_map.get(cons).unwrap();
-                    let tag = self.cons_map.get(cons).unwrap();
-                    (data.clone(), *tag)
-                };
-                let id = self.get_unique_var_id();
-                self.emit_line(&format!("{}* var{} = malloc(sizeof({}));", data, id, data));
-                self.emit_line(&format!("var{}->tag = {};", id, tag));
-                for (i, exp) in exps.iter().enumerate() {
-
-                    let result: String = self.compile_exp(exp);
-                    self.emit_line(&format!("var{}->data.constructor_{}.field_{} = {};", id, constructor_num, i, result))
-                }
-                return format!("var{}", id)
+    fn compile_expression(&mut self, exp: &Expression) -> cast::Expression {
+        match &exp {
+            Expression::Integer(i) => cast::Expression::Integer(*i),
+            Expression::Identifier(VID(ident)) => cast::Expression::Ident(ident.clone()),
+            Expression::Operation(op, exp1, exp2) => {
+               let result1 = self.compile_expression(exp1);
+               let result2 = self.compile_expression(exp2);
+               return cast::Expression::Operation(Box::from(result1), op.clone(), Box::from(result2));
             },
-            Expression::Operation(operator, exp1,exp2 ) => {
-                let sop = operator.to_string();
-                let result1 = self.compile_exp(exp1);
-                let result2 = self.compile_exp(exp2);
-                
-                return format!("{} {} {}", result1, sop, result2);
-            },
-            Expression::FunctionCall(FID(name),TupleExpression(exps) ) => {
+            Expression::FunctionCall(FID(id), TupleExpression(exps)) => {
                 let mut results = Vec::new();
                 for exp in exps {
-                    let result = self.compile_exp(exp);
-                    results.push(result);
+                    results.push(self.compile_expression(exp));
                 }
-                format!("{}({});",name, results.join(", "))
+                return cast::Expression::Application(id.clone(), results);
             },
-            Expression::Match(match_expression) => {
-                let return_var: String = format!("var{}", self.get_unique_var_id());
-                self.emit_line(&format!("int {};", return_var));
-                let match_exp = self.compile_exp(&match_expression.exp);
-                for (i, case) in match_expression.cases.iter().enumerate() {
-                    let comparison = self.compile_pattern(case.pattern.clone(), match_exp.clone());
-                    let mut branch = "else ";
-                    if i == 0 {
-                        branch = "";
+            Expression::Constructor(FID(id), exps) => {
+                let (tag, types) = self.lookup_cons(id);
+                let len = types.len();
+                let new_var = self.next_var();
+                self.generated_statements.push(cast::Statement::Init(cast::Type::Adt, new_var.clone(), cast::Expression::MallocAdt));
+                self.generated_statements.push(cast::Statement::Assign(cast::Expression::AccessTag(Box::from(cast::Expression::Ident(new_var.clone()))), cast::Expression::Integer(tag as i32))); 
+                //depending on size we need to malloc that many void pointers. 
+                for i in 0..len {
+                    let result = self.compile_expression(&exps[i]);
+                    if types[i] {
+                        //add code for int case
                     }
-                    self.emit_line(&format!("{}if ({}) {{", branch, comparison));
-                    self.indent();
-                    self.compile_bindings(case.pattern.clone(), match_exp.clone());
-
-                    let body: String = self.compile_exp(&case.body);
-                    self.emit_line(&format!("{} = {};", return_var, body));
-                    self.unindent();
-                    self.emit_line("}");
+                    else {
+                        self.generated_statements.push(Statement::Assign(cast::Expression::AccessData(Box::from(cast::Expression::Ident((new_var.clone()))), i as u32), result));
+                    }
                 }
-                return return_var;
-            }
-            _ => todo!()
-        };
-    }
-
-    fn compile_bindings(&mut self, pattern: Pattern, match_exp: String) {
-        match pattern {
-            Pattern::Identifier(VID(id)) => {
-                self.emit_line(&format!("{} = {};", id, match_exp));
-            }
-            Pattern::Constructor(FID(id),patterns ) => {
-                let tag = self.get_tag(&id);
-                match patterns.as_slice() {
-                    [_pattern] => todo!(),
-                    filled => {
-                        for (i, pattern) in filled.iter().enumerate() {
-                            self.emit_line(&format!("{} = {}->data.constructor_{}.field_{};", Compiler::get_id_from_pattern(pattern), match_exp, tag, i))
+                return cast::Expression::Ident(new_var);
+            },
+            Expression::Match(MatchExpression{exp, cases}, old_t) => {
+                let new_var = self.next_var();
+                let new_t = match old_t {
+                    Type::Int => cast::Type::Int,
+                    _ => cast::Type::Adt
+                };
+                self.generated_statements.push(Statement::Decl(new_t.clone(), new_var.clone()));
+                let result = self.compile_expression(&exp);
+                for (i, case) in cases.iter().enumerate() {
+                    let bool_exp = match &case.pattern {
+                        Pattern::Identifier(_) => cast::Expression::Integer(1),
+                        Pattern::Integer(n) => cast::Expression::Operation(Box::from(cast::Expression::Integer(*n)), Operator::Equal, Box::from(result.clone())),
+                        Pattern::Wildcard => cast::Expression::Integer(1),
+                        Pattern::Constructor(FID(id), _) => {
+                            let (tag, _) = self.lookup_cons(id);
+                            cast::Expression::Operation(
+                                Box::from(cast::Expression::Integer(tag as i32)), 
+                                Operator::Equal, 
+                                Box::from(cast::Expression::AccessTag(Box::from(result.clone())))
+                            )
                         }
+                    };
+                    if i == 0 {
+                        self.generated_statements.push(cast::Statement::If(bool_exp));
                     }
-                }
-            }
-            _ => ()
-        }
-    }
-
-    fn get_id_from_pattern(pattern : &Pattern) -> &String {
-        match pattern {
-            Pattern::Identifier(VID(id)) => id,
-            _ => todo!()
-        }
-    }
-
-    fn compile_pattern(&mut self, pattern: Pattern, result: String) -> String {
-        match pattern {
-            Pattern::Integer(n) => format!("{} == {}", n, result),
-            Pattern::Identifier(VID(_id)) => "1".to_string(), //Bindings are handled later
-            Pattern::Wildcard => "1".to_string(),
-            Pattern::Constructor(FID(id), _patterns) => { //Binding are handled later, still not recursive...
-                let tag = self.get_tag(&id);
-                format!("{} == {}->tag", tag, result)
-            }
-        }
-    }
-
-    fn compile_adt(&mut self, data: ADTDefinition) {
-        self.add_to_cons_map(data.clone());
-        self.add_to_data_map(data.clone());
-        self.emit_line(&format!("typedef struct {} {};", data.id.0, data.id.0));
-        self.emit_line(&format!("struct {} {{", data.id.0));
-        self.indent();
-        self.emit_line("int tag;");
-        self.emit_line("union {");
-        self.indent();
-        self.compile_constructors(data.constructors);
-        self.unindent();
-        self.emit_line("} data;");
-        self.unindent();
-        self.emit_line("};");
-    }
-
-    fn compile_constructors(&mut self, constructors: Vec<ConstructorDefinition>) {
-        for (index, cons) in constructors.iter().enumerate() {
-            let args = &cons.argument.0;
-            if args.is_empty() {
-                continue;
-            } 
-            else if args.len() == 1 && self.is_single_non_tuple(&args[0]) {
-                self.compile_single_field_constructor(index, &args[0]);
-            } 
-            else {
-                self.emit_line(&format!("struct {{"));
-                self.indent();
-                for (i, arg) in args.iter().enumerate() {
-                    self.compile_type(arg,i as u8);
-                }
-                self.unindent();
-                self.emit_line(&format!("}} constructor_{};", index));
-            }
-        }
-    }
-    
-    fn is_single_non_tuple(&self, ty: &Type) -> bool {
-        match ty {
-            Type::Int | Type::ADT(_) => true,
-            Type::Tuple(rec) => {
-                //Compiles as a chain of structs if one tuple has more than 1 element, 
-                // might change later.
-                rec.0.len() == 1 && self.is_single_non_tuple(&rec.0[0])
-            }
-        }
-    }
-    
-    fn compile_single_field_constructor(&mut self, index: usize, ty: &Type) {
-        match ty {
-            Type::Int => {
-                self.emit_line(&format!("int constructor_{};", index));
-            }
-            Type::ADT(id) => {
-                self.emit_line(&format!("{}* constructor_{};", id.0, index));
-            }
-            Type::Tuple(rec) => {
-                //For nested single element tuples
-                self.compile_single_field_constructor(index, &rec.0[0]);
-            }
-        }
-    }
-    
-    fn compile_type(&mut self, t: &Type, field_index: u8) {
-        match t {
-            Type::Int => {
-                self.emit_line(&format!("int field_{};", field_index));
-            }
-            Type::ADT(id) => {
-                self.emit_line(&format!("{}* field_{};", id.0, field_index));
-            }
-            Type::Tuple(rec) => {
-                if rec.0.is_empty() {
-                    self.emit_line(&format!("Unit field_{}", field_index));
-                }
-                else if rec.0.len() == 1 {
-                    self.compile_type(&rec.0[0], field_index);
-                } 
-                else {
-                    self.emit_line("struct {");
-                    self.indent();
-                    for (i,arg) in rec.0.iter().enumerate() {
-                        self.compile_type(&arg, i as u8);
+                    else {
+                        self.generated_statements.push(cast::Statement::ElseIf(bool_exp));
                     }
-                    self.unindent();
-                    self.emit_line(&format!("}} field_{};", field_index));
+
+                    match &case.pattern {
+                        Pattern::Identifier(VID(id)) => {
+                            self.generated_statements.push(cast::Statement::Init(new_t.clone(), id.to_string(), result.clone()));
+                        },
+                        Pattern::Constructor(FID(cons), idents) => {
+                            let (_, types) = self.lookup_cons(cons);
+                            for i in 0..idents.len() {
+                                let t = match types[i] {
+                                    true => cast::Type::Int,
+                                    false => cast::Type::Adt
+                                };
+                                match &idents[i] {
+                                    None => (),
+                                    Some(VID(id)) => {
+                                        self.generated_statements.push(cast::Statement::Init(
+                                            t, 
+                                            id.to_string(),
+                                            cast::Expression::AccessData(Box::from(result.clone()), i as u32) 
+                                        ))
+                                    }
+                                }
+                            }
+                        },
+                        _ => ()
+                    }
+
+                    let match_exp = self.compile_expression(&case.body);
+                    self.generated_statements.push(cast::Statement::Assign(cast::Expression::Ident(new_var.clone()), match_exp));
+                    self.generated_statements.push(cast::Statement::EndIf);
+
                 }
+                return cast::Expression::Ident(new_var);
             }
+            _ => todo!(),
         }
     }
-
-    fn emit_line(&mut self, line : &str) {
-        self.output.push_str(&"\t".repeat(self.depth as usize));
-        self.output.push_str(line);
-        self.output.push('\n');
+   
+    fn compile_definition(&mut self, def: &FunctionDefinition) -> cast::Definition {
+        let new_t = match def.signature.result_type {
+            Type::Int => cast::Type::Int,
+            _ => cast::Type::Adt
+        };
+        let mut new_args = Vec::new();
+        for i in 0..def.args.len() {
+            let t = match &def.signature.argument_type.0[i] {
+                Type::Int => cast::Type::Int,
+                _ => cast::Type::Adt
+            };
+            new_args.push((t, def.args[i].clone()));
+        };
+        let new_id = def.id.0.clone();
+        
+        let operand = self.compile_expression(&def.body);
+        self.generated_statements.push(cast::Statement::Return(operand));
+        let def = cast::Definition {
+            t: new_t,
+            args: new_args,
+            id: new_id,
+            statements: self.generated_statements.clone()
+        };
+        self.generated_statements.clear();
+        def
     }
-
-    fn emit_str(&mut self, str : &str) {
-        self.output.push_str(str)
-    }
-
-    fn emit_char(&mut self, c : char) {
-        self.output.push(c);
-    }
-
-    fn indent(&mut self) {
-        self.depth += 1
-    }
-
-    fn unindent(&mut self) {
-        self.depth -= 1
-    }
-
-    fn get_unique_var_id(&mut self) -> i32 {
-        self.var_counter += 1;
-        return self.var_counter
-    }
-
-    fn get_tag(&self, cons: &String) -> u32 {
-        *self.cons_map.get(cons).unwrap()
-    }
-    
-    pub fn get_output(&self) -> &str {
-        self.output.as_str()
-    }
-
 }
+
