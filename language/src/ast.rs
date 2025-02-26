@@ -26,16 +26,15 @@ pub struct ADTDefinition {
 #[derive(Debug, Clone)]
 pub struct ConstructorDefinition {
     pub id: FID,
-    pub argument: Type
+    pub arguments: UTuple<Type>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TupleType(pub Vec<Type>); // Type of a tuple is a list of other types
-// Any general type
+pub struct UTuple<T>(pub Vec<T>); // Type of an unboxed tuple is a list of other types
 
+// Any general type
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
-    Tuple(TupleType),
     Int,
     ADT(AID)
 }
@@ -44,14 +43,14 @@ pub enum Type {
 pub struct FunctionDefinition {
     pub id: FID,
     pub body: Expression,
-    pub variable: VID,
+    pub variables: UTuple<VID>,
     pub signature: FunctionSignature
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionSignature {
-    pub argument_type: Type,
-    pub result_type: Type,
+    pub argument_type: UTuple<Type>,
+    pub result_type: UTuple<Type>,
     pub is_fip: bool
 }
 
@@ -62,12 +61,11 @@ pub struct FunctionSignature {
 // (1, 5, Nil)
 #[derive(Debug, Clone)]
 pub enum Expression {
-    Tuple(TupleExpression),
-    FunctionCall(FID, Box<Expression>),
+    UTuple(UTuple<Expression>),
+    FunctionCall(FID, UTuple<Expression>),
     Integer(i64),
     Variable(VID),
-    ADTMatch(ADTMatchExpression),
-    TupleMatch(TupleMatchExpression),
+    Match(MatchExpression),
     Operation(Operator, Box<Expression>, Box<Expression>)
 }
 
@@ -77,29 +75,18 @@ pub enum Operator {
     Add, Sub, Mul, Div 
 }
 
-// An expression to create a tuple is a list of other expressions
 #[derive(Debug, Clone)]
-pub struct TupleExpression(pub Vec<Expression>);
-
-#[derive(Debug, Clone)]
-pub struct ADTMatchExpression {
+pub struct MatchExpression {
     pub variable: VID, // What to match on
-    pub cases: Vec<ADTMatchCase>
+    pub cases: Vec<MatchCase>
 }
 
 // A case in a match statement
 #[derive(Debug, Clone)]
-pub struct ADTMatchCase {
+pub struct MatchCase {
     pub cons_id: FID,
-    pub var: VID,
+    pub vars: UTuple<VID>,
     pub body: Expression // Code to execute if the case matches
-}
-
-#[derive(Debug, Clone)]
-pub struct TupleMatchExpression {
-    pub match_var: VID, // What to match on
-    pub pattern_vars: Vec<VID>,
-    pub body: Box<Expression> // Code to execute if the case matches
 }
 
 pub fn generate_wildcard_vid() -> VID {
@@ -152,7 +139,7 @@ impl Display for ADTDefinition {
 
 impl Display for ConstructorDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} {}", self.id, self.argument)
+        write!(f, "{} {}", self.id, self.arguments)
     }
 }
 
@@ -160,31 +147,24 @@ impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Int => write!(f, "Int"),
-            Type::ADT(id) => write!(f, "{}", id),
-            Type::Tuple(tuple_type) => write!(f, "{tuple_type}")
+            Type::ADT(id) => write!(f, "{}", id)
         }
-    }
-}
-
-impl Display for TupleType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(")?;
-
-        write_separated_list(f, self.0.iter(), ", ", |f, t| {
-            write!(f, "{t}")
-        })?;
-
-        write!(f, ")")
     }
 }
 
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f, "{}", self.signature)?;
-        write!(f, "{} {} = ", self.id, self.variable)?;
+        write!(f, "{} {} = ", self.id, self.variables)?;
 
         write_expression(f, &self.body, 1)?;
         write!(f, ";")
+    }
+}
+
+impl<T : Display> Display for UTuple<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write_implicit_utuple(f, &self.0, ", ", |f, t| write!(f, "{t}"))
     }
 }
 
@@ -219,6 +199,24 @@ fn write_separated_list<T>(
     Ok(())
 }
 
+fn write_implicit_utuple<T>(
+        f: &mut Formatter, 
+        items: &Vec<T>,
+        separator: &str,
+        write: impl Fn(&mut Formatter, &T) -> std::fmt::Result
+    ) -> std::fmt::Result
+{
+    if items.len() == 0 { Ok(()) }
+    else if items.len() == 1 { 
+        write!(f, " ")?;
+        write(f, &items[0]) 
+    } else {
+        write!(f, "(")?;
+        write_separated_list(f, items.iter(), separator, write)?;
+        write!(f, ")")
+    }
+}
+
 // Counts how long the text would've been
 struct WriteCounter<'a> {
     width: &'a mut usize
@@ -231,7 +229,7 @@ impl<'a> Write for WriteCounter<'a> {
     }
 }
 
-const MAX_EXPRESSION_WIDTH: usize = 20;
+const MAX_EXPRESSION_WIDTH: usize = 30;
 fn write_expression(f: &mut Formatter, expression: &Expression, indent: usize) -> std::fmt::Result {
     let mut inline_width: usize = 0;
     let counter = &mut WriteCounter { width: &mut inline_width };
@@ -249,7 +247,7 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
     match expression {
         Expression::Integer(x) => write!(f, "{x}"),
         Expression::Variable(id) => write!(f, "{id}"),
-        Expression::Tuple(tuple) => {
+        Expression::UTuple(tuple) => {
             write!(f, "(")?;
 
             write_separated_list(f, tuple.0.iter(), ", ", |f, e| {
@@ -259,8 +257,8 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
             write!(f, ")")
         }
         Expression::FunctionCall(id, arg) => {
-            write!(f, "{id} ")?;
-            write_expression(f, arg, indent)
+            write!(f, "{id}")?;
+            write_implicit_utuple(f, &arg.0, ", ", |f, e| write_expression_inline(f, e, indent))
         },
         Expression::Operation(op, e1, e2) => {
             let symbol = match op {
@@ -280,20 +278,10 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
             write!(f, " {} ", symbol)?;
             write_expression(f, e2, indent)
         },
-        Expression::ADTMatch(match_expr) => {
+        Expression::Match(match_expr) => {
             write!(f, "match x {{ ")?;
             write_separated_list(f, match_expr.cases.iter(), ", ", |f, case| write!(f, "{case} "))?;
             write!(f, "}}")
-        },
-        Expression::TupleMatch(match_expr) => {
-            write!(f, "match {} (", match_expr.match_var)?;
-
-            write_separated_list(f, match_expr.pattern_vars.iter(), ", ", |f, t| {
-                write!(f, "{t}")
-            })?;
-
-            write!(f, "): ")?;
-            write_expression(f, &match_expr.body, indent)
         }
     }
 }
@@ -319,7 +307,15 @@ fn write_expression_multiline(f: &mut Formatter, expression: &Expression, indent
             write_indent(f, indent)?;
             write_expression(f, e2, indent)
         },
-        Expression::ADTMatch(match_expr) => {
+        Expression::FunctionCall(id, arg) => {
+            write!(f, "{id}")?;
+            write_implicit_utuple(f, &arg.0, ",", |f, e| {
+                writeln!(f)?;
+                write_indent(f, indent+1)?;
+                write_expression_multiline(f, e, indent+1)
+            })
+        },
+        Expression::Match(match_expr) => {
             writeln!(f, "match x {{")?;
 
             write_separated_list(f, match_expr.cases.iter(), ",\n", |f, case| {
@@ -332,7 +328,7 @@ fn write_expression_multiline(f: &mut Formatter, expression: &Expression, indent
             write!(f, "}}")
             
         },
-        Expression::Tuple(tuple) => {
+        Expression::UTuple(tuple) => {
             writeln!(f, "(")?;
 
             write_separated_list(f, tuple.0.iter(), ",\n", |f, e| {
@@ -348,12 +344,12 @@ fn write_expression_multiline(f: &mut Formatter, expression: &Expression, indent
     }
 }
 
-fn write_adt_match_case(f: &mut Formatter, case: &ADTMatchCase, indent: usize) -> std::fmt::Result {
-    write!(f, "{} {}: ", case.cons_id, case.var)?;
+fn write_adt_match_case(f: &mut Formatter, case: &MatchCase, indent: usize) -> std::fmt::Result {
+    write!(f, "{} {}: ", case.cons_id, case.vars)?;
     write_expression(f, &case.body, indent + 1)
 }
 
-impl Display for ADTMatchCase {
+impl Display for MatchCase {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write_adt_match_case(f, self, 0)
     }

@@ -15,7 +15,7 @@ enum TZipper =
 //
 
 fip (Tree, TZipper): Tree
-Down(t, ctx):    
+Down(t, ctx) =
     match t {
         Bin(l, r):
             Down(l, BinL(ctx, r)), //Down comment
@@ -23,7 +23,7 @@ Down(t, ctx):
     };
 
 fip (Tree, TZipper): Tree
-App(t, ctx):
+App(t, ctx) =
     match ctx {
         Top: t,
         BinR(l, up):

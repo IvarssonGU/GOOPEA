@@ -1,2 +1,5 @@
-GetMinusFive = -5
-Subtract = 2 -1
+(): Int
+GetMinusFive = -5;
+
+(): Int
+Subtract = 2 - 1;

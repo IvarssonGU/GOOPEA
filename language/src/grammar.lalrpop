@@ -33,12 +33,31 @@ pub Program: Program = {
 }
 
 #[inline]
-Pattern: Option<String> = {
-    "id" => Some(<>),
-    "_" => None
+Pattern: String = {
+    "id" => <>,
+    "_" => generate_wildcard_vid()
 }
 
+#[inline]
+OptionalImplicitUTuple<T>: UTuple<T> = {
+    ImplicitUTuple<T>? => {
+        <>.unwrap_or_else(|| UTuple(vec![]))
+    }
+}
 
+#[inline]
+ImplicitUTuple<T>: UTuple<T> = {
+    T => UTuple(vec![<>]),
+    UTuple<T> => <>
+}
+
+#[inline]
+UTuple<T>: UTuple<T> = {
+    "(" <mut others: (<T> ",")*> <last: T?> ")" => {
+        if let Some(last) = last { others.push(last); }
+        UTuple(others)
+    }
+}
 
 Definition: Definition = {
     "enum" <id: "id"> "=" <first: Constructor> <rest: ("," <Constructor>)*> ";" => {
@@ -47,10 +66,10 @@ Definition: Definition = {
         Definition::ADTDefinition(ADTDefinition { id, constructors })
     },
 
-    <signature: FunctionSignature> <id: "id"> <variable: Pattern> "=" <body: Expression> ";" => {
+    <signature: FunctionSignature> <id: "id"> <variables: OptionalImplicitUTuple<Pattern>> "=" <body: Expression> ";" => {
         Definition::FunctionDefinition(FunctionDefinition {
             id,
-            variable: variable.unwrap_or_else(|| generate_wildcard_vid()),
+            variables,
             signature,
             body
         })
@@ -58,7 +77,7 @@ Definition: Definition = {
 }
 
 Constructor: ConstructorDefinition = {
-    <id: "id"> <argument: Type> => ConstructorDefinition { id, argument } 
+    <id: "id"> <arguments: OptionalImplicitUTuple<Type>> => ConstructorDefinition { id, arguments } 
 }
 
 Type: Type = {
@@ -66,38 +85,30 @@ Type: Type = {
         if <> == "Int" { Type::Int }
         else { Type::ADT(<>) }
     },
-    TupleType => Type::Tuple(<>),
-}
-
-TupleType: TupleType = {
-    "(" <mut others: (<Type> ",")*> <last: Type?> ")" => {
-        if let Some(last) = last { others.push(last); }
-        TupleType(others)
-    }
 }
 
 #[inline]
 FunctionSignature: FunctionSignature = {
-    <fip: "fip"?> <argument_type: Type> ":" <result_type: Type> => {
+    <fip: "fip"?> <argument_type: ImplicitUTuple<Type>> ":" <result_type: ImplicitUTuple<Type>> => {
         FunctionSignature { is_fip: fip.is_some(), argument_type, result_type }
     }
 }
 
-TuplePattern: Vec<VID> = {
-    "(" <mut others: (<"id"> ",")*> <last: "id"?> ")" => {
-        if let Some(last) = last { others.push(last); }
-        others
-    }
-}
+ExpressionReset = <Expression>;
 
 Expression: Expression = {
     #[precedence(level="0")]
     "id" => Expression::Variable(<>),
     "int" => Expression::Integer(<>),
-    TupleExpression => Expression::Tuple(<>),
+    UTuple<ExpressionReset> => Expression::UTuple(<>),
 
     #[precedence(level="1")]
-    <id: "id"> <arg: Expression> => Expression::FunctionCall(id, Box::new(arg)),
+    <id: "id"> <arg: Expression> => {
+        match arg {
+            Expression::UTuple(tup) => Expression::FunctionCall(id, tup),
+            _ => Expression::FunctionCall(id, UTuple(vec![arg]))
+        }
+    },
 
     #[precedence(level="2")] #[assoc(side="left")]
     <e1: Expression> <op: "*/"> <e2: Expression> => {
@@ -134,15 +145,12 @@ Expression: Expression = {
 
     #[precedence(level="5")]
     "match" <variable: "id"> "{" <cases: MatchCases> "}" => {
-        Expression::ADTMatch(ADTMatchExpression { variable, cases })
+        Expression::Match(MatchExpression { variable, cases })
     },
-
-    "match" <match_var: "id"> <pattern_vars: TuplePattern> ":" <body: Expression> => 
-        Expression::TupleMatch(TupleMatchExpression { match_var, pattern_vars, body: Box::new(body) })
 }
 
 #[inline]
-MatchCases: Vec<ADTMatchCase> = {
+MatchCases: Vec<MatchCase> = {
     <first: MatchCase> <rest: ("," <MatchCase>)*> => {
         let mut cases = vec![first];
         cases.extend(rest);
@@ -151,18 +159,10 @@ MatchCases: Vec<ADTMatchCase> = {
 }
 
 #[inline]
-MatchCase: ADTMatchCase = {
-    <cons_id: "id"> <var: Pattern> ":" <body: Expression> => ADTMatchCase { 
+MatchCase: MatchCase = {
+    <cons_id: "id"> <vars: OptionalImplicitUTuple<Pattern>> ":" <body: Expression> => MatchCase { 
         cons_id, 
-        var: var.unwrap_or_else(|| generate_wildcard_vid()),
+        vars,
         body 
-    }
-}
-
-#[inline]
-TupleExpression: TupleExpression = {
-    "(" <mut others: (<Expression> ",")*> <last: Expression?> ")" => {
-        if let Some(last) = last { others.push(last); }
-        TupleExpression(others)
     }
 }
