@@ -155,7 +155,7 @@ impl Display for Type {
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f, "{}", self.signature)?;
-        write!(f, "{} {} = ", self.id, self.variables)?;
+        write!(f, "{}{} = ", self.id, self.variables)?;
 
         write_expression(f, &self.body, 1)?;
         write!(f, ";")
@@ -170,9 +170,9 @@ impl<T : Display> Display for UTuple<T> {
 
 impl Display for FunctionSignature {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.is_fip { write!(f, "fip ")?; }
+        if self.is_fip { write!(f, "fip")?; }
 
-        write!(f, "{}: {}", self.argument_type, self.result_type)
+        write!(f, "{}:{}", self.argument_type, self.result_type)
     }
 }
 
@@ -345,7 +345,7 @@ fn write_expression_multiline(f: &mut Formatter, expression: &Expression, indent
 }
 
 fn write_adt_match_case(f: &mut Formatter, case: &MatchCase, indent: usize) -> std::fmt::Result {
-    write!(f, "{} {}: ", case.cons_id, case.vars)?;
+    write!(f, "{}{}: ", case.cons_id, case.vars)?;
     write_expression(f, &case.body, indent + 1)
 }
 
