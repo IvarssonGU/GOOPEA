@@ -33,7 +33,7 @@ fn main() {
                     Box::new(Expression::FunctionCall(FID("sum".to_string()), TupleExpression(vec![Expression::Identifier(VID("rest".to_string()))]))))
             }
         ]
-    }, Type::ADT(AID("".to_string())));
+    }, Type::Int);
     let exp2 = Expression::Match(MatchExpression {
         exp: Box::new(Expression::Identifier(VID("n".to_string()))),
         cases: vec![
@@ -54,7 +54,7 @@ fn main() {
             }
         ]
 
-    }, Type::Int);
+    }, Type::ADT(AID("List".to_string())));
     let fun = FunctionDefinition {
         id: FID("sum".to_string()),
         args: vec!["xs".to_string()],
@@ -81,5 +81,10 @@ fn main() {
     };
     let mut compiler: code::Compiler = code::Compiler::new();
     let result = compiler.compile(prog);
-    println!("{:?}", result);
+
+
+    let pretty_output = cast::output(result);
+    for line in pretty_output {
+        println!("{}", line);
+    }
 }

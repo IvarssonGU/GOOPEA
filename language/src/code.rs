@@ -97,14 +97,31 @@ impl Compiler {
                 let new_var = self.next_var();
                 self.generated_statements.push(cast::Statement::Init(cast::Type::Adt, new_var.clone(), cast::Expression::MallocAdt));
                 self.generated_statements.push(cast::Statement::Assign(cast::Expression::AccessTag(Box::from(cast::Expression::Ident(new_var.clone()))), cast::Expression::Integer(tag as i32))); 
-                //depending on size we need to malloc that many void pointers. 
+
+                //depending on size we need to malloc that many void pointers.
+                if len > 0 {
+                    self.generated_statements.push(
+                        cast::Statement::Assign(
+                            //Hur kommer vi åt var2->data ???
+                            cast::Expression::AccessData(Box::from(cast::Expression::Ident(new_var.clone())), 0),
+                            cast::Expression::Malloc(len as u32)
+                        )
+                    );
+                }
+ 
                 for i in 0..len {
                     let result = self.compile_expression(&exps[i]);
                     if types[i] {
-                        //add code for int case
+                        //code for int case
+                        let int_var = self.next_var();
+                        self.generated_statements.push(cast::Statement::Init(cast::Type::Int, int_var.clone(), cast::Expression::MallocInt));
+                        self.generated_statements.push(cast::Statement::Assign(cast::Expression::DerefInt(Box::from(cast::Expression::Ident(int_var.clone())), 0), result));
+                        self.generated_statements.push(cast::Statement::Assign(
+                            cast::Expression::AccessData(Box::from(cast::Expression::Ident(new_var.clone())), i as u32),
+                            cast::Expression::Ident(int_var)));
                     }
                     else {
-                        self.generated_statements.push(Statement::Assign(cast::Expression::AccessData(Box::from(cast::Expression::Ident((new_var.clone()))), i as u32), result));
+                        self.generated_statements.push(Statement::Assign(cast::Expression::AccessData(Box::from(cast::Expression::Ident(new_var.clone())), i as u32), result));
                     }
                 }
                 return cast::Expression::Ident(new_var);
@@ -202,4 +219,5 @@ impl Compiler {
         def
     }
 }
+
 
