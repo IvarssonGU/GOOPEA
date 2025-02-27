@@ -95,44 +95,23 @@ impl Compiler {
                 let (tag, types) = self.lookup_cons(id);
                 let len = types.len();
                 let new_var = self.next_var();
-                self.generated_statements.push(cast::Statement::Init(cast::Type::Adt, new_var.clone(), cast::Expression::MallocAdt));
-                self.generated_statements.push(cast::Statement::Assign(cast::Expression::AccessTag(Box::from(cast::Expression::Ident(new_var.clone()))), cast::Expression::Integer(tag as i32))); 
-
-                //depending on size we need to malloc that many void pointers.
-                if len > 0 {
-                    self.generated_statements.push(
-                        cast::Statement::Assign(
-                            //Hur kommer vi åt var2->data ???
-                            cast::Expression::AccessData(Box::from(cast::Expression::Ident(new_var.clone())), 0),
-                            cast::Expression::Malloc(len as u32)
-                        )
-                    );
-                }
- 
+                self.generated_statements.push(cast::Statement::Init(cast::Type::Adt, new_var.clone(), cast::Expression::InitStruct(tag as i32, len as i32)));
                 for i in 0..len {
                     let result = self.compile_expression(&exps[i]);
-                    if types[i] {
-                        //code for int case
-                        let int_var = self.next_var();
-                        self.generated_statements.push(cast::Statement::Init(cast::Type::Int, int_var.clone(), cast::Expression::MallocInt));
-                        self.generated_statements.push(cast::Statement::Assign(cast::Expression::DerefInt(Box::from(cast::Expression::Ident(int_var.clone())), 0), result));
-                        self.generated_statements.push(cast::Statement::Assign(
-                            cast::Expression::AccessData(Box::from(cast::Expression::Ident(new_var.clone())), i as u32),
-                            cast::Expression::Ident(int_var)));
-                    }
-                    else {
-                        self.generated_statements.push(Statement::Assign(cast::Expression::AccessData(Box::from(cast::Expression::Ident(new_var.clone())), i as u32), result));
-                    }
+                    self.generated_statements.push(cast::Statement::AssignField(
+                        cast::Expression::Ident(new_var.clone()), 
+                        i as i32, 
+                        if types[i] {cast::Type::Int} else {cast::Type::Adt}, 
+                        result
+                    ));
                 }
                 return cast::Expression::Ident(new_var);
             },
-            Expression::Match(MatchExpression{exp, cases}, old_t) => {
+            Expression::Match(MatchExpression{exp, cases}, result_type, match_type) => {
                 let new_var = self.next_var();
-                let new_t = match old_t {
-                    Type::Int => cast::Type::Int,
-                    _ => cast::Type::Adt
-                };
-                self.generated_statements.push(Statement::Decl(new_t.clone(), new_var.clone()));
+                let new_result_type = self.convert_type(result_type.clone());
+                let new_match_type = self.convert_type(match_type.clone());
+                self.generated_statements.push(Statement::Decl(new_result_type, new_var.clone()));
                 let result = self.compile_expression(&exp);
                 for (i, case) in cases.iter().enumerate() {
                     let bool_exp = match &case.pattern {
@@ -157,7 +136,7 @@ impl Compiler {
 
                     match &case.pattern {
                         Pattern::Identifier(VID(id)) => {
-                            self.generated_statements.push(cast::Statement::Init(new_t.clone(), id.to_string(), result.clone()));
+                            self.generated_statements.push(cast::Statement::Init(new_match_type.clone(), id.to_string(), result.clone()));
                         },
                         Pattern::Constructor(FID(cons), idents) => {
                             let (_, types) = self.lookup_cons(cons);
@@ -170,9 +149,9 @@ impl Compiler {
                                     None => (),
                                     Some(VID(id)) => {
                                         self.generated_statements.push(cast::Statement::Init(
-                                            t, 
+                                            t.clone(), 
                                             id.to_string(),
-                                            cast::Expression::AccessData(Box::from(result.clone()), i as u32) 
+                                            cast::Expression::Deref(t, Box::from(result.clone()), i as i32) 
                                         ))
                                     }
                                 }
@@ -217,6 +196,13 @@ impl Compiler {
         };
         self.generated_statements.clear();
         def
+    }
+
+    pub fn convert_type(&mut self, t: Type) -> cast::Type {
+        match t {
+            Type::Int => cast::Type::Int,
+            _ => cast::Type::Adt
+        }
     }
 }
 
