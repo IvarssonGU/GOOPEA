@@ -26,7 +26,7 @@ pub enum Statement {
     ElseIf(Expression),
     EndIf,
     Assign(Expression, Expression),
-    AssignField(Expression, i32, Type, Expression),
+    Printf(Expression)
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,9 @@ pub enum Expression {
     Integer(i32),
     Ident(String),
     InitStruct(i32, i32),
-    Deref(Type, Box<Expression>, i32),
+    Deref(Type, Box<Expression>),
+    Malloc(Type),
+    AccesData(Box<Expression>, i32),
     AccessTag(Box<Expression>),
     Application(String, Vec<Expression>),
     Operation(Box<Expression>, Operator, Box<Expression>)
@@ -65,17 +67,34 @@ pub fn output(program: Program) -> Vec<String> {
             .collect::<Vec<_>>()
             .join(", ");
         lines.push(format!("{} {}({}) {{", type_to_string(&def.t), def.id, args_str));
-
+        let mut depth = 1;
         // Convert each statement with some indentation.
-        for stmt in def.statements {
-            lines.push(format!("    {}", statement_to_string(&stmt)));
+        for stmt in &def.statements {
+            match stmt {
+                Statement::If(_) => {
+                    lines.push(format!("{}{}","\t".repeat(depth), statement_to_string(&stmt)));
+                    depth += 1;
+                },
+                Statement::ElseIf(_) => {
+                    lines.push(format!("{}{}","\t".repeat(depth), statement_to_string(&stmt)));
+                    depth += 1;
+                },
+                Statement::EndIf => {
+                    depth -= 1;
+                    lines.push(format!("{}{}","\t".repeat(depth), statement_to_string(&stmt)));
+
+                },
+                _ => {
+                    lines.push(format!("{}{}","\t".repeat(depth), statement_to_string(&stmt)));
+                }
+            };
+            
         }
         lines.push("}".to_string());
     }
     lines
 }
 
-// Helper: Converts a cast::Type into a string.
 fn type_to_string(t: &Type) -> String {
     match t {
         Type::Int => "int".to_string(),
@@ -83,7 +102,6 @@ fn type_to_string(t: &Type) -> String {
     }
 }
 
-// Helper: Converts a cast::Statement into a string.
 fn statement_to_string(stmt: &Statement) -> String {
     match stmt {
         Statement::Decl(t, id) =>
@@ -100,20 +118,21 @@ fn statement_to_string(stmt: &Statement) -> String {
             "}".to_string(),
         Statement::Assign(lhs, rhs) =>
             format!("{} = {};", expression_to_string(lhs), expression_to_string(rhs)),
-        Statement::AssignField(exp, index, t, assigned_exp) => format!("{0}.data[{1}] = malloc(sizeof({2}));\n*({2}*) {0}.data[1] = {3};", expression_to_string(exp), index, type_to_string(t), expression_to_string(assigned_exp)),
+        Statement::Printf(exp) => format!("printf(\"%d\\n\", {});", expression_to_string(exp)),
     }
 }
 
-// Helper: Converts a cast::Expression into a string.
 fn expression_to_string(expr: &Expression) -> String {
     match expr {
         Expression::Integer(n) => format!("{}", n),
         Expression::Ident(s) => s.clone(),
-        Expression::InitStruct(n1, n2) => format!("{{{}, {}}};", n1, if *n2 == 0 { "NULL".to_string() } else { format!("malloc({} * sizeof(void*))", n2)}),
-        Expression::Deref(t, exp, index) =>
-            format!("*(({}*) {}->data[{}])", type_to_string(t), expression_to_string(exp), index),
+        Expression::InitStruct(n1, n2) => 
+            format!("{{{}, {}}};", n1, if *n2 == 0 { "NULL".to_string() } else { format!("malloc({} * sizeof(void*))", n2)}),
+        Expression::Deref(t, exp) =>
+            format!("*({}*) {}", type_to_string(t), expression_to_string(exp)),
         Expression::AccessTag(e) =>
             format!("{}.tag", expression_to_string(e)),
+        Expression::Malloc(t) => format!("malloc(sizeof({}))", type_to_string(t)),
         Expression::Application(id, args) => {
             let args_str = args.iter()
                 .map(|arg| expression_to_string(arg))
@@ -124,17 +143,16 @@ fn expression_to_string(expr: &Expression) -> String {
         Expression::Operation(lhs, op, rhs) => {
             format!("({} {} {})", expression_to_string(lhs), operator_to_string(op), expression_to_string(rhs))
         },
+        Expression::AccesData(exp, index) => 
+            format!("{}.data[{}]", expression_to_string(exp), index)
     }
 }
 
-// Helper: Converts an Operator into a string.
-// (Adjust the match arms based on your Operator enum variants.)
 fn operator_to_string(op: &Operator) -> String {
     match op {
         Operator::Add    => "+".to_string(),
         Operator::Sub    => "-".to_string(),
         Operator::Equal  => "==".to_string(),
-        // Add other operators as needed…
         _ => format!("{:?}", op),
     }
 }

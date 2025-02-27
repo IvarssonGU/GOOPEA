@@ -1,3 +1,5 @@
+use std::{os::unix::raw::off_t, result};
+
 use ast::*;
 
 mod ast;
@@ -55,6 +57,7 @@ fn main() {
         ]
 
     }, Type::ADT(AID("List".to_string())), Type::Int);
+    let exp3 = Expression::FunctionCall(FID("sum".to_string()), TupleExpression(vec![Expression::FunctionCall(FID("buildList".to_string()), TupleExpression(vec![Expression::Integer(100)]))]));
     let fun = FunctionDefinition {
         id: FID("sum".to_string()),
         args: vec!["xs".to_string()],
@@ -75,9 +78,19 @@ fn main() {
             is_fip: false
         }
     };
+    let fun3 = FunctionDefinition {
+        id: FID("main".to_string()),
+        args: vec![],
+        body: exp3,
+        signature: FunctionSignature {
+            argument_type: TupleType(vec![]),
+            result_type: Type::Int,
+            is_fip: false
+        }
+    };
     let prog= Program {
         adt_definitions: vec![data],
-        fun_definitions: vec![fun2, fun]
+        fun_definitions: vec![fun2, fun, fun3]
     };
     let mut compiler: code::Compiler = code::Compiler::new();
     let result = compiler.compile(prog);

@@ -98,10 +98,13 @@ impl Compiler {
                 self.generated_statements.push(cast::Statement::Init(cast::Type::Adt, new_var.clone(), cast::Expression::InitStruct(tag as i32, len as i32)));
                 for i in 0..len {
                     let result = self.compile_expression(&exps[i]);
-                    self.generated_statements.push(cast::Statement::AssignField(
-                        cast::Expression::Ident(new_var.clone()), 
-                        i as i32, 
-                        if types[i] {cast::Type::Int} else {cast::Type::Adt}, 
+                    let t = if types[i] {cast::Type::Int} else {cast::Type::Adt};
+                    self.generated_statements.push(cast::Statement::Assign(
+                        cast::Expression::AccesData(Box::from(Box::from(cast::Expression::Ident(new_var.clone()))), i as i32),
+                        cast::Expression::Malloc(t.clone())
+                    ));
+                    self.generated_statements.push(cast::Statement::Assign(
+                        cast::Expression::Deref(t, Box::from(cast::Expression::AccesData(Box::from(Box::from(cast::Expression::Ident(new_var.clone()))), i as i32))),
                         result
                     ));
                 }
@@ -151,7 +154,9 @@ impl Compiler {
                                         self.generated_statements.push(cast::Statement::Init(
                                             t.clone(), 
                                             id.to_string(),
-                                            cast::Expression::Deref(t, Box::from(result.clone()), i as i32) 
+                                            cast::Expression::Deref(t, Box::from(
+                                                cast::Expression::AccesData(Box::from(result.clone()), i as i32)
+                                            )) 
                                         ))
                                     }
                                 }
@@ -185,9 +190,15 @@ impl Compiler {
             new_args.push((t, def.args[i].clone()));
         };
         let new_id = def.id.0.clone();
+
+        let result = self.compile_expression(&def.body);
+        if def.id.0 == "main".to_string() {
+            self.generated_statements.push(cast::Statement::Printf(result));
+        }
+        else {
+            self.generated_statements.push(cast::Statement::Return(result));
+        }
         
-        let operand = self.compile_expression(&def.body);
-        self.generated_statements.push(cast::Statement::Return(operand));
         let def = cast::Definition {
             t: new_t,
             args: new_args,
