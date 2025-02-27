@@ -67,7 +67,7 @@ pub enum Expression {
     FunctionCall(FID, TupleExpression),
     Identifier(VID),
     Integer(i32),
-    Match(MatchExpression, Type),
+    Match(MatchExpression, Type, Type),
     Operation(Operator, Box<Expression>, Box<Expression>),
     Constructor(FID, Vec<Expression>)
 }
