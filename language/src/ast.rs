@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter, Write};
 
 use rand::distr::Alphanumeric;
@@ -26,8 +27,10 @@ pub struct ADTDefinition {
 #[derive(Debug, Clone)]
 pub struct ConstructorDefinition {
     pub id: FID,
-    pub arguments: UTuple<Type>
+    pub arguments: ConstructorSignature
 }
+
+pub type ConstructorSignature = UTuple<Type>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UTuple<T>(pub Vec<T>); // Type of an unboxed tuple is a list of other types
@@ -66,7 +69,8 @@ pub enum Expression {
     Integer(i64),
     Variable(VID),
     Match(MatchExpression),
-    Operation(Operator, Box<Expression>, Box<Expression>)
+    Operation(Operator, Box<Expression>, Box<Expression>),
+    LetEqualIn(UTuple<VID>, Box<Expression>, Box<Expression>) // First expression may only be a function invocation. I don't know how to enforce this by type system without making everything messy.
 }
 
 #[derive(Debug, Clone)]
@@ -91,6 +95,44 @@ pub struct MatchCase {
 
 pub fn generate_wildcard_vid() -> VID {
     Alphanumeric.sample_string(&mut rand::rng(), 16)
+}
+
+impl Definition {
+    pub fn fids(&self) -> Vec<&VID> {
+        match self {
+            Definition::ADTDefinition(def) => def.constructors.iter().map(|cons| &cons.id).collect(),
+            Definition::FunctionDefinition(def) => vec![&def.id],
+        }
+    }
+
+    pub fn aid(&self) -> Option<&AID> {
+        match self {
+            Definition::ADTDefinition(def) => Some(&def.id),
+            Definition::FunctionDefinition(_) => None,
+        }
+    }
+}
+
+impl Program {
+    // Checks that there are no top level id conflicts
+    pub fn validate_top_level_ids(&self) {
+        let mut top_level_fids = HashSet::new();
+        let mut top_level_aids = HashSet::new();
+
+        for def in &self.0 {
+            for fid in def.fids() {
+                if !top_level_fids.insert(fid) {
+                    panic!("Name collision for function {}", fid);
+                }
+            }
+
+            if let Some(aid) = def.aid() {
+                if !top_level_aids.insert(aid) {
+                    panic!("Name collision for ADT {}", aid);
+                }
+            }
+        }
+    }
 }
 
 // ====== Pretty Print Code ======
@@ -282,6 +324,14 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
             write!(f, "match x {{ ")?;
             write_separated_list(f, match_expr.cases.iter(), ", ", |f, case| write!(f, "{case} "))?;
             write!(f, "}}")
+        },
+        Expression::LetEqualIn(vars, e1, e2) => {
+            write!(f, "let ")?;
+            write_implicit_utuple(f, &vars.0, ", ", |f, vid| write!(f, "{vid}"))?;
+            write!(f, " = ", )?;
+            write_expression_inline(f, e1, indent)?;
+            write!(f, " in ")?;
+            write_expression_inline(f, e2, indent)
         }
     }
 }

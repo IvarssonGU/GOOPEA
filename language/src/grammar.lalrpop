@@ -21,6 +21,8 @@ extern {
         "fip" => Token::Fip,
         "match" => Token::Match,
         "enum" => Token::Enum,
+        "let" => Token::Let,
+        "in" => Token::In,
         "+-" => Token::PlusMinus(<String>),
         "*/" => Token::MultiplyDivide(<String>),
         "cmp" => Token::Comparator(<String>),
@@ -95,15 +97,15 @@ FunctionSignature: FunctionSignature = {
 }
 
 ExpressionReset = <Expression>;
-
 Expression: Expression = {
     #[precedence(level="0")]
     "id" => Expression::Variable(<>),
     "int" => Expression::Integer(<>),
     UTuple<ExpressionReset> => Expression::UTuple(<>),
 
+
     #[precedence(level="1")]
-    <id: "id"> <arg: Expression> => {
+    <id: "id"> <arg: Expression> => { // Can't simplify this as just 'FunctionCall', but don't understand why.
         match arg {
             Expression::UTuple(tup) => Expression::FunctionCall(id, tup),
             _ => Expression::FunctionCall(id, UTuple(vec![arg]))
@@ -146,6 +148,20 @@ Expression: Expression = {
     #[precedence(level="5")]
     "match" <variable: "id"> "{" <cases: MatchCases> "}" => {
         Expression::Match(MatchExpression { variable, cases })
+    },
+
+    "let" <vars: UTuple<"id">> "=" <e1: FunctionCall> "in" <e2: Expression> => {
+        Expression::LetEqualIn(vars, Box::new(e1), Box::new(e2))
+    }
+}
+
+#[inline]
+FunctionCall: Expression = {
+    <id: "id"> <arg: Expression> => {
+        match arg {
+            Expression::UTuple(tup) => Expression::FunctionCall(id, tup),
+            _ => Expression::FunctionCall(id, UTuple(vec![arg]))
+        }
     },
 }
 

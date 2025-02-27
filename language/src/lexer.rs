@@ -69,6 +69,10 @@ pub enum Token {
     Match,
     #[token("enum")]
     Enum,
+    #[token("let")]
+    Let,
+    #[token("in")]
+    In,
 
     #[regex("[+-]", |lex| lex.slice().to_string())]
     PlusMinus(String),
