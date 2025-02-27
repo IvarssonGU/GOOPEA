@@ -137,7 +137,7 @@ impl Program {
 
 // ====== Pretty Print Code ======
 
-fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
+pub fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
     write!(f, "{}", "    ".repeat(indent))
 }
 
@@ -224,7 +224,7 @@ impl Display for Expression {
     }
 }
 
-fn write_separated_list<T>(
+pub fn write_separated_list<T>(
         f: &mut Formatter, 
         iter: impl Iterator<Item = T>, 
         separator: &str,
@@ -241,7 +241,7 @@ fn write_separated_list<T>(
     Ok(())
 }
 
-fn write_implicit_utuple<T>(
+pub fn write_implicit_utuple<T>(
         f: &mut Formatter, 
         items: &Vec<T>,
         separator: &str,
@@ -250,7 +250,6 @@ fn write_implicit_utuple<T>(
 {
     if items.len() == 0 { Ok(()) }
     else if items.len() == 1 { 
-        write!(f, " ")?;
         write(f, &items[0]) 
     } else {
         write!(f, "(")?;
@@ -299,7 +298,7 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
             write!(f, ")")
         }
         Expression::FunctionCall(id, arg) => {
-            write!(f, "{id}")?;
+            write!(f, "{id} ")?;
             write_implicit_utuple(f, &arg.0, ", ", |f, e| write_expression_inline(f, e, indent))
         },
         Expression::Operation(op, e1, e2) => {
@@ -358,7 +357,7 @@ fn write_expression_multiline(f: &mut Formatter, expression: &Expression, indent
             write_expression(f, e2, indent)
         },
         Expression::FunctionCall(id, arg) => {
-            write!(f, "{id}")?;
+            write!(f, "{id} ")?;
             write_implicit_utuple(f, &arg.0, ",", |f, e| {
                 writeln!(f)?;
                 write_indent(f, indent+1)?;

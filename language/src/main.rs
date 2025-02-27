@@ -20,7 +20,7 @@ fn main() {
     println!("{:#?}\n{}", program, program);
 
     let scoped_program = ScopedProgram::new(&program);
-    println!("{scoped_program:#?}")
+    println!("{scoped_program}")
 }
 
 #[cfg(test)]

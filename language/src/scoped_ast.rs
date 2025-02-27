@@ -1,5 +1,5 @@
-use std::{collections::{HashMap, HashSet}, rc::Rc};
-use crate::ast::{ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID};
+use std::{cell::RefMut, collections::{HashMap, HashSet}, fmt::{Display, Formatter}, rc::Rc, sync::{atomic::AtomicUsize, Arc, LazyLock}};
+use crate::ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID};
 
 #[derive(Debug)]
 pub struct ConstructorReference<'a> {
@@ -16,7 +16,8 @@ pub struct ScopedFunction<'a> {
 #[derive(Clone, Debug)]
 pub struct VariableDefinition {
     id: VID,
-    tp: Type
+    tp: Type,
+    internal_id: usize // Each definition is given a definitively different internal_id
 }
 
 type Scope<'a> = HashMap<VID, Rc<VariableDefinition>>;
@@ -49,7 +50,8 @@ impl<'a> ScopeChildren<'a> {
 pub struct ScopedProgram<'a> {
     adts: HashMap<AID, &'a ADTDefinition>,
     constructors: HashMap<FID, ConstructorReference<'a>>,
-    functions: HashMap<FID, ScopedFunction<'a>>
+    functions: HashMap<FID, ScopedFunction<'a>>,
+    program: &'a Program
 }
 
 impl<'a> ScopedProgram<'a> {
@@ -87,9 +89,9 @@ impl<'a> ScopedProgram<'a> {
                         panic!("Missmatched argument count in signature vs definition of function {}", def.id);
                     }
     
-                    let function_variables = def.variables.0.iter().zip(def.signature.result_type.0.iter()).map(
+                    let function_variables = def.variables.0.iter().zip(def.signature.argument_type.0.iter()).map(
                         |(vid, tp)| {
-                            VariableDefinition { id: vid.clone(), tp: tp.clone() }
+                            VariableDefinition { id: vid.clone(), tp: tp.clone(), internal_id: get_new_internal_id() }
                         }
                     ).collect::<Vec<_>>();
     
@@ -107,7 +109,8 @@ impl<'a> ScopedProgram<'a> {
         ScopedProgram {
             adts,
             constructors,
-            functions
+            functions,
+            program
         }
     }
 
@@ -159,6 +162,11 @@ impl<'a> ScopedExpressionNode<'a> {
     }
 }
 
+fn get_new_internal_id() -> usize {
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 // Creates a ScopeExpressionNode recursively for the expression
 // Each node contains a mapping from VID to VariableDefinition
 // A variable definition contains type information 
@@ -204,7 +212,7 @@ fn scope_expression<'a>(
                 }
 
                 for (vid, tp) in vars.0.iter().zip(signature.result_type.0.iter()) {
-                    new_vars.push(VariableDefinition { id: vid.clone(), tp: tp.clone() });
+                    new_vars.push(VariableDefinition { id: vid.clone(), tp: tp.clone(), internal_id: get_new_internal_id() });
                 }
 
                 ScopeChildren::Two(
@@ -226,7 +234,8 @@ fn scope_expression<'a>(
                             case.vars.0.iter().zip(cons_sig.0.iter()).map(|(new_vid, tp)| {
                                 VariableDefinition {
                                     id: new_vid.clone(),
-                                    tp: tp.clone()
+                                    tp: tp.clone(),
+                                    internal_id: get_new_internal_id()
                                 }
                             }).collect(),
                             function_signatures,
@@ -240,8 +249,103 @@ fn scope_expression<'a>(
     }
 }
 
-fn test() {
-    let a: Program = Program(vec![]);
-    let p = ScopedProgram::new(&a);
-    //p.functions.get("A").unwrap().;
+impl PartialEq for VariableDefinition {
+    fn eq(&self, other: &Self) -> bool {
+       self.internal_id == other.internal_id
+    }
+}
+
+// ==== PRETTY PRINT CODE ====
+
+pub fn write_scope<T>(
+    f: &mut std::fmt::Formatter<'_>, 
+    scope: &HashMap<String, T>, 
+    write: impl Fn(&mut Formatter, &T) -> std::fmt::Result
+) -> std::fmt::Result 
+{
+    write!(f, "{{")?;
+
+    write_separated_list(f, scope.iter(), ", ", |f, (_, val)| { write(f, val) })?;
+
+    write!(f, "}}")
+}
+
+impl Display for ScopedProgram<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "// === Scoped Program ===")?;
+
+        write!(f, "// ADTs: ")?;
+        write_scope(f, &self.adts, |f, x| write!(f, "{}", x.id))?;
+        writeln!(f)?;
+
+        write!(f, "// Constructors: ")?;
+        write_scope(f, &self.constructors, |f, x| write!(f, "{}/{}", x.adt.id, x.constructor.id))?;
+        writeln!(f)?;
+
+        write!(f, "// Functions: ")?;
+        write_scope(f, &self.functions, |f, x| write!(f, "{}[{}]", x.def.id, x.def.signature))?;
+        writeln!(f)?;
+
+        writeln!(f)?;
+        writeln!(f, "// === ADT Definitions ===")?;
+        for (_, adt) in &self.adts {
+            writeln!(f, "{}\n", adt)?;
+        }
+
+        writeln!(f, "// === Scoped Functions ===")?;
+        for (_, func) in &self.functions {
+            writeln!(f, "{}\n", func)?;
+        }
+
+
+        Ok(())
+    }
+}
+
+impl Display for ScopedFunction<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.def.signature)?;
+        write!(f, "{} ", self.def.id)?;
+        write_implicit_utuple(f, &self.def.variables.0, ", ", |f, x| write!(f, "{x}"))?;
+        writeln!(f, " = ")?;
+
+        write_indent(f, 1)?;
+        write!(f, "// ")?;
+        write_scope(f, &self.body.scope, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
+
+        write_scoped_expression_node(f, &self.body, &self.body.scope,1)?;
+
+        Ok(())
+    }
+}
+
+fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpressionNode<'a>, mut previous_scope: &'a Scope, indent: usize) -> std::fmt::Result {
+    write_indent(f, indent)?;
+    if !scopes_are_equal(previous_scope, &node.scope) {
+        previous_scope = &node.scope;
+
+        write!(f, "// ")?;
+        write_scope(f, &node.scope, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
+    }
+
+    for child in node.children.scopes() {
+        writeln!(f)?;
+        write_scoped_expression_node(f, child, previous_scope, indent+1)?;
+    }
+
+    Ok(())
+}
+
+fn scopes_are_equal(s1: &Scope, s2: &Scope) -> bool {
+    for (id, def) in s1 {
+        let Some(other_def) = s2.get(id) else { return false; };
+        if def != other_def { return false; }
+    }
+
+    for (id, def) in s2 {
+        let Some(other_def) = s1.get(id) else { return false; };
+        if def != other_def { return false; }
+    }
+
+    true
 }
