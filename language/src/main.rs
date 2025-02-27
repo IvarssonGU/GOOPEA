@@ -4,19 +4,23 @@ use std::{fs, path::Path};
 
 use lalrpop_util::lalrpop_mod;
 use lexer::Lexer;
+use scoped_ast::ScopedProgram;
 
 mod ast;
-mod ast2;
+mod scoped_ast;
 
 lalrpop_mod!(pub grammar);
 
 mod lexer;
 
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/zipper_tree.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/reverse.goo")).unwrap();
 
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     println!("{:#?}\n{}", program, program);
+
+    let scoped_program = ScopedProgram::new(&program);
+    println!("{scoped_program:#?}")
 }
 
 #[cfg(test)]
