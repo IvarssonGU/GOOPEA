@@ -1,4 +1,4 @@
-use std::{cell::RefMut, collections::{HashMap, HashSet}, fmt::{Display, Formatter}, rc::Rc, sync::{atomic::AtomicUsize, Arc, LazyLock}};
+use std::{cell::RefMut, collections::{HashMap, HashSet}, fmt::{Display, Formatter}, path::MAIN_SEPARATOR, rc::Rc, sync::{atomic::AtomicUsize, Arc, LazyLock}};
 use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
 #[derive(Debug)]
@@ -28,7 +28,29 @@ pub struct ScopedExpressionNode<'a> {
     expr: &'a Expression,
     children: ScopeChildren<'a>,
     scope: Scope<'a>,
-    //tp: Type
+    tp: ExpressionType
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum ExpressionType {
+    UTuple(UTuple<Type>),
+    Type(Type)
+}
+
+impl ExpressionType {
+    pub fn utuple(&self) -> Option<&UTuple<Type>> {
+        match self {
+            ExpressionType::UTuple(tup) => Some(tup),
+            ExpressionType::Type(_) => None
+        }
+    }
+
+    pub fn tp(&self) -> Option<&Type> {
+        match self {
+            ExpressionType::Type(tp) => Some(tp),
+            ExpressionType::UTuple(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -45,6 +67,17 @@ impl<'a> ScopeChildren<'a> {
             ScopeChildren::Two(s1, s2) => vec![s1, s2],
             ScopeChildren::Zero => vec![]
         }
+    }
+
+    fn get_same_type(&self) -> Option<ExpressionType> {
+        let mut iter = self.scopes().into_iter();
+        let tp = iter.next()?.tp.clone();
+
+        for x in iter {
+            if x.tp != tp { return None; }
+        }
+
+        Some(tp)
     }
 }
 
@@ -64,10 +97,17 @@ impl<'a> ScopedProgram<'a> {
 
         let mut function_signatures: HashMap<FID, &FunctionSignature> = HashMap::new();
         let mut constructor_signatures: HashMap<FID, &ConstructorSignature> = HashMap::new();
+        let mut zero_argument_constructor_variables = Vec::new();
         for def in &program.0 {
             match def {
-                Definition::ADTDefinition(def) =>
-                    constructor_signatures.extend(def.constructors.iter().map(|cons| (cons.id.clone(), &cons.arguments))),
+                Definition::ADTDefinition(def) => {
+                    constructor_signatures.extend(def.constructors.iter().map(|cons| (cons.id.clone(), &cons.arguments)));
+                    zero_argument_constructor_variables.extend(
+                        def.constructors.iter()
+                        .filter(|c| c.arguments.0.len() == 0)
+                        .map(|c| VariableDefinition { id: c.id.clone(), tp: Type::ADT(def.id.clone()), internal_id: get_new_internal_id() }) 
+                    );
+                },
                 Definition::FunctionDefinition(def) => {
                     function_signatures.insert(def.id.clone(), &def.signature);
                 }
@@ -75,6 +115,9 @@ impl<'a> ScopedProgram<'a> {
         }
 
         reset_internal_id_counter();
+
+        let mut default_scope = HashMap::new();
+        default_scope.extend(zero_argument_constructor_variables.into_iter().map(|c| (c.id.clone(), Rc::new(c))));
 
         let mut adts = HashMap::new();
         let mut constructors = HashMap::new();
@@ -103,7 +146,7 @@ impl<'a> ScopedProgram<'a> {
                         def.id.clone(), 
                         ScopedFunction { 
                             def, 
-                            body: scope_expression(&def.body, &HashMap::new(), function_variables, &function_signatures, &constructor_signatures)?
+                            body: scope_expression(&def.body, &default_scope, function_variables, &function_signatures, &constructor_signatures)?
                         }
                     );
                 }
@@ -201,7 +244,7 @@ fn get_new_internal_id() -> usize {
 // Each node contains a mapping from VID to VariableDefinition and the resulting type of the expression
 // A variable definition contains type information 
 // Checks that each case in match has correct number of arguments for the constructor
-// Doesn't do any type analysis
+// Does type inference on variables and expression, with minimum type checking
 fn scope_expression<'a>(
     expr: &'a Expression, 
     scope: &Scope<'a>, 
@@ -215,67 +258,92 @@ fn scope_expression<'a>(
         scope.insert(var.id.clone(), Rc::new(var));
     }
 
+    let (children, tp) = match expr {
+        Expression::UTuple(tup) => {
+            let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, &scope, vec![], function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
+            let tp = ExpressionType::UTuple(UTuple(
+                children.scopes().iter().map(|s| s.tp.tp().ok_or_else(|| CompileError::UnexpectedUTuple(&expr)).map(|t| t.clone())).collect::<Result<_, _>>()?
+            ));
+            (children, tp)
+        },
+        Expression::FunctionCall(fid, tup) => {
+            let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, &scope, vec![], function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
+            let return_type = &function_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.result_type;
+            let tp = if return_type.0.len() == 1 { ExpressionType::Type(return_type.0[0].clone()) } else { ExpressionType::UTuple(return_type.clone()) };
+            (children, tp)
+        },
+        Expression::Integer(_) => (ScopeChildren::Zero, ExpressionType::Type(Type::Int)),
+        Expression::Variable(var) => 
+            (
+                ScopeChildren::Zero, 
+                ExpressionType::Type(scope.get(var).ok_or_else(|| CompileError::UnknownVariable(var))?.tp.clone())
+            ),
+        Expression::Operation(_, e1, e2) => {
+            let children = ScopeChildren::Two(
+                Box::new(scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?), 
+                Box::new(scope_expression(e2, &scope, vec![], function_signatures, constructor_signatures)?)
+            );
+            (children, ExpressionType::Type(Type::Int))
+        },
+        Expression::LetEqualIn(vars, e1, e2) => {
+            let mut new_vars = vec![];
+            
+            let signature = match &**e1 {
+                Expression::FunctionCall(fid, _) => function_signatures.get(fid).ok_or(CompileError::UnknownFunction(fid))?,
+                _ => return Err(CompileError::LetHasNoFunctionCall(expr))
+            };
+
+            if vars.0.len() != signature.result_type.0.len() {
+                return Err(CompileError::WrongVariableCountInLetStatement(&expr))
+            }
+
+            for (vid, tp) in vars.0.iter().zip(signature.result_type.0.iter()) {
+                new_vars.push(VariableDefinition { id: vid.clone(), tp: tp.clone(), internal_id: get_new_internal_id() });
+            }
+
+            let e1 = scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?;
+            let e2 = scope_expression(e2, &scope, new_vars, function_signatures, constructor_signatures)?;
+
+            let tp = e2.tp.clone();
+            let children = ScopeChildren::Two(Box::new(e1), Box::new(e2));
+
+
+            (children, tp)
+        },
+        Expression::Match(match_expr) => {
+            let children = ScopeChildren::Many(
+                match_expr.cases.iter().map(|case| {
+                    let cons_sig: &ConstructorSignature = constructor_signatures.get(&case.cons_id).ok_or(CompileError::UnknownConstructor(&case.cons_id))?;
+                    if cons_sig.0.len() != case.vars.0.len() {
+                        panic!("Wrong number of arguments in match statement of case {}", case.cons_id);
+                    }
+
+                    scope_expression(
+                        &case.body,
+                        &scope, 
+                        case.vars.0.iter().zip(cons_sig.0.iter()).map(|(new_vid, tp)| {
+                            VariableDefinition {
+                                id: new_vid.clone(),
+                                tp: tp.clone(),
+                                internal_id: get_new_internal_id()
+                            }
+                        }).collect(),
+                        function_signatures,
+                        constructor_signatures
+                    )
+                }).collect::<Result<_, _>>()?
+            );
+
+            let tp = children.get_same_type().ok_or_else(|| CompileError::MissmatchedTypes(expr))?;
+            (children, tp)
+        }
+    };
+
     Ok(ScopedExpressionNode {
         expr,
-        children: match expr {
-            Expression::FunctionCall(_, tup) |
-            Expression::UTuple(tup) => 
-                ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, &scope, vec![], function_signatures, constructor_signatures)).collect::<Result<_, _>>()?),
-            Expression::Integer(_) |
-            Expression::Variable(_) => 
-                ScopeChildren::Zero,
-            Expression::Operation(_, e1, e2) =>
-                ScopeChildren::Two(
-                    Box::new(scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?), 
-                    Box::new(scope_expression(e2, &scope, vec![], function_signatures, constructor_signatures)?)
-                ),
-            Expression::LetEqualIn(vars, e1, e2) => {
-                let mut new_vars = vec![];
-                
-                let signature = match &**e1 {
-                    Expression::FunctionCall(fid, _) => function_signatures.get(fid).ok_or(CompileError::UnknownFunction(fid))?,
-                    _ => return Err(CompileError::LetHasNoFunctionCall(expr))
-                };
-
-                if vars.0.len() != signature.result_type.0.len() {
-                    return Err(CompileError::WrongVariableCountInLetStatement(&expr))
-                }
-
-                for (vid, tp) in vars.0.iter().zip(signature.result_type.0.iter()) {
-                    new_vars.push(VariableDefinition { id: vid.clone(), tp: tp.clone(), internal_id: get_new_internal_id() });
-                }
-
-                ScopeChildren::Two(
-                    Box::new(scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?), 
-                    Box::new(scope_expression(e2, &scope, new_vars, function_signatures, constructor_signatures)?)
-                )
-            },
-            Expression::Match(expr) => {
-                ScopeChildren::Many(
-                    expr.cases.iter().map(|case| {
-                        let cons_sig: &ConstructorSignature = constructor_signatures.get(&case.cons_id).ok_or(CompileError::UnknownConstructor(&case.cons_id))?;
-                        if cons_sig.0.len() != case.vars.0.len() {
-                            panic!("Wrong number of arguments in match statement of case {}", case.cons_id);
-                        }
-
-                        scope_expression(
-                            &case.body,
-                            &scope, 
-                            case.vars.0.iter().zip(cons_sig.0.iter()).map(|(new_vid, tp)| {
-                                VariableDefinition {
-                                    id: new_vid.clone(),
-                                    tp: tp.clone(),
-                                    internal_id: get_new_internal_id()
-                                }
-                            }).collect(),
-                            function_signatures,
-                            constructor_signatures
-                        )
-                    }).collect::<Result<_, _>>()?
-                )
-            }
-        },
+        children,
         scope,
+        tp
     })
 }
 
@@ -339,21 +407,17 @@ impl Display for ScopedFunction<'_> {
         write_implicit_utuple(f, &self.def.variables.0, ", ", |f, x| write!(f, "{x}"))?;
         writeln!(f, " = ")?;
 
-        write_scoped_expression_node(f, &self.body, None,1)?;
+        write_scoped_expression_node(f, &self.body,1)?;
 
         Ok(())
     }
 }
 
-fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpressionNode<'a>, mut previous_scope: Option<&'a Scope>, indent: usize) -> std::fmt::Result {
-    if !previous_scope.is_some_and(|previous_scope| scopes_are_equal(previous_scope, &node.scope)) {
-        previous_scope = Some(&node.scope);
-
-        write_indent(f, indent)?;
-        write!(f, "// ")?;
-        write_scope(f, &node.scope, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
-        writeln!(f)?;
-    }
+fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpressionNode<'a>, indent: usize) -> std::fmt::Result {
+    write_indent(f, indent)?;
+    write!(f, "// ")?;
+    write_scope(f, &node.scope, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
+    writeln!(f)?;
 
     match &node.expr {
         /*Expression::UTuple(_) => {
@@ -372,7 +436,7 @@ fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpre
         //Expression::LetEqualIn(utuple, expression, expression1) => todo!(),
         _ => {
             for child in node.children.scopes() {
-                write_scoped_expression_node(f, child, previous_scope, indent+1)?;
+                write_scoped_expression_node(f, child, indent+1)?;
             }
         }
     }

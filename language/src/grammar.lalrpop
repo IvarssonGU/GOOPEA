@@ -130,7 +130,7 @@ Expression: Expression = {
         )
     },
 
-    #[precedence(level="4")] #[assoc(side="left")]
+    /*#[precedence(level="4")] #[assoc(side="left")]
     <e1: Expression> <op: "cmp"> <e2: Expression> => {
         let operation = match op.as_str() {
             "==" => Operator::Equal,
@@ -143,7 +143,7 @@ Expression: Expression = {
         };
 
         Expression::Operation(operation, Box::new(e1), Box::new(e2))
-    },
+    },*/
 
     #[precedence(level="5")]
     "match" <variable: "id"> "{" <cases: MatchCases> "}" => {

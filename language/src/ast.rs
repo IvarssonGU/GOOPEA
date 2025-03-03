@@ -75,7 +75,7 @@ pub enum Expression {
 
 #[derive(Debug, Clone)]
 pub enum Operator {
-    Equal, NotEqual, Less, LessOrEqual, Greater, GreaterOrEqual,
+    //Equal, NotEqual, Less, LessOrEqual, Greater, GreaterOrEqual,
     Add, Sub, Mul, Div 
 }
 
@@ -307,12 +307,12 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
                 Operator::Sub => "-",
                 Operator::Div => "/",
                 Operator::Mul => "*",
-                Operator::Greater => ">",
+                /*Operator::Greater => ">",
                 Operator::GreaterOrEqual => ">=",
                 Operator::Less => "<",
                 Operator::LessOrEqual => "<=",
                 Operator::Equal => "==",
-                Operator::NotEqual => "!="
+                Operator::NotEqual => "!="*/
             };
 
             write_expression(f, e1, indent)?;
@@ -343,12 +343,12 @@ fn write_expression_multiline(f: &mut Formatter, expression: &Expression, indent
                 Operator::Sub => "-",
                 Operator::Div => "/",
                 Operator::Mul => "*",
-                Operator::Greater => ">",
+                /*Operator::Greater => ">",
                 Operator::GreaterOrEqual => ">=",
                 Operator::Less => "<",
                 Operator::LessOrEqual => "<=",
                 Operator::Equal => "==",
-                Operator::NotEqual => "!="
+                Operator::NotEqual => "!="*/
             };
 
             write_expression(f, e1, indent)?;

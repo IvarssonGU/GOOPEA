@@ -13,5 +13,8 @@ pub enum CompileError<'a> {
     WrongVariableCountInLetStatement(&'a Expression),
     WrongVariableCountInMatchCase(&'a MatchCase),
     UnknownADTInType(&'a AID),
-    LetHasNoFunctionCall(&'a Expression)
+    LetHasNoFunctionCall(&'a Expression),
+
+    MissmatchedTypes(&'a Expression),
+    UnexpectedUTuple(&'a Expression)
 }
