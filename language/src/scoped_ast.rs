@@ -1,10 +1,11 @@
 use std::{cell::RefMut, collections::{HashMap, HashSet}, fmt::{Display, Formatter}, rc::Rc, sync::{atomic::AtomicUsize, Arc, LazyLock}};
-use crate::ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID};
+use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
 #[derive(Debug)]
 pub struct ConstructorReference<'a> {
     adt: &'a ADTDefinition,
-    constructor: &'a ConstructorDefinition
+    constructor: &'a ConstructorDefinition,
+    internal_id: usize // Each constructor in an ADT is given a unique internal_id
 }
 
 #[derive(Debug)]
@@ -27,6 +28,7 @@ pub struct ScopedExpressionNode<'a> {
     expr: &'a Expression,
     children: ScopeChildren<'a>,
     scope: Scope<'a>,
+    //tp: Type
 }
 
 #[derive(Debug, Clone)]
@@ -57,7 +59,7 @@ pub struct ScopedProgram<'a> {
 impl<'a> ScopedProgram<'a> {
     // Creates a new program with scope information
     // Performs minimum required validation, such as no top level symbol collisions
-    pub fn new(program: &'a Program) -> ScopedProgram<'a> {
+    pub fn new(program: &'a Program) -> Result<ScopedProgram<'a>, CompileError<'a>> {
         program.validate_top_level_ids();
 
         let mut function_signatures: HashMap<FID, &FunctionSignature> = HashMap::new();
@@ -72,6 +74,8 @@ impl<'a> ScopedProgram<'a> {
             }
         }
 
+        reset_internal_id_counter();
+
         let mut adts = HashMap::new();
         let mut constructors = HashMap::new();
         let mut functions = HashMap::new();
@@ -80,13 +84,13 @@ impl<'a> ScopedProgram<'a> {
                 Definition::ADTDefinition(def) => {
                     adts.insert(def.id.clone(), def);
     
-                    for cons in &def.constructors {    
-                        constructors.insert(cons.id.clone(), ConstructorReference { adt: &def, constructor: &cons });
+                    for (internal_id, cons) in def.constructors.iter().enumerate() {    
+                        constructors.insert(cons.id.clone(), ConstructorReference { adt: &def, constructor: &cons, internal_id });
                     }
                 },
                 Definition::FunctionDefinition(def) => {
                     if def.variables.0.len() != def.signature.argument_type.0.len() {
-                        panic!("Missmatched argument count in signature vs definition of function {}", def.id);
+                        return Err(CompileError::InconsistentVariableCountInFunctionDefinition(def))
                     }
     
                     let function_variables = def.variables.0.iter().zip(def.signature.argument_type.0.iter()).map(
@@ -99,43 +103,65 @@ impl<'a> ScopedProgram<'a> {
                         def.id.clone(), 
                         ScopedFunction { 
                             def, 
-                            body: scope_expression(&def.body, &HashMap::new(), function_variables, &function_signatures, &constructor_signatures) 
+                            body: scope_expression(&def.body, &HashMap::new(), function_variables, &function_signatures, &constructor_signatures)?
                         }
                     );
                 }
             }
         }
 
-        ScopedProgram {
+        Ok(ScopedProgram {
             adts,
             constructors,
             functions,
             program
-        }
+        })
     }
 
-    // Checks so that ADT constructors use valid types
-    pub fn validate_adt_types(&self) {
-        for (fid, cons) in &self.constructors {
-            if !cons.constructor.arguments.is_valid_in(self) {
-                panic!("Constructor {} has invalid type", fid);
+    // Checks so that all types use defined ADT names
+    pub fn validate_all_types(&self) -> CompileResult {
+        for (_, cons) in &self.constructors {
+            cons.constructor.arguments.validate_in(self)?;
+        }
+
+        for (_, func) in &self.functions {
+            func.def.signature.validate_in(self)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn validate_all_symbol_occurences() {
+
+    }
+}
+
+impl Type {
+    fn validate_in(&self, program: &ScopedProgram) -> CompileResult {
+        match self {
+            Type::Int => Ok(()),
+            Type::ADT(aid) => {
+                if !program.adts.contains_key(aid) { 
+                    Err(CompileError::UnknownADTInType(aid)) 
+                } else { 
+                    Ok(()) 
+                }
             }
         }
     }
 }
 
-impl Type {
-    fn is_valid_in(&self, program: &ScopedProgram) -> bool {
-        match self {
-            Type::Int => true,
-            Type::ADT(aid) => program.adts.contains_key(aid),
-        }
+impl UTuple<Type> {
+    fn validate_in(&self, program: &ScopedProgram) -> CompileResult {
+        for tp in &self.0 { tp.validate_in(program)?; }
+        Ok(())
     }
 }
 
-impl UTuple<Type> {
-    fn is_valid_in(&self, program: &ScopedProgram) -> bool {
-        self.0.iter().map(|tp| tp.is_valid_in(program)).all(|x| x)
+impl FunctionSignature {
+    fn validate_in(&self, program: &ScopedProgram) -> CompileResult {
+        self.argument_type.validate_in(program)?;
+        self.result_type.validate_in(program)
     }
 }
 
@@ -162,53 +188,57 @@ impl<'a> ScopedExpressionNode<'a> {
     }
 }
 
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
+fn reset_internal_id_counter() {
+    COUNTER.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
 fn get_new_internal_id() -> usize {
-    static COUNTER: AtomicUsize = AtomicUsize::new(0);
     COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 // Creates a ScopeExpressionNode recursively for the expression
-// Each node contains a mapping from VID to VariableDefinition
+// Each node contains a mapping from VID to VariableDefinition and the resulting type of the expression
 // A variable definition contains type information 
 // Checks that each case in match has correct number of arguments for the constructor
-// Doesn't perform any type checking or other types of validation, but does do type inference
+// Doesn't do any type analysis
 fn scope_expression<'a>(
     expr: &'a Expression, 
     scope: &Scope<'a>, 
     new_vars: Vec<VariableDefinition>, 
     function_signatures: &HashMap<FID, &'a FunctionSignature>,
     constructor_signatures: &HashMap<FID, &'a ConstructorSignature>,
-) -> ScopedExpressionNode<'a> 
+) -> Result<ScopedExpressionNode<'a>, CompileError<'a>> 
 {
     let mut scope = scope.clone();
     for var in new_vars {
         scope.insert(var.id.clone(), Rc::new(var));
     }
 
-    ScopedExpressionNode {
+    Ok(ScopedExpressionNode {
         expr,
         children: match expr {
             Expression::FunctionCall(_, tup) |
             Expression::UTuple(tup) => 
-                ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, &scope, vec![], function_signatures, constructor_signatures)).collect()),
+                ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, &scope, vec![], function_signatures, constructor_signatures)).collect::<Result<_, _>>()?),
             Expression::Integer(_) |
             Expression::Variable(_) => 
                 ScopeChildren::Zero,
             Expression::Operation(_, e1, e2) =>
                 ScopeChildren::Two(
-                    Box::new(scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)), 
-                    Box::new(scope_expression(e2, &scope, vec![], function_signatures, constructor_signatures))
+                    Box::new(scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?), 
+                    Box::new(scope_expression(e2, &scope, vec![], function_signatures, constructor_signatures)?)
                 ),
             Expression::LetEqualIn(vars, e1, e2) => {
                 let mut new_vars = vec![];
                 
                 let signature = match &**e1 {
-                    Expression::FunctionCall(fid, _) => function_signatures.get(fid).expect(&format!("Unknown function \"{}\"", fid)),
-                    _ => panic!("Expected a function call in let statement")
+                    Expression::FunctionCall(fid, _) => function_signatures.get(fid).ok_or(CompileError::UnknownFunction(fid))?,
+                    _ => return Err(CompileError::LetHasNoFunctionCall(expr))
                 };
 
                 if vars.0.len() != signature.result_type.0.len() {
-                    panic!("Wrong number of arguments in let statement");
+                    return Err(CompileError::WrongVariableCountInLetStatement(&expr))
                 }
 
                 for (vid, tp) in vars.0.iter().zip(signature.result_type.0.iter()) {
@@ -216,14 +246,14 @@ fn scope_expression<'a>(
                 }
 
                 ScopeChildren::Two(
-                    Box::new(scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)), 
-                    Box::new(scope_expression(e2, &scope, new_vars, function_signatures, constructor_signatures))
+                    Box::new(scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?), 
+                    Box::new(scope_expression(e2, &scope, new_vars, function_signatures, constructor_signatures)?)
                 )
             },
             Expression::Match(expr) => {
                 ScopeChildren::Many(
                     expr.cases.iter().map(|case| {
-                        let cons_sig: &ConstructorSignature = constructor_signatures.get(&case.cons_id).expect(&format!("Unknown constructor \"{}\"", case.cons_id));
+                        let cons_sig: &ConstructorSignature = constructor_signatures.get(&case.cons_id).ok_or(CompileError::UnknownConstructor(&case.cons_id))?;
                         if cons_sig.0.len() != case.vars.0.len() {
                             panic!("Wrong number of arguments in match statement of case {}", case.cons_id);
                         }
@@ -241,12 +271,12 @@ fn scope_expression<'a>(
                             function_signatures,
                             constructor_signatures
                         )
-                    }).collect()
+                    }).collect::<Result<_, _>>()?
                 )
             }
         },
         scope,
-    }
+    })
 }
 
 impl PartialEq for VariableDefinition {
@@ -309,28 +339,42 @@ impl Display for ScopedFunction<'_> {
         write_implicit_utuple(f, &self.def.variables.0, ", ", |f, x| write!(f, "{x}"))?;
         writeln!(f, " = ")?;
 
-        write_indent(f, 1)?;
-        write!(f, "// ")?;
-        write_scope(f, &self.body.scope, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
-
-        write_scoped_expression_node(f, &self.body, &self.body.scope,1)?;
+        write_scoped_expression_node(f, &self.body, None,1)?;
 
         Ok(())
     }
 }
 
-fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpressionNode<'a>, mut previous_scope: &'a Scope, indent: usize) -> std::fmt::Result {
-    write_indent(f, indent)?;
-    if !scopes_are_equal(previous_scope, &node.scope) {
-        previous_scope = &node.scope;
+fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpressionNode<'a>, mut previous_scope: Option<&'a Scope>, indent: usize) -> std::fmt::Result {
+    if !previous_scope.is_some_and(|previous_scope| scopes_are_equal(previous_scope, &node.scope)) {
+        previous_scope = Some(&node.scope);
 
+        write_indent(f, indent)?;
         write!(f, "// ")?;
         write_scope(f, &node.scope, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
+        writeln!(f)?;
     }
 
-    for child in node.children.scopes() {
-        writeln!(f)?;
-        write_scoped_expression_node(f, child, previous_scope, indent+1)?;
+    match &node.expr {
+        /*Expression::UTuple(_) => {
+            write_implicit_utuple(f, &node.children.scopes(), ",\n", move |f, x| {
+                write_indent(f, indent)?;
+                write_scoped_expression_node(f, x, previous_scope, indent+1)
+            })?;
+
+            writeln!(f)?;
+        },*/
+        //Expression::FunctionCall(_, utuple) => todo!(),
+        //Expression::Integer(_) => todo!(),
+        //Expression::Variable(_) => todo!(),
+        //Expression::Match(match_expression) => todo!(),
+        //Expression::Operation(operator, expression, expression1) => todo!(),
+        //Expression::LetEqualIn(utuple, expression, expression1) => todo!(),
+        _ => {
+            for child in node.children.scopes() {
+                write_scoped_expression_node(f, child, previous_scope, indent+1)?;
+            }
+        }
     }
 
     Ok(())

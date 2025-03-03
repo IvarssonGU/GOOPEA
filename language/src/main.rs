@@ -8,6 +8,7 @@ use scoped_ast::ScopedProgram;
 
 mod ast;
 mod scoped_ast;
+mod error;
 
 lalrpop_mod!(pub grammar);
 
@@ -19,7 +20,7 @@ fn main() {
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     println!("{:#?}\n{}", program, program);
 
-    let scoped_program = ScopedProgram::new(&program);
+    let scoped_program = ScopedProgram::new(&program).unwrap();
     println!("{scoped_program}")
 }
 
