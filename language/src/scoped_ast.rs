@@ -96,6 +96,7 @@ impl<'a> ScopedProgram<'a> {
         program.validate_top_level_ids();
 
         let mut function_signatures: HashMap<FID, &FunctionSignature> = HashMap::new();
+        let mut constructor_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
         let mut constructor_signatures: HashMap<FID, &ConstructorSignature> = HashMap::new();
         let mut zero_argument_constructor_variables = Vec::new();
         for def in &program.0 {
@@ -107,12 +108,26 @@ impl<'a> ScopedProgram<'a> {
                         .filter(|c| c.arguments.0.len() == 0)
                         .map(|c| VariableDefinition { id: c.id.clone(), tp: Type::ADT(def.id.clone()), internal_id: get_new_internal_id() }) 
                     );
+
+                    constructor_function_signatures.extend(def.constructors.iter().map(
+                        |cons| {
+                            (cons.id.clone(),
+                                FunctionSignature {
+                                    argument_type: cons.arguments.clone(),
+                                    result_type: UTuple(vec! [Type::ADT(def.id.clone())]),
+                                    is_fip: true
+                                }
+                            )
+                        }
+                    ));
                 },
                 Definition::FunctionDefinition(def) => {
                     function_signatures.insert(def.id.clone(), &def.signature);
                 }
             }
         }
+
+        function_signatures.extend(constructor_function_signatures.iter().map(|(fid, sig)| (fid.clone(), sig)));
 
         reset_internal_id_counter();
 
@@ -245,12 +260,12 @@ fn get_new_internal_id() -> usize {
 // A variable definition contains type information 
 // Checks that each case in match has correct number of arguments for the constructor
 // Does type inference on variables and expression, with minimum type checking
-fn scope_expression<'a>(
+fn scope_expression<'a, 'b>(
     expr: &'a Expression, 
     scope: &Scope<'a>, 
     new_vars: Vec<VariableDefinition>, 
-    function_signatures: &HashMap<FID, &'a FunctionSignature>,
-    constructor_signatures: &HashMap<FID, &'a ConstructorSignature>,
+    function_signatures: &HashMap<FID, &'b FunctionSignature>,
+    constructor_signatures: &HashMap<FID, &'b ConstructorSignature>,
 ) -> Result<ScopedExpressionNode<'a>, CompileError<'a>> 
 {
     let mut scope = scope.clone();
@@ -368,6 +383,15 @@ pub fn write_scope<T>(
     write!(f, "}}")
 }
 
+impl Display for ExpressionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            ExpressionType::UTuple(utuple) => write_implicit_utuple(f, &utuple.0, ", ", |f, x| write!(f, "{x}")),
+            ExpressionType::Type(tp) => write!(f, "{tp}"),
+        }
+    }
+}
+
 impl Display for ScopedProgram<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "// === Scoped Program ===")?;
@@ -415,7 +439,7 @@ impl Display for ScopedFunction<'_> {
 
 fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpressionNode<'a>, indent: usize) -> std::fmt::Result {
     write_indent(f, indent)?;
-    write!(f, "// ")?;
+    write!(f, "// type = {}, scope = ", node.tp)?;
     write_scope(f, &node.scope, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
     writeln!(f)?;
 
