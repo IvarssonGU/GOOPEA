@@ -1,102 +1,79 @@
-use std::{os::unix::raw::off_t, result};
+use std::{os::unix::raw::off_t, process::Termination, result};
 
-use ast::*;
-
-mod ast;
+mod ir;
+mod typed_ast;
 mod code;
-mod cast;
 
+use typed_ast::*;
 fn main() {
-    let data = ADTDefinition {
-        id: AID("List".to_string()),
-        constructors: vec![
-            ConstructorDefinition {
-                id: FID("Nil".to_string()),
-                argument: TupleType(vec![]),
-            },
-            ConstructorDefinition {
-                id: FID("Cons".to_string()),
-                argument: TupleType(vec![Type::Int, Type::ADT(AID("List".to_string()))])
-            },
-        ]
-    };
-    let exp = Expression::Match(MatchExpression {
-        exp: Box::new(Expression::Identifier(VID("xs".to_string()))),
-        cases: vec![
-            MatchCase {
-                pattern: Pattern::Constructor(FID("Nil".to_string()), vec![]),
-                body: Expression::Integer(0)
-            },
-            MatchCase {
-                pattern: Pattern::Constructor(FID("Cons".to_string()), vec![Some(VID("x".to_string())), Some(VID("rest".to_string()))]),
-                body: Expression::Operation(
-                    Operator::Add, 
-                    Box::new(Expression::Identifier(VID("x".to_string()))), 
-                    Box::new(Expression::FunctionCall(FID("sum".to_string()), TupleExpression(vec![Expression::Identifier(VID("rest".to_string()))]))))
-            }
-        ]
-    }, Type::Int, Type::ADT(AID(String::new())));
-    let exp2 = Expression::Match(MatchExpression {
-        exp: Box::new(Expression::Identifier(VID("n".to_string()))),
-        cases: vec![
+    // Create a function expression with the right pattern matching logic.
+    let build_exp = Expression::Match(
+        Box::from(Expression::Identifier("n".to_string())), 
+        vec![
             MatchCase{
                 pattern: Pattern::Integer(0),
-                body: Expression::Constructor(FID("Nil".to_string()), vec![])
+                body: Expression::Constructor(0, vec![])
             },
             MatchCase{
-                pattern: Pattern::Identifier(VID("x".to_string())),
-                body: Expression::Constructor(FID("Cons".to_string()), vec![
-                    Expression::Identifier(VID("x".to_string())),
-                    Expression::FunctionCall(FID("buildList".to_string()), TupleExpression(vec![
-                        Expression::Operation(Operator::
-                            Sub, Box::new(Expression::Identifier(VID("n".to_string()))), 
-                            Box::new(Expression::Integer(1)))
-                    ]))
+                pattern: Pattern::Identifier("x".to_string()),
+                body: Expression::Constructor(1, vec![
+                    Expression::Identifier("x".to_string()),
+                    Expression::FunctionCall("build".to_string(), vec![
+                        Expression::Operation(
+                            Operator::Sub,
+                            Box::from(Expression::Identifier("x".to_string())),
+                            Box::from(Expression::Integer(1))
+                        )
+                    ])
                 ])
             }
         ]
+    );
+    let sum_exp = Expression::Match(
+        Box::from(Expression::Identifier("xs".to_string())),
+        vec![
+            MatchCase{
+                pattern: Pattern::Atom(0),
+                body: Expression::Integer(0)
+            },
+            MatchCase{
+                pattern: Pattern::Constructor(1, vec![Some("x".to_string()), Some("rest".to_string())]),
+                body: Expression::Operation(
+                    Operator::Add, 
+                    Box::from(Expression::Identifier("x".to_string())), 
+                    Box::from(Expression::FunctionCall("sum".to_string(), vec![Expression::Identifier("rest".to_string())])))
+            }
+        ]
 
-    }, Type::ADT(AID("List".to_string())), Type::Int);
-    let exp3 = Expression::FunctionCall(FID("sum".to_string()), TupleExpression(vec![Expression::FunctionCall(FID("buildList".to_string()), TupleExpression(vec![Expression::Integer(100)]))]));
-    let fun = FunctionDefinition {
-        id: FID("sum".to_string()),
-        args: vec!["xs".to_string()],
-        body: exp,
-        signature: FunctionSignature {
-            argument_type: TupleType(vec![Type::ADT(AID("List".to_string()))]),
-            result_type: Type::Int,
-            is_fip: false
-        }
-    };
-    let fun2 = FunctionDefinition {
-        id: FID("buildList".to_string()),
+    );
+
+    let main_exp = Expression::FunctionCall("sum".to_string(), vec![
+        Expression::FunctionCall("build".to_string(), vec![Expression::Integer(100)])
+    ]);
+    let fun_build = FunctionDefinition {
+        id: "build".to_string(),
         args: vec!["n".to_string()],
-        body: exp2,
-        signature: FunctionSignature {
-            argument_type: TupleType(vec![Type::Int]),
-            result_type: Type::ADT(AID("List".to_string())),
-            is_fip: false
-        }
+        body: build_exp
     };
-    let fun3 = FunctionDefinition {
-        id: FID("main".to_string()),
+
+    let fun_sum = FunctionDefinition {
+        id: "sum".to_string(),
+        args: vec!["xs".to_string()],
+        body: sum_exp
+    };
+
+    let fun_main = FunctionDefinition {
+        id: "main".to_string(),
         args: vec![],
-        body: exp3,
-        signature: FunctionSignature {
-            argument_type: TupleType(vec![]),
-            result_type: Type::Int,
-            is_fip: false
-        }
+        body: main_exp
     };
-    let prog= Program {
-        adt_definitions: vec![data],
-        fun_definitions: vec![fun2, fun, fun3]
-    };
+    let prog= vec![fun_build, fun_sum, fun_main];
+
     let mut compiler: code::Compiler = code::Compiler::new();
-    let result = compiler.compile(prog);
+    let result = compiler.compile(&prog);
 
 
-    let pretty_output = cast::output(result);
+    let pretty_output = ir::output(result);
     for line in pretty_output {
         println!("{}", line);
     }
