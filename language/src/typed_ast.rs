@@ -12,15 +12,6 @@ pub struct FunctionDefinition {
 }
 
 
-#[derive(Debug, Clone)]
-pub enum Type {
-    Int,
-    Adt,
-}
-
-//#[derive(Debug, Clone)]
-//pub struct TExpression(pub Box<Expression>, pub Type);
-
 
 #[derive(Debug, Clone)]
 pub enum Expression {
