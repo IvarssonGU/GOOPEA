@@ -12,9 +12,12 @@ pub enum CompileError<'a> {
     InconsistentVariableCountInFunctionDefinition(&'a FunctionDefinition),
     WrongVariableCountInLetStatement(&'a Expression),
     WrongVariableCountInMatchCase(&'a MatchCase),
+    WrongVariableCountInFunctionCall(&'a Expression),
     UnknownADTInType(&'a AID),
     LetHasNoFunctionCall(&'a Expression),
 
     MissmatchedTypes(&'a Expression),
-    UnexpectedUTuple(&'a Expression)
+    UnexpectedUTuple,
+    WrongArgumentType,
+    InvalidOperationTypes
 }

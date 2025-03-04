@@ -51,6 +51,10 @@ impl ExpressionType {
             ExpressionType::UTuple(_) => None,
         }
     }
+
+    pub fn expect_tp(&self) -> Result<&Type, CompileError> {
+        self.tp().ok_or_else(|| CompileError::UnexpectedUTuple)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -224,25 +228,50 @@ impl FunctionSignature {
 }
 
 impl<'a> ScopedExpressionNode<'a> {
-    fn validate(&self, program: &ScopedProgram) {
+    fn validate(&self, program: &ScopedProgram) -> CompileResult {
+        let expected_scope_children_count: Option<usize> = match self.expr {
+            Expression::UTuple(_) | Expression::FunctionCall(_, _) | Expression::Match(_) => None,
+            Expression::Integer(_) | Expression::Variable(_) => Some(0),
+            Expression::Operation(_, _, _) | Expression::LetEqualIn(_, _, _) => Some(2),
+        };
+
+        if  expected_scope_children_count.is_some_and(|x| x != self.children.scopes().len()) {
+            panic!("Unexpected number of scope children")
+        }
+
         match self.expr {
             Expression::FunctionCall(fid, args) => {
-                let Some(func) = program.functions.get(fid) else { panic!("Unknown function {fid}"); };
-                let arg_type = &func.def.signature.argument_type;
+                        let Some(func) = program.functions.get(fid) else { return Err(CompileError::UnknownFunction(fid)) };
+                        let expected_arg_type = &func.def.signature.argument_type;
 
-                if args.0.len() != arg_type.0.len() {
-                    panic!("Expected {} arguments but found {} when invoking {}", arg_type.0.len(), args.0.len(), func.def.id);
+                        if args.0.len() != expected_arg_type.0.len() {
+                            return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
+                        }
+
+                        let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
+                        if &arg_type != expected_arg_type {
+                            return Err(CompileError::WrongArgumentType)
+                        }
+                    },
+            Expression::Variable(vid) => if !self.scope.contains_key(vid) { return Err(CompileError::UnknownVariable(vid)) },
+            Expression::Operation(_, _, _) => {
+                let tp = self.children.get_same_type().ok_or_else(|| CompileError::InvalidOperationTypes)?;
+                match tp{
+                    ExpressionType::Type(Type::Int) => (),
+                    _ => return Err(CompileError::InvalidOperationTypes)
                 }
             },
-            Expression::Variable(vid) => if !self.scope.contains_key(vid) { panic!("Unknown variable {vid}") },
             Expression::Match(match_expression) => todo!(),
-            Expression::Operation(operator, expression, expression1) => todo!(),
-            _ => ()
+            Expression::LetEqualIn(utuple, expression, expression1) => todo!(),
+            Expression::UTuple(_) => (),
+            Expression::Integer(_) => (),
         }
 
         for node in self.children.scopes() {
-            node.validate(program);
+            node.validate(program)?;
         }
+
+        Ok(())
     }
 }
 
@@ -277,7 +306,7 @@ fn scope_expression<'a, 'b>(
         Expression::UTuple(tup) => {
             let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, &scope, vec![], function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
             let tp = ExpressionType::UTuple(UTuple(
-                children.scopes().iter().map(|s| s.tp.tp().ok_or_else(|| CompileError::UnexpectedUTuple(&expr)).map(|t| t.clone())).collect::<Result<_, _>>()?
+                children.scopes().iter().map(|s| s.tp.tp().ok_or_else(|| CompileError::UnexpectedUTuple).map(|t| t.clone())).collect::<Result<_, _>>()?
             ));
             (children, tp)
         },
