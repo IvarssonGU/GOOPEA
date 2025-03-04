@@ -69,14 +69,7 @@ pub enum Expression {
     Integer(i64),
     Variable(VID),
     Match(MatchExpression),
-    Operation(Operator, Box<Expression>, Box<Expression>),
     LetEqualIn(UTuple<VID>, Box<Expression>, Box<Expression>) // First expression may only be a function invocation. I don't know how to enforce this by type system without making everything messy.
-}
-
-#[derive(Debug, Clone)]
-pub enum Operator {
-    //Equal, NotEqual, Less, LessOrEqual, Greater, GreaterOrEqual,
-    Add, Sub, Mul, Div 
 }
 
 #[derive(Debug, Clone)]
@@ -301,24 +294,6 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
             write!(f, "{id} ")?;
             write_implicit_utuple(f, &arg.0, ", ", |f, e| write_expression_inline(f, e, indent))
         },
-        Expression::Operation(op, e1, e2) => {
-            let symbol = match op {
-                Operator::Add => "+",
-                Operator::Sub => "-",
-                Operator::Div => "/",
-                Operator::Mul => "*",
-                /*Operator::Greater => ">",
-                Operator::GreaterOrEqual => ">=",
-                Operator::Less => "<",
-                Operator::LessOrEqual => "<=",
-                Operator::Equal => "==",
-                Operator::NotEqual => "!="*/
-            };
-
-            write_expression(f, e1, indent)?;
-            write!(f, " {} ", symbol)?;
-            write_expression(f, e2, indent)
-        },
         Expression::Match(match_expr) => {
             write!(f, "match x {{ ")?;
             write_separated_list(f, match_expr.cases.iter(), ", ", |f, case| write!(f, "{case} "))?;
@@ -337,25 +312,6 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
 
 fn write_expression_multiline(f: &mut Formatter, expression: &Expression, indent: usize) -> std::fmt::Result {
     match expression {
-        Expression::Operation(op, e1, e2) => {
-            let symbol = match op {
-                Operator::Add => "+",
-                Operator::Sub => "-",
-                Operator::Div => "/",
-                Operator::Mul => "*",
-                /*Operator::Greater => ">",
-                Operator::GreaterOrEqual => ">=",
-                Operator::Less => "<",
-                Operator::LessOrEqual => "<=",
-                Operator::Equal => "==",
-                Operator::NotEqual => "!="*/
-            };
-
-            write_expression(f, e1, indent)?;
-            writeln!(f, " {symbol}")?;
-            write_indent(f, indent)?;
-            write_expression(f, e2, indent)
-        },
         Expression::FunctionCall(id, arg) => {
             write!(f, "{id} ")?;
             write_implicit_utuple(f, &arg.0, ",", |f, e| {

@@ -113,22 +113,10 @@ Expression: Expression = {
     },
 
     #[precedence(level="2")] #[assoc(side="left")]
-    <e1: Expression> <op: "*/"> <e2: Expression> => {
-        Expression::Operation(
-            if op == "*" { Operator::Mul } else { Operator::Div }, 
-            Box::new(e1), 
-            Box::new(e2)
-        )
-    },
+    <e1: Expression> <op: "*/"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <e1: Expression> <op: "+-"> <e2: Expression> => {
-        Expression::Operation(
-            if op == "+" { Operator::Add } else { Operator::Sub }, 
-            Box::new(e1), 
-            Box::new(e2)
-        )
-    },
+    <e1: Expression> <op: "+-"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
 
     /*#[precedence(level="4")] #[assoc(side="left")]
     <e1: Expression> <op: "cmp"> <e2: Expression> => {

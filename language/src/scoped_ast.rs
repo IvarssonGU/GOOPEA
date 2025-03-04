@@ -99,6 +99,15 @@ impl<'a> ScopedProgram<'a> {
     pub fn new(program: &'a Program) -> Result<ScopedProgram<'a>, CompileError<'a>> {
         program.validate_top_level_ids();
 
+        let mut builtin_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
+        for op in "+-/*".chars() {
+            builtin_function_signatures.insert(op.to_string(), FunctionSignature { 
+                argument_type: UTuple(vec![Type::Int, Type::Int]),
+                result_type: UTuple(vec![Type::Int]),
+                is_fip: true
+            });
+        }
+
         let mut function_signatures: HashMap<FID, &FunctionSignature> = HashMap::new();
         let mut constructor_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
         let mut constructor_signatures: HashMap<FID, &ConstructorSignature> = HashMap::new();
@@ -132,6 +141,7 @@ impl<'a> ScopedProgram<'a> {
         }
 
         function_signatures.extend(constructor_function_signatures.iter().map(|(fid, sig)| (fid.clone(), sig)));
+        function_signatures.extend(builtin_function_signatures.iter().map(|(fid, sig)| (fid.clone(), sig)));
 
         reset_internal_id_counter();
 
@@ -232,7 +242,7 @@ impl<'a> ScopedExpressionNode<'a> {
         let expected_scope_children_count: Option<usize> = match self.expr {
             Expression::UTuple(_) | Expression::FunctionCall(_, _) | Expression::Match(_) => None,
             Expression::Integer(_) | Expression::Variable(_) => Some(0),
-            Expression::Operation(_, _, _) | Expression::LetEqualIn(_, _, _) => Some(2),
+            Expression::LetEqualIn(_, _, _) => Some(2),
         };
 
         if  expected_scope_children_count.is_some_and(|x| x != self.children.scopes().len()) {
@@ -241,26 +251,19 @@ impl<'a> ScopedExpressionNode<'a> {
 
         match self.expr {
             Expression::FunctionCall(fid, args) => {
-                        let Some(func) = program.functions.get(fid) else { return Err(CompileError::UnknownFunction(fid)) };
-                        let expected_arg_type = &func.def.signature.argument_type;
+                let Some(func) = program.functions.get(fid) else { return Err(CompileError::UnknownFunction(fid)) };
+                let expected_arg_type = &func.def.signature.argument_type;
 
-                        if args.0.len() != expected_arg_type.0.len() {
-                            return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
-                        }
+                if args.0.len() != expected_arg_type.0.len() {
+                    return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
+                }
 
-                        let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
-                        if &arg_type != expected_arg_type {
-                            return Err(CompileError::WrongArgumentType)
-                        }
-                    },
-            Expression::Variable(vid) => if !self.scope.contains_key(vid) { return Err(CompileError::UnknownVariable(vid)) },
-            Expression::Operation(_, _, _) => {
-                let tp = self.children.get_same_type().ok_or_else(|| CompileError::InvalidOperationTypes)?;
-                match tp{
-                    ExpressionType::Type(Type::Int) => (),
-                    _ => return Err(CompileError::InvalidOperationTypes)
+                let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
+                if &arg_type != expected_arg_type {
+                    return Err(CompileError::WrongArgumentType)
                 }
             },
+            Expression::Variable(vid) => if !self.scope.contains_key(vid) { return Err(CompileError::UnknownVariable(vid)) },
             Expression::Match(match_expression) => todo!(),
             Expression::LetEqualIn(utuple, expression, expression1) => todo!(),
             Expression::UTuple(_) => (),
@@ -322,13 +325,6 @@ fn scope_expression<'a, 'b>(
                 ScopeChildren::Zero, 
                 ExpressionType::Type(scope.get(var).ok_or_else(|| CompileError::UnknownVariable(var))?.tp.clone())
             ),
-        Expression::Operation(_, e1, e2) => {
-            let children = ScopeChildren::Two(
-                Box::new(scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?), 
-                Box::new(scope_expression(e2, &scope, vec![], function_signatures, constructor_signatures)?)
-            );
-            (children, ExpressionType::Type(Type::Int))
-        },
         Expression::LetEqualIn(vars, e1, e2) => {
             let mut new_vars = vec![];
             
