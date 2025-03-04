@@ -15,13 +15,15 @@ lalrpop_mod!(pub grammar);
 mod lexer;
 
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/zipper_tree.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/multiple_return_values.goo")).unwrap();
 
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     println!("{:#?}\n{}", program, program);
 
     let scoped_program = ScopedProgram::new(&program).unwrap();
-    println!("{scoped_program}")
+    println!("{scoped_program}");
+
+    scoped_program.validate().unwrap();
 }
 
 #[cfg(test)]

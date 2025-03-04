@@ -1,4 +1,4 @@
-use crate::ast::{Expression, FunctionDefinition, MatchCase, AID, FID, VID};
+use crate::ast::{Expression, FunctionDefinition, MatchCase, Type, UTuple, AID, FID, VID};
 
 pub type CompileResult<'a> = Result<(), CompileError<'a>>;
 
@@ -18,6 +18,11 @@ pub enum CompileError<'a> {
 
     MissmatchedTypes(&'a Expression),
     UnexpectedUTuple,
-    WrongArgumentType,
-    InvalidOperationTypes
+    WrongArgumentType(FID, UTuple<Type>, UTuple<Type>),
+    InvalidOperationTypes,
+    WrongVariableTypeInMatch,
+    InvalidConstructorInMatchCase,
+    MultipleOccurencesOfConstructorInMatch,
+    NonExhaustiveMatch,
+    WrongReturnType
 }

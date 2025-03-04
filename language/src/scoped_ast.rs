@@ -90,6 +90,7 @@ pub struct ScopedProgram<'a> {
     adts: HashMap<AID, &'a ADTDefinition>,
     constructors: HashMap<FID, ConstructorReference<'a>>,
     functions: HashMap<FID, ScopedFunction<'a>>,
+    all_signatures: HashMap<FID, FunctionSignature>,
     program: &'a Program
 }
 
@@ -99,17 +100,15 @@ impl<'a> ScopedProgram<'a> {
     pub fn new(program: &'a Program) -> Result<ScopedProgram<'a>, CompileError<'a>> {
         program.validate_top_level_ids();
 
-        let mut builtin_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
+        let mut all_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
         for op in "+-/*".chars() {
-            builtin_function_signatures.insert(op.to_string(), FunctionSignature { 
+            all_function_signatures.insert(op.to_string(), FunctionSignature { 
                 argument_type: UTuple(vec![Type::Int, Type::Int]),
                 result_type: UTuple(vec![Type::Int]),
                 is_fip: true
             });
         }
 
-        let mut function_signatures: HashMap<FID, &FunctionSignature> = HashMap::new();
-        let mut constructor_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
         let mut constructor_signatures: HashMap<FID, &ConstructorSignature> = HashMap::new();
         let mut zero_argument_constructor_variables = Vec::new();
         for def in &program.0 {
@@ -122,7 +121,7 @@ impl<'a> ScopedProgram<'a> {
                         .map(|c| VariableDefinition { id: c.id.clone(), tp: Type::ADT(def.id.clone()), internal_id: get_new_internal_id() }) 
                     );
 
-                    constructor_function_signatures.extend(def.constructors.iter().map(
+                    all_function_signatures.extend(def.constructors.iter().map(
                         |cons| {
                             (cons.id.clone(),
                                 FunctionSignature {
@@ -135,13 +134,10 @@ impl<'a> ScopedProgram<'a> {
                     ));
                 },
                 Definition::FunctionDefinition(def) => {
-                    function_signatures.insert(def.id.clone(), &def.signature);
+                    all_function_signatures.insert(def.id.clone(), def.signature.clone());
                 }
             }
         }
-
-        function_signatures.extend(constructor_function_signatures.iter().map(|(fid, sig)| (fid.clone(), sig)));
-        function_signatures.extend(builtin_function_signatures.iter().map(|(fid, sig)| (fid.clone(), sig)));
 
         reset_internal_id_counter();
 
@@ -175,7 +171,7 @@ impl<'a> ScopedProgram<'a> {
                         def.id.clone(), 
                         ScopedFunction { 
                             def, 
-                            body: scope_expression(&def.body, &default_scope, function_variables, &function_signatures, &constructor_signatures)?
+                            body: scope_expression(&def.body, &default_scope, function_variables, &all_function_signatures, &constructor_signatures)?
                         }
                     );
                 }
@@ -186,12 +182,32 @@ impl<'a> ScopedProgram<'a> {
             adts,
             constructors,
             functions,
-            program
+            program,
+            all_signatures: all_function_signatures
         })
     }
 
+    pub fn validate(&self) -> CompileResult {
+        self.validate_all_types()?;
+
+        for (_, func) in &self.functions {
+            func.body.validate(self)?;
+            
+            let return_type = match &func.body.tp {
+                ExpressionType::UTuple(utuple) => utuple.clone(),
+                ExpressionType::Type(tp) => UTuple(vec![tp.clone()]),
+            };
+
+            if return_type != func.def.signature.result_type {
+                return Err(CompileError::WrongReturnType)
+            }
+        }
+
+        Ok(())
+    }
+
     // Checks so that all types use defined ADT names
-    pub fn validate_all_types(&self) -> CompileResult {
+    fn validate_all_types(&self) -> CompileResult {
         for (_, cons) in &self.constructors {
             cons.constructor.arguments.validate_in(self)?;
         }
@@ -203,8 +219,8 @@ impl<'a> ScopedProgram<'a> {
         Ok(())
     }
 
-    pub fn validate_all_symbol_occurences() {
-
+    pub fn get_constructor(&self, fid: &'a FID) -> Result<&ConstructorReference<'a>, CompileError<'a>> {
+        self.constructors.get(fid).ok_or_else(|| CompileError::UnknownConstructor(fid))
     }
 }
 
@@ -238,7 +254,7 @@ impl FunctionSignature {
 }
 
 impl<'a> ScopedExpressionNode<'a> {
-    fn validate(&self, program: &ScopedProgram) -> CompileResult {
+    fn validate(&self, program: &'a ScopedProgram) -> CompileResult {
         let expected_scope_children_count: Option<usize> = match self.expr {
             Expression::UTuple(_) | Expression::FunctionCall(_, _) | Expression::Match(_) => None,
             Expression::Integer(_) | Expression::Variable(_) => Some(0),
@@ -251,8 +267,7 @@ impl<'a> ScopedExpressionNode<'a> {
 
         match self.expr {
             Expression::FunctionCall(fid, args) => {
-                let Some(func) = program.functions.get(fid) else { return Err(CompileError::UnknownFunction(fid)) };
-                let expected_arg_type = &func.def.signature.argument_type;
+                let expected_arg_type = &program.all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.argument_type;
 
                 if args.0.len() != expected_arg_type.0.len() {
                     return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
@@ -260,13 +275,52 @@ impl<'a> ScopedExpressionNode<'a> {
 
                 let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
                 if &arg_type != expected_arg_type {
-                    return Err(CompileError::WrongArgumentType)
+                    return Err(CompileError::WrongArgumentType(fid.clone(), arg_type, expected_arg_type.clone()))
                 }
             },
-            Expression::Variable(vid) => if !self.scope.contains_key(vid) { return Err(CompileError::UnknownVariable(vid)) },
-            Expression::Match(match_expression) => todo!(),
-            Expression::LetEqualIn(utuple, expression, expression1) => todo!(),
-            Expression::UTuple(_) => (),
+            Expression::Variable(vid) => { self.get_var(vid)?; },
+            Expression::Match(match_expression) => {
+                let var_def = self.get_var(&match_expression.variable)?;
+                let aid: &AID = match &var_def.tp {
+                    Type::Int => return Err(CompileError::WrongVariableTypeInMatch),
+                    Type::ADT(aid) => &aid,
+                };
+
+                self.children.get_same_type().ok_or_else(|| CompileError::MissmatchedTypes(self.expr))?;
+
+                let mut used_constructors = HashSet::new();
+                for case in &match_expression.cases {
+                    let cons = program.get_constructor(&case.cons_id)?;
+                    if &cons.adt.id != aid {
+                        return Err(CompileError::InvalidConstructorInMatchCase);
+                    }
+
+                    if case.vars.0.len() != cons.constructor.arguments.0.len() {
+                        return Err(CompileError::WrongVariableCountInMatchCase(case))
+                    }
+
+                    if !used_constructors.insert(&case.cons_id) {
+                        return Err(CompileError::MultipleOccurencesOfConstructorInMatch);
+                    }
+                }
+
+                let adt = program.adts.get(aid).unwrap();
+                if used_constructors.len() < adt.constructors.len() {
+                    return Err(CompileError::NonExhaustiveMatch)
+                }
+            },
+            Expression::LetEqualIn(vars, e1, e2) => {
+                let fid = match &**e1 {
+                    Expression::FunctionCall(fid, _) => fid,
+                    _ => return Err(CompileError::LetHasNoFunctionCall(&self.expr))
+                };
+
+                let signature = program.all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?;
+                if signature.result_type.0.len() != vars.0.len() {
+                    return Err(CompileError::WrongVariableCountInLetStatement(&self.expr));
+                }
+            },
+            Expression::UTuple(_) => (), // Should already be validated by type inference
             Expression::Integer(_) => (),
         }
 
@@ -275,6 +329,10 @@ impl<'a> ScopedExpressionNode<'a> {
         }
 
         Ok(())
+    }
+
+    fn get_var(&'a self, vid: &'a VID) -> Result<&'a Rc<VariableDefinition>, CompileError<'a>> {
+        self.scope.get(vid).ok_or_else(|| CompileError::UnknownVariable(vid))
     }
 }
 
@@ -296,7 +354,7 @@ fn scope_expression<'a, 'b>(
     expr: &'a Expression, 
     scope: &Scope<'a>, 
     new_vars: Vec<VariableDefinition>, 
-    function_signatures: &HashMap<FID, &'b FunctionSignature>,
+    function_signatures: &HashMap<FID, FunctionSignature>,
     constructor_signatures: &HashMap<FID, &'b ConstructorSignature>,
 ) -> Result<ScopedExpressionNode<'a>, CompileError<'a>> 
 {

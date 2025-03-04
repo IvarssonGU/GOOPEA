@@ -6,8 +6,8 @@ enum Tree =
     //
 enum TZipper = 
     Top,                 
-    BinL(TZipper, TZipper),
-    BinR(TZipper, TZipper);
+    BinL(TZipper, Tree),
+    BinR(Tree, TZipper);
 
 //
 // multiline
