@@ -19,11 +19,13 @@
 				<th>Output</th>
 			</tr>
 			<tr>
-				<td colspan="2">
-					<textarea id="code" >example code!</textarea>
+				<td colspan="2" id="code-cell">
+					<textarea id="code"></textarea>
 				</td>
 				<td colspan="2">
-					<textarea id="output" readonly="true" placeholder="your code will output here"></textarea>
+					<div class="output-container">
+						<textarea id="output" readonly="true" placeholder="your code will output here" height="100%"></textarea>
+					</div>
 				</td>
 			</tr>
 		</table>
@@ -31,6 +33,7 @@
 
 	<script src='./pkg/editor.js'></script>
 	<script src='https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.13.4/codemirror.js'></script>
+	<script src='https://codemirror.net/5/addon/selection/active-line.js'></script>
 	<script src="./static/js/index.js"></script>
 </body>
 
