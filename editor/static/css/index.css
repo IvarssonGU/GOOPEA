@@ -1,0 +1,42 @@
+body {
+    text-align: center;
+}
+
+.container {
+    width: 100%;
+    height: 80vh;
+    text-align: left;
+}
+
+#editor {
+    width: 99%;
+    height: 100%;
+}
+
+#output {
+    width: 99%;
+    height: 100%;
+}
+
+table {
+    table-layout: fixed;
+}
+
+/* table, th, td {
+    border:2px solid black;
+} */
+
+textarea {
+    outline: none;
+    resize: none;
+    vertical-align: top;
+    height:max-content;
+}
+
+tr {
+    width: 100%;
+}
+
+/* #run-button-cell {
+    width:min-content;
+} */
