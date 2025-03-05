@@ -1,7 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
 
-
-
 pub type Program = Vec<FunctionDefinition>;
 
 #[derive(Debug, Clone)]
@@ -11,22 +9,28 @@ pub struct FunctionDefinition {
     pub body: Expression,
 }
 
-
-
 #[derive(Debug, Clone)]
 pub enum Expression {
     FunctionCall(String, Vec<Expression>),
     Identifier(String),
-    Integer(i64),
+    Integer(i64),  
     Match(Box<Expression>, Vec<MatchCase>),
     Operation(Operator, Box<Expression>, Box<Expression>),
-    Constructor(i64, Vec<Expression>)
+    Constructor(i64, Vec<Expression>),
 }
 
 #[derive(Debug, Clone)]
 pub enum Operator {
-    Equal, NotEqual, Less, LessOrEq, Greater, GreaterOrEqual,
-    Add, Sub, Mul, Div 
+    Equal,
+    NotEqual,
+    Less,
+    LessOrEq,
+    Greater,
+    GreaterOrEqual,
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
 
 #[derive(Debug, Clone)]
@@ -41,7 +45,7 @@ pub enum Pattern {
     Integer(i64),
     Wildcard,
     Atom(i64),
-    Constructor(i64, Vec<Option<String>>)
+    Constructor(i64, Vec<Option<String>>),
 }
 
 impl Display for Operator {
