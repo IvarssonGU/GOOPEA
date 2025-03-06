@@ -32,12 +32,16 @@ pub enum Statement {
     Print(Operand),
 }
 
-pub fn output(prog: Prog) -> Vec<String> {
+pub fn output(prog: &Prog) -> Vec<String> {
     let mut lines = Vec::new();
     lines.push("#include <stdio.h>".to_string());
     lines.push("#include <stdlib.h>".to_string());
     lines.push(String::new());
     lines.push("typedef __int64_t Value;".to_string());
+    lines.push(String::new());
+    for def in prog {
+        lines.push(output_function_decls(def));
+    }
     lines.push(String::new());
     for def in prog {
         let args_str = def
@@ -84,8 +88,19 @@ pub fn output(prog: Prog) -> Vec<String> {
             }
         }
         lines.push("}".to_string());
+        lines.push(String::new());
     }
     lines
+}
+
+fn output_function_decls(def: &Def) -> String {
+    let args_str = def
+        .args
+        .iter()
+        .map(|arg| format!("Value {}", arg))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("Value {}({});", def.id.clone(), args_str)
 }
 
 fn statement_to_string(stmt: &Statement) -> String {

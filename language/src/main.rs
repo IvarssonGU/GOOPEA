@@ -38,7 +38,7 @@ fromTree tree = match tree of
 concat :: List -> List 
 concat xs ys = match xs of 
     Nil -> ys
-    Cons z zs -> Cons z (concat zs ys)
+    Cons x xs -> Cons x (concat xs ys)
 */
 
 use simple_ast::*;
@@ -380,7 +380,7 @@ fn main() {
     let mut compiler: code::Compiler = code::Compiler::new();
     let result = compiler.compile(&prog);
 
-    let pretty_output = ir::output(result);
+    let pretty_output = ir::output(&result);
     for line in pretty_output {
         println!("{}", line);
     }
