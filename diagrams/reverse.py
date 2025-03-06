@@ -15,12 +15,13 @@ def is_in_scope(name: str) -> bool:
     return name in scopes[-1][1]
 
 deallocated = []
+edited = []
 new_nodes = []
 old_vars = []
 temp_vars = []
 removed_vars = []
 rendered_frames = 0
-def render():
+def render(fip: bool):
     global rendered_frames
     global deallocated
     global new_nodes
@@ -58,11 +59,12 @@ def render():
         while curr is not None:
             name, (val, next) = (curr, nodes[curr])
 
-            label = f'''{{value | {val}}} | {{next | <ptr> {"Nil" if next is None else "Cons"}}} | {{ refs | {references[name]} }}'''
+            label = f'{{value | {val}}} | {{next | <ptr> {"Nil" if next is None else "Cons"}}}' + (f" | {{ refs | {references[name]} }}" if not fip else "")
 
             fillcolor = "lightblue"
             if name in deallocated: fillcolor = "red"
             if name in new_nodes: fillcolor = "lightgreen"
+            if name in edited: fillcolor = "orange"
 
             node_subgraph.node(name, label, shape="record", style="filled", fillcolor=fillcolor)
 
@@ -115,27 +117,31 @@ def render():
     print(f"Rendered {rendered_frames}")
     rendered_frames += 1
 
-    did_deallocate = False
-    for node in deallocated:
-        did_deallocate = True
+    edited.clear()
 
-        next = nodes[node][1]
-        if next is not None:
-            edges.remove((node + ":ptr", next))
-
-        del nodes[node]
-
-    new_deallocated = []
-    for root in roots:
-        if root not in deallocated and references[root] == 0:
-            new_deallocated.append(root)
+    if not fip:
+        did_deallocate = False
+        for node in deallocated:
             did_deallocate = True
 
-    deallocated = new_deallocated
-    new_nodes.clear()
+            next = nodes[node][1]
+            if next is not None:
+                edges.remove((node + ":ptr", next))
 
-    if did_deallocate:
-        render()
+            del nodes[node]
+
+        new_deallocated = []
+        for root in roots:
+            if root not in deallocated and references[root] == 0:
+                new_deallocated.append(root)
+                did_deallocate = True
+
+        deallocated = new_deallocated
+
+        if did_deallocate:
+            render(fip)
+
+    new_nodes.clear()
 
     for name in removed_vars:
         if isinstance(vars[name], str):
@@ -158,7 +164,7 @@ def render():
     temp_vars.clear()
 
     if newly_removed:
-        render()
+        render(fip)
 
 added_identifiers = 0
 def get_new_ident() -> str:
@@ -171,11 +177,19 @@ def get_new_ident() -> str:
 
 edges = []
 nodes = {}
-def cons(val: int, next: Optional[str] = None):
-    name = get_new_ident()
+def cons(val: int, next: Optional[str], unused_node: Optional[str] = None):
+    if unused_node is not None:
+        old_next = nodes[unused_node][1]
+        if old_next is not None: edges.remove((unused_node + ":ptr", old_next))
+
+        edited.append(unused_node)
+
+    name = get_new_ident() if unused_node is None else unused_node
 
     nodes[name] = (val, next)
-    new_nodes.append(name)
+
+    if unused_node is None:
+        new_nodes.append(name)
 
     if next is not None:
         edges.append((name + ":ptr", next))
@@ -210,35 +224,35 @@ def set_var_content(name: str, content: Optional[str | int]):
 def push_scope(label):
     scopes.append((label, []))
 
-def remove_var(name):
+def remove_var(name, fip):
     removed_vars.append(name)
-    render()
+    render(fip)
 
-def remove_vars(names):
+def remove_vars(names, fip):
     removed_vars.extend(names)
-    render()
+    render(fip)
 
-def pop_scope():
+def pop_scope(fip):
     gone_vars = scopes[-1][1].copy()
 
     for name in gone_vars:
-        remove_var(name)
+        remove_var(name, fip)
 
     scopes.pop()
 
-def reverseHelper(list: Optional[str], acc: Optional[str], depth: int, fip: bool) -> str:
-    push_scope(f"ReverseHelper|{depth}")
+def reverse(list: Optional[str], acc: Optional[str], depth: int, fip: bool) -> str:
+    push_scope(f"Reverse|{depth}")
 
     listvar = var("list", list)
     accvar = var("acc", acc, False)
-    render()
+    render(fip)
 
-    remove_var(listvar)
+    remove_var(listvar, fip)
 
     if list is None:
-        remove_var(accvar)
+        remove_var(accvar, fip)
 
-        pop_scope()
+        pop_scope(fip)
         return acc
     else:
         x = nodes[list][0]
@@ -246,54 +260,54 @@ def reverseHelper(list: Optional[str], acc: Optional[str], depth: int, fip: bool
 
         xvar = var("x", x)
         xsvar = var("xs", xs)
-        render()
+        render(fip)
 
 
-        remove_vars([accvar, xvar])
-        c = cons(x, acc)
+        remove_vars([accvar, xvar], fip)
+        c = cons(x, acc, list if fip else None)
         cvar = var("temp", c)
-        render()
+        render(fip)
 
-        remove_vars([xsvar, cvar])
+        remove_vars([xsvar, cvar], fip)
 
         # if fip: temp_vars.append(accvar)
-        res = reverseHelper(xs, c, depth + 1, fip)
+        res = reverse(xs, c, depth + 1, fip)
         var("return", res)
-        render()
-        pop_scope()
+        render(fip)
+        pop_scope(fip)
 
         return res
     
-def reverse(list: str, fip: bool) -> str:
-    push_scope("Reverse")
-
-    var("list", list, True)
-    render()
-
-    reversed = reverseHelper(list, None, 1, fip)
-    var("return", reversed)
-    render()
-
-    pop_scope()
-
-    return reversed
+#def reverse(list: str, fip: bool) -> str:
+#    push_scope("Reverse")
+#
+#    var("list", list, True)
+#    render(fip)
+#
+#    reversed = reverseHelper(list, None, 1, fip)
+#    var("return", reversed)
+#    render(fip)
+#
+#    pop_scope(fip)
+#
+#    return reversed
     
-def do_reverse(fip: bool):
+def main(fip: bool):
     push_scope("Main")
 
     c1 = cons(2, None)
     var("temp", c1, True)
-    render()
+    render(fip)
 
     c2 = cons(1, c1)
     var("temp", c2, True)
-    render()
+    render(fip)
 
-    reversed = reverse(c2, fip)
+    reversed = reverse(c2, None, 1, fip)
 
     var("return", reversed)
-    render()
+    render(fip)
 
-    pop_scope()
+    pop_scope(fip)
 
-do_reverse(True)
+main(True)
