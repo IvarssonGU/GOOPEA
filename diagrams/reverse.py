@@ -4,11 +4,34 @@ import graphviz
 import os
 import glob
 import re
+from PIL import Image, ImageFont, ImageDraw
 
 #files = glob.glob('/output/*')
 #for f in files:
 #    print(f)
 #    os.remove(f)
+
+SEP_W = 10
+def add_code_to_side(base_img, line):
+    im1 = Image.new('RGB', (1500, 800), color = (255,255,255))
+    fnt = ImageFont.truetype("CONSOLA.TTF", 45)
+    draw = ImageDraw.Draw(im1)
+
+    code = ""
+    with open("reverse.goo", "r") as f:
+        code = f.read()
+
+    code = "\n".join(["{:02d}".format(i+1) + ". " +  ("--- " if i+1 == line else "    ") + ln for i, ln in enumerate(code.split("\n"))])
+
+    draw.multiline_text((20, 400), code, font=fnt, fill=(0,0,0), anchor="lm", spacing=25)
+    
+    im2 = Image.open(base_img)
+
+    dst = Image.new('RGB', (im1.width + im2.width + SEP_W, im1.height))
+    dst.paste(im1, (0, 0))
+    dst.paste(im2, (im1.width + SEP_W, 0))
+
+    dst.save(base_img)
 
 scopes = []
 def is_in_scope(name: str) -> bool:
@@ -21,7 +44,7 @@ old_vars = []
 temp_vars = []
 removed_vars = []
 rendered_frames = 0
-def render(fip: bool):
+def render(fip: bool, line: int):
     global rendered_frames
     global deallocated
     global new_nodes
@@ -113,7 +136,8 @@ def render(fip: bool):
         if not var in old_vars:
             old_vars.append(var)
 
-    dot.render(f"output/memory_step_{rendered_frames}")
+    path = dot.render("output/fip/img_{:02d}".format(rendered_frames) if fip else "output/non_fip/img_{:02d}".format(rendered_frames))
+    add_code_to_side(path, line)
     print(f"Rendered {rendered_frames}")
     rendered_frames += 1
 
@@ -139,7 +163,7 @@ def render(fip: bool):
         deallocated = new_deallocated
 
         if did_deallocate:
-            render(fip)
+            render(fip, line)
 
     new_nodes.clear()
 
@@ -164,7 +188,7 @@ def render(fip: bool):
     temp_vars.clear()
 
     if newly_removed:
-        render(fip)
+        render(fip, line)
 
 added_identifiers = 0
 def get_new_ident() -> str:
@@ -224,19 +248,19 @@ def set_var_content(name: str, content: Optional[str | int]):
 def push_scope(label):
     scopes.append((label, []))
 
-def remove_var(name, fip):
+def remove_var(name, fip, line):
     removed_vars.append(name)
-    render(fip)
+    render(fip, line)
 
-def remove_vars(names, fip):
+def remove_vars(names, fip, line):
     removed_vars.extend(names)
-    render(fip)
+    render(fip, line)
 
-def pop_scope(fip):
+def pop_scope(fip, line):
     gone_vars = scopes[-1][1].copy()
 
     for name in gone_vars:
-        remove_var(name, fip)
+        remove_var(name, fip, line)
 
     scopes.pop()
 
@@ -245,14 +269,14 @@ def reverse(list: Optional[str], acc: Optional[str], depth: int, fip: bool) -> s
 
     listvar = var("list", list)
     accvar = var("acc", acc, False)
-    render(fip)
+    render(fip, 4)
 
-    remove_var(listvar, fip)
+    remove_var(listvar, fip, 5)
 
     if list is None:
-        remove_var(accvar, fip)
+        remove_var(accvar, fip, 6)
 
-        pop_scope(fip)
+        pop_scope(fip, 8)
         return acc
     else:
         x = nodes[list][0]
@@ -260,21 +284,21 @@ def reverse(list: Optional[str], acc: Optional[str], depth: int, fip: bool) -> s
 
         xvar = var("x", x)
         xsvar = var("xs", xs)
-        render(fip)
+        render(fip, 7)
 
 
-        remove_vars([accvar, xvar], fip)
+        remove_vars([accvar, xvar], fip, 7)
         c = cons(x, acc, list if fip else None)
         cvar = var("temp", c)
-        render(fip)
+        render(fip, 7)
 
-        remove_vars([xsvar, cvar], fip)
+        remove_vars([xsvar, cvar], fip, 7)
 
         # if fip: temp_vars.append(accvar)
         res = reverse(xs, c, depth + 1, fip)
         var("return", res)
-        render(fip)
-        pop_scope(fip)
+        render(fip, 7)
+        pop_scope(fip, 8)
 
         return res
     
@@ -297,17 +321,34 @@ def main(fip: bool):
 
     c1 = cons(2, None)
     var("temp", c1, True)
-    render(fip)
+    render(fip, 11)
 
     c2 = cons(1, c1)
     var("temp", c2, True)
-    render(fip)
+    render(fip, 11)
 
     reversed = reverse(c2, None, 1, fip)
 
     var("return", reversed)
-    render(fip)
+    render(fip, 11)
 
-    pop_scope(fip)
+    pop_scope(fip, 11)
 
 main(True)
+
+vars.clear()
+var_labels.clear()
+edges.clear()
+nodes.clear()
+
+deallocated.clear()
+edited.clear()
+new_nodes.clear()
+old_vars.clear()
+temp_vars.clear()
+removed_vars.clear()
+
+rendered_frames = 0
+added_identifiers = 0
+
+main(False)
