@@ -16,7 +16,7 @@ pub enum Operand {
     Integer(i64),
     Application(String, Vec<Operand>),
     DerefField(String, i64),
-    Condition(bool, Box<Operand>, Box<Operand>)
+    Condition(bool, String, Box<Operand>, Box<Operand>),
 }
 
 #[derive(Debug, Clone)]
@@ -126,18 +126,18 @@ fn operand_to_string(op: &Operand) -> String {
             let right = operand_to_string(op2);
             match operator {
                 Operator::Add => format!("{} + {} - 1", left, right),
-                Operator::Sub => format!("{} - {} + 1", left, right),
-                Operator::Mul => format!("(({} - 1) * ({} >> 1) + 1)", left, right),
-                Operator::Div => format!("({} / ({} - 1)) << 1 + 1", left, right),
-                op => format!("{} {} {}", left, op,  right)
+                Operator::Sub => format!("{} - {} | 1", left, right),
+                Operator::Mul => format!("(({} - 1) * ({} >> 1) | 1)", left, right),
+                Operator::Div => format!("({} / ({} - 1)) << 1 | 1", left, right),
+                op => format!("({} {} {}) << 1 | 1", left, op,  right)
             }
         }
         Operand::DerefField(id, index) => format!("((void**) {})[{}]", id, index),
         Operand::Identifier(id) => id.clone(),
         Operand::Integer(i) => (i << 1 | 1).to_string(),
-        Operand::Condition(b, left, right) => {
+        Operand::Condition(b, pointer_var, left, right) => {
             let not = if *b {""} else {"!"};
-            format!("({}({} & 1)) && ({})", not, operand_to_string(left), operand_to_string(right))
+            format!("({}({} & 1)) && ({} == {})", not, pointer_var, operand_to_string(left), operand_to_string(right))
         }
     }
 }

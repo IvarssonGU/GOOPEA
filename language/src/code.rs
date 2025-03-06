@@ -94,27 +94,24 @@ impl Compiler {
                 for (i, case) in cases.iter().enumerate() {
                     let bool_exp = match &case.pattern {
                         Pattern::Identifier(_) => Operand::Integer(1),
-                        Pattern::Integer(n) => Operand::BinOp(
-                            Operator::Equal,
-                            Box::from(Operand::Integer(*n)),
-                            Box::from(Operand::Identifier(match_var.clone())),
-                        ),
+                        Pattern::Integer(n) => Operand::Condition(
+                            true,
+                            match_var.clone(), 
+                            Box::from(Operand::Identifier(match_var.clone())), 
+                            Box::from(Operand::Integer(*n))
+                        ), 
                         Pattern::Wildcard => Operand::Integer(1),
-                        Pattern::Atom(tag) => Operand::Condition(true,
+                        Pattern::Atom(tag) => Operand::Condition(
+                            true,
+                            match_var.clone(),
                             Box::from(Operand::Identifier(match_var.clone())),
-                            Box::from(Operand::BinOp(
-                                Operator::Equal,
-                                Box::from(Operand::Integer(*tag)),
-                                Box::from(Operand::Identifier(match_var.clone())),
-                            ))
+                            Box::from(Operand::Integer(*tag))
                         ),
-                        Pattern::Constructor(tag, _) => Operand::Condition(false, 
-                            Box::from(Operand::Identifier(match_var.clone())),
-                            Box::from(Operand::BinOp(
-                                Operator::Equal,
-                                Box::from(Operand::Integer(*tag)),
-                                Box::from(Operand::DerefField(match_var.clone(), 0)),
-                            ))
+                        Pattern::Constructor(tag, _) => Operand::Condition(
+                            false, 
+                            match_var.clone(),
+                            Box::from(Operand::DerefField(match_var.clone(), 0)),
+                            Box::from(Operand::Integer(*tag))
                         ),
                     };
                     if i == 0 {
