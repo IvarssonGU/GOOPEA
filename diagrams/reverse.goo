@@ -11,7 +11,4 @@ fip List: List
 ReverseList list = ReverseHelper(list, Nil);
 
 (): List
-Example = ReverseList(Cons(1, Cons(2, Nil)))
-
-(): ()
-Main = Print Example
+Main = ReverseList(Cons(1, Cons(2, Nil)))
