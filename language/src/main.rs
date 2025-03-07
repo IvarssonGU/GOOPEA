@@ -1,6 +1,11 @@
+#![feature(formatting_options)]
+
 mod code;
 mod ir;
-mod typed_ast;
+mod simple_ast;
+mod scoped_ast;
+mod ast;
+mod error;
 
 
 /* 
@@ -36,7 +41,7 @@ concat xs ys = match xs of
     Cons z zs -> Cons z (concat zs ys)
 */
 
-use typed_ast::*;
+use simple_ast::*;
 fn main() {
     let concat_exp = Expression::Match(
         Box::from(Expression::Identifier("xs".to_string())),

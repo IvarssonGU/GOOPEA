@@ -1,5 +1,5 @@
 use crate::ir::*;
-use crate::typed_ast::*;
+use crate::simple_ast::*;
 
 pub struct Compiler {
     var_counter: u32,
@@ -152,7 +152,9 @@ impl Compiler {
                     self.generated_statements.push(Statement::EndIf);
                 }
                 Operand::Identifier(var)
-            }
+            },
+            Expression::Let(_, _, _) => Operand::Integer(0),
+            Expression::UTuple(_) => Operand::Integer(0)
         }
     }
 }

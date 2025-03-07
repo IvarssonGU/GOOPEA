@@ -1,4 +1,4 @@
-use crate::typed_ast::Operator;
+use crate::simple_ast::Operator;
 
 pub type Prog = Vec<Def>;
 
