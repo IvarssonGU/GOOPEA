@@ -50,6 +50,9 @@ function save_code(opt) {
         case 0:
             window.location.href = "example_page.html";
             break;
+        case 1:
+            window.location.href = "documentation_page.html";
+            break;
         default:
             window.location.href = "index.html";
     }
