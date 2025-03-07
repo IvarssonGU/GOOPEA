@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./codemirror/codemirror.css">
     <link rel="stylesheet" href="./static/css/example_page.css">
 	<link rel="stylesheet" href="./static/css/navbar.css">
 
@@ -12,5 +14,56 @@
 		<a href="index.html">Editor</a>
 		<a href="example_page.html" class="current-page">Examples</a>
 	</div>
+
+    <div class="container">
+        <table width="100%">
+            <tr>
+                <th>Example 1: reverse</th>
+                <th>Memory</th>
+            </tr>
+            <tr>
+                <td id="example1-codecell">
+                    <textarea id="example1-code">
+enum List = Nil, Cons(Int, List);
+
+fip (List, List): List
+ReverseHelper(list, acc) =
+        match list {
+            Nil: acc,
+            Cons(x, xs): ReverseHelper(xs, Cons(x, acc))
+        };
+
+fip List: List
+ReverseList list = ReverseHelper(list, Nil);
+
+fip (): ()
+main = print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
+</textarea>
+                </td>
+                <td rowspan="3">
+                    <div class="example1-diagrams">
+                        <!-- <div class="slide">
+                            <div class="numbering">1/?</div>
+                            <img src="ex1.png" style="width:100%">
+                        </div> -->
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th>Output</th>
+            </tr>
+            <tr>
+                <td>
+                    <textarea id="example1-output" readonly="true">
+Cons(3, Cons(2, Cons(1, Nil)))
+</textarea>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <script src="./codemirror/codemirror.js"></script>
+	<script src="./codemirror/active-line.js"></script>
+	<script src="./static/js/example_page.js"></script>
 </body>
 </html>

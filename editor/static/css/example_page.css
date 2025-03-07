@@ -1,3 +1,41 @@
 body {
     font-family: 'Courier New', Courier, monospace;
 }
+
+.container {
+    text-align: left;
+    width: 100%;
+}
+
+th {
+    padding-left: 15px;
+}
+
+textarea {
+    resize: none;
+    outline: none;
+    width: 99%;
+    /* font-size: 13px; */
+}
+
+table {
+    table-layout: fixed;
+}
+
+.example1-diagrams {
+    border: 1px solid gray;
+    border-radius: 2px;
+}
+
+/* table, th, td {
+    border:2px solid black;
+} */
+
+#example1-code {
+    width: 98%;
+    /* height: 200px; */
+}
+#example1-codecell {
+    border: 1px solid gray;
+    border-radius: 2px;
+}

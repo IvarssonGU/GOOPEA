@@ -1,5 +1,4 @@
-let user_code_textarea = document.getElementById("editor");
-let code_output_textarea = document.getElementById("output");
+let output_textarea = document.getElementById("output");
 
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     lineNumbers: true,
@@ -9,29 +8,51 @@ var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
 
 editor.setSize("100%", "100%");
 
+window.onload = function() {
+    if ("code" in sessionStorage) {
+        editor.setValue(sessionStorage.getItem("code"));
+    }
+};
+
+window.onbeforeunload = function() {
+    sessionStorage.setItem("code", editor.getValue());
+};
+
 async function run_button_clicked() {
 	const startTime = performance.now();
 
-	// let temp_output = "Cons(3, Cons(2, Cons(1, Nil)))"
-    // code_output_textarea.value = temp_output;
-
 	await wasm_bindgen('./pkg/editor_bg.wasm');
 
-    let user_code = editor.getValue();
-    const code_output = wasm_bindgen.rust_function(user_code);
-    code_output_textarea.value = code_output;
+    let code = editor.getValue();
+    sessionStorage.setItem("code", code);
+    const output = wasm_bindgen.rust_function(code);
+    output_textarea.value = output;
 
 	const endTime = performance.now();
 
 	update_runtime(endTime - startTime);
-	// update_runtime(5);
-
 }
 
 function update_runtime(runtime) {
 	let runtime_div = document.getElementById("runtime");
 
 	runtime_div.innerHTML = "Runtime: " + runtime + " ms";
+}
+
+function clear_button_clicked() {
+    editor.setValue("");
+}
+
+function save_code(opt) {
+    sessionStorage.setItem("code", editor.getValue());
+
+    switch(opt) {
+        case 0:
+            window.location.href = "example_page.html";
+            break;
+        default:
+            window.location.href = "index.html";
+    }
 }
 
 
@@ -48,27 +69,4 @@ basic-http-server
 
 to look into later
 keymap & extrakeys in configuration of codemirror
-*/
-
-/*
-code for halftime presentation mockup:
-
-enum List = Nil, Cons(Int, List);
-    
-fip (List, List): List
-ReverseHelper(list, acc) =
-        match list {
-            Nil: acc,
-            Cons(x, xs): ReverseHelper(xs, Cons(x, acc))
-        };
-
-fip List: List
-ReverseList list = ReverseHelper(list, Nil);
-
-fip (): ()
-main = print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
-
-
-let temp_output = "Cons(3, Cons(2, Cons(1, Nil)))"
-code_output_textarea.value = temp_output;
 */

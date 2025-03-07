@@ -12,16 +12,15 @@
 	<div class="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
 		<a href="index.html" class="current-page">Editor</a>
-		<a href="example_page.html">Examples</a>
+		<a onclick="save_code(0)">Examples</a>
 	</div>
-
-	<!-- <h3>Editor</h3> -->
 
 	<div class="container">
 		<table width="100%">
 			<tr>
 				<th>Code</th>
-				<th id="run-button-cell">
+				<th id="button-cell">
+					<button onclick="clear_button_clicked()" id="clear-button">Clear</button>
 					<button onclick="run_button_clicked()" id="run-button">Run</button>
 				</th>
 				<th>Output</th>

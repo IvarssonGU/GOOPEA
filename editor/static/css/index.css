@@ -10,12 +10,11 @@ body {
 }
 
 #editor {
-    width: 99%;
     height: 100%;
 }
 
 #output {
-    width: 99%;
+    /* width: 99%; */
     height: 99%;
     margin-top: -2px;
 }
@@ -45,7 +44,7 @@ th {
 textarea {
     outline: none;
     resize: none;
-    vertical-align: top;
+    width: 99%;
 }
 
 #code-cell, #output-cell {
@@ -53,7 +52,6 @@ textarea {
 }
 
 #display {
-    /* height:10vh; */
     width: 100%;
     height:fit-content;
     text-align: right;
@@ -70,7 +68,7 @@ textarea {
     /* border-radius: 2px; */
 }
 
-#run-button-cell {
+#button-cell {
     text-align: right;
     /* width:min-content; */
 }
