@@ -1,11 +1,14 @@
-enum List = Nil, Cons(Int, List);
+data List = Nil | Cons(Int, List)
     
-fip (List, List): List
 Reverse(list, acc) =
-        match list {
-            Nil: acc,
-            Cons(x, xs): Reverse(xs, Cons(x, acc))
-        };
+    match list {
+        Nil: acc,
+        Cons(x, xs): 
+            let list = Cons(x, acc) in 
+            Reverse(xs, list)
+    }
 
-(): List
-Main = Reverse(Cons(1, Cons(2, Nil)), Nil)
+Main() =
+    let temp = Cons(1, Nil) in
+    let temp = Cons(2, temp) in
+    Reverse(temp, Nil)

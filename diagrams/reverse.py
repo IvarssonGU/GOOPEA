@@ -12,9 +12,9 @@ from PIL import Image, ImageFont, ImageDraw
 #    os.remove(f)
 
 SEP_W = 10
-def add_code_to_side(base_img, line):
-    im1 = Image.new('RGB', (1500, 800), color = (255,255,255))
-    fnt = ImageFont.truetype("CONSOLA.TTF", 45)
+def add_code_to_side(base_img, line, fip):
+    im1 = Image.new('RGB', (1000, 800), color = (255,255,255))
+    fnt = ImageFont.truetype("CONSOLA.TTF", 37)
     draw = ImageDraw.Draw(im1)
 
     code = ""
@@ -22,8 +22,13 @@ def add_code_to_side(base_img, line):
         code = f.read()
 
     code = "\n".join(["{:02d}".format(i+1) + ". " +  ("--- " if i+1 == line else "    ") + ln for i, ln in enumerate(code.split("\n"))])
+    if not fip: code = code.replace("fip ", "")
 
-    draw.multiline_text((20, 400), code, font=fnt, fill=(0,0,0), anchor="lm", spacing=25)
+    selected_line_code = "\n".join([(ln if i+1 == line else "") for i, ln in enumerate(code.split("\n"))])
+    not_selected_line_code = "\n".join([(ln if i+1 != line else "") for i, ln in enumerate(code.split("\n"))])
+
+    draw.multiline_text((20, 400), not_selected_line_code, font=fnt, fill=(0,0,0), anchor="lm", spacing=25)
+    draw.multiline_text((20, 400), selected_line_code, font=fnt, fill=(255,0,0), anchor="lm", spacing=25)
     
     im2 = Image.open(base_img)
 
@@ -82,7 +87,7 @@ def render(fip: bool, line: int):
         while curr is not None:
             name, (val, next) = (curr, nodes[curr])
 
-            label = f'{{value | {val}}} | {{next | <ptr> {"Nil" if next is None else "Cons"}}}' + (f" | {{ refs | {references[name]} }}" if not fip else "")
+            label = f'{{ refs | {references[name]} }} | {{value | {val}}} | {{next | <ptr> {"Nil" if next is None else ""}}}'
 
             fillcolor = "lightblue"
             if name in deallocated: fillcolor = "red"
@@ -100,6 +105,9 @@ def render(fip: bool, line: int):
     subgraph = graphviz.Digraph(f"cluster_{i}{label}")
     subgraph.attr(label=label)
 
+    if len(scope_vars) == 0:
+        subgraph.node("DUMMY", label="", shape="none")
+
     for var in scope_vars:
         fillcolor = "lightblue"
         color = None
@@ -115,10 +123,10 @@ def render(fip: bool, line: int):
     
         content_label = "Nil"
         if isinstance(vars[var], int): content_label = str(vars[var])
-        if isinstance(vars[var], str): content_label = "Cons"
+        if isinstance(vars[var], str): content_label = ""
 
         subgraph.node(var, f"{{{var_labels[var]} | <ptr> {content_label}}}", shape="Mrecord", style="filled", fillcolor=fillcolor, color=color, fontcolor=fontcolor)
-    
+
     dot.subgraph(subgraph)
 
     for (a, b) in edges:
@@ -137,7 +145,7 @@ def render(fip: bool, line: int):
             old_vars.append(var)
 
     path = dot.render("output/fip/img_{:02d}".format(rendered_frames) if fip else "output/non_fip/img_{:02d}".format(rendered_frames))
-    add_code_to_side(path, line)
+    add_code_to_side(path, line, fip)
     print(f"Rendered {rendered_frames}")
     rendered_frames += 1
 
@@ -168,16 +176,7 @@ def render(fip: bool, line: int):
     new_nodes.clear()
 
     for name in removed_vars:
-        if isinstance(vars[name], str):
-            edges.remove((name, vars[name]))
-
-        scopes[-1][1].remove(name)
-
-        del vars[name]
-        del var_labels[name]
-
-        if name in temp_vars:
-            temp_vars.remove(name)
+        remove_var_immediate(name)
 
     removed_vars.clear()
 
@@ -248,6 +247,18 @@ def set_var_content(name: str, content: Optional[str | int]):
 def push_scope(label):
     scopes.append((label, []))
 
+def remove_var_immediate(name):
+    if isinstance(vars[name], str):
+        edges.remove((name, vars[name]))
+
+    scopes[-1][1].remove(name)
+
+    del vars[name]
+    del var_labels[name]
+
+    if name in temp_vars:
+        temp_vars.remove(name)
+
 def remove_var(name, fip, line):
     removed_vars.append(name)
     render(fip, line)
@@ -260,7 +271,7 @@ def pop_scope(fip, line):
     gone_vars = scopes[-1][1].copy()
 
     for name in gone_vars:
-        remove_var(name, fip, line)
+        remove_var_immediate(name)
 
     scopes.pop()
 
@@ -269,36 +280,46 @@ def reverse(list: Optional[str], acc: Optional[str], depth: int, fip: bool) -> s
 
     listvar = var("list", list)
     accvar = var("acc", acc, False)
-    render(fip, 4)
+    render(fip, 3)
 
-    remove_var(listvar, fip, 5)
+    if not fip:
+        remove_var(listvar, fip, 4)
+    else:
+        render(fip, 4)
 
     if list is None:
-        remove_var(accvar, fip, 6)
+        remove_var(accvar, fip, 5)
 
-        pop_scope(fip, 8)
+        pop_scope(fip, 9)
         return acc
     else:
+
         x = nodes[list][0]
         xs = nodes[list][1]
 
         xvar = var("x", x)
         xsvar = var("xs", xs)
-        render(fip, 7)
+        render(fip, 6)
 
 
         remove_vars([accvar, xvar], fip, 7)
         c = cons(x, acc, list if fip else None)
-        cvar = var("temp", c)
+        if not fip:
+            listvar = var("list", c)
+        else:
+            set_var_content(listvar, c)
+
         render(fip, 7)
 
-        remove_vars([xsvar, cvar], fip, 7)
+        remove_vars([xsvar, listvar], fip, 7)
 
         # if fip: temp_vars.append(accvar)
         res = reverse(xs, c, depth + 1, fip)
-        var("return", res)
-        render(fip, 7)
-        pop_scope(fip, 8)
+        retvar = var("return", res)
+        render(fip, 8)
+
+        remove_var(retvar, fip, 9)
+        pop_scope(fip, 9)
 
         return res
     
@@ -318,14 +339,20 @@ def reverse(list: Optional[str], acc: Optional[str], depth: int, fip: bool) -> s
     
 def main(fip: bool):
     push_scope("Main")
+    render(fip, 11)
 
+    render(fip, 12)
     c1 = cons(2, None)
-    var("temp", c1, True)
-    render(fip, 11)
+    tmpvar = var("temp", c1)
+    render(fip, 12)
 
+    render(fip, 13)
     c2 = cons(1, c1)
-    var("temp", c2, True)
-    render(fip, 11)
+    set_var_content(tmpvar, c2)
+    render(fip, 13)
+
+    render(fip, 14)
+    remove_var(tmpvar, fip, 14)
 
     reversed = reverse(c2, None, 1, fip)
 
@@ -334,7 +361,7 @@ def main(fip: bool):
 
     pop_scope(fip, 11)
 
-main(True)
+main(False)
 
 vars.clear()
 var_labels.clear()
@@ -351,4 +378,4 @@ removed_vars.clear()
 rendered_frames = 0
 added_identifiers = 0
 
-main(False)
+main(True)
