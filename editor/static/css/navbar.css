@@ -1,0 +1,40 @@
+.nav {
+    /* background-color: cornflowerblue; */
+    overflow: hidden;
+
+    /* margin: 0;
+    padding: 0; */
+}
+
+.nav a {
+    vertical-align: middle;
+    float: left;
+    text-align: center;
+    padding: 15px 15px;
+    /* color:black; */
+    font-size: 20px;
+    border-radius: 5px;
+    text-decoration: none;
+    color: black;
+    /* display: inline-block; */
+    /* border: 1px solid black; */
+}
+.nav a:hover {
+    background-color: b0caf9;
+    color: black;
+}
+.nav a.current-page {
+    background-color: lightblue;
+    color: black;
+}
+
+.nav a.logo {
+    vertical-align: middle;
+    font-size: 26px;
+    font-weight: bold;
+    float: left;
+    padding: 15px 15px;
+    margin: 0;
+    color: black;
+    margin-top: -3px;
+}

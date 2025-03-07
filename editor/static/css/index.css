@@ -1,5 +1,6 @@
 body {
     text-align: center;
+    font-family: 'Courier New', Courier, monospace;
 }
 
 .container {
@@ -31,6 +32,10 @@ body {
 
 table {
     table-layout: fixed;
+}
+
+th {
+    padding-left: 15px;
 }
 
 /* table, th, td {
@@ -68,4 +73,8 @@ textarea {
 #run-button-cell {
     text-align: right;
     /* width:min-content; */
+}
+
+#run-button {
+    margin-right: 15px;
 }
