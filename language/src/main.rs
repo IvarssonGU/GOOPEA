@@ -6,14 +6,15 @@ use lalrpop_util::lalrpop_mod;
 use lexer::Lexer;
 use scoped_ast::ScopedProgram;
 
-mod ast;
+mod code;
+mod ir;
+mod simple_ast;
 mod scoped_ast;
-mod error;
-
-lalrpop_mod!(pub grammar);
-
+mod ast;
 mod lexer;
-
+mod error;
+lalrpop_mod!(pub grammar);
+use simple_ast::*;
 fn main() {
     let code = fs::read_to_string(Path::new("examples/type_error.goo")).unwrap();
 
