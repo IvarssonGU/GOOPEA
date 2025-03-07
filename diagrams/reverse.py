@@ -58,6 +58,7 @@ def render(fip: bool, line: int):
     dot.attr(rankdir='TD')
     dot.attr(dpi='200')
     dot.attr(size='10,4!')
+    dot.attr(ordering="out")
 
     node_parent = {}
     references = {}
@@ -87,14 +88,35 @@ def render(fip: bool, line: int):
         while curr is not None:
             name, (val, next) = (curr, nodes[curr])
 
-            label = f'{{ refs | {references[name]} }} | {{value | {val}}} | {{next | <ptr> {"Nil" if next is None else ""}}}'
-
             fillcolor = "lightblue"
-            if name in deallocated: fillcolor = "red"
-            if name in new_nodes: fillcolor = "lightgreen"
-            if name in edited: fillcolor = "orange"
+            bordercolor = "black"
+            if name in deallocated:
+                fillcolor = "red"
+                bordercolor = "darkred"
+            if name in new_nodes:
+                fillcolor = "lightgreen"
+                bordercolor = "darkgreen"
+            if name in edited:
+                fillcolor = "orange"
+                bordercolor = "brown"
 
-            node_subgraph.node(name, label, shape="record", style="filled", fillcolor=fillcolor)
+            next_text = "Nil" if next is None else ""
+            label = f'''<
+            <table cellspacing="0" bgcolor="{fillcolor}" color = "{bordercolor}" BORDER="0" CELLBORDER="1" >
+                <tr>
+                    <td bgcolor="gray" style = "dashed">refs</td>
+                    <td>value</td>
+                    <td>next</td>
+                </tr>
+
+                <tr>
+                    <td bgcolor="gray" style = "dashed">{references[name]}</td>
+                    <td>{val}</td>
+                    <td port="ptr">{next_text}</td>
+                </tr>
+            </table>>'''
+
+            node_subgraph.node(name, label, shape="none")
 
             curr = next
         node_big_subgraph.subgraph(node_subgraph)
@@ -108,6 +130,10 @@ def render(fip: bool, line: int):
     if len(scope_vars) == 0:
         subgraph.node("DUMMY", label="", shape="none")
 
+    scope_vars = scope_vars.copy()
+    scope_vars.sort()
+
+    prev_var = None
     for var in scope_vars:
         fillcolor = "lightblue"
         color = None
@@ -126,6 +152,11 @@ def render(fip: bool, line: int):
         if isinstance(vars[var], str): content_label = ""
 
         subgraph.node(var, f"{{{var_labels[var]} | <ptr> {content_label}}}", shape="Mrecord", style="filled", fillcolor=fillcolor, color=color, fontcolor=fontcolor)
+
+        # if prev_var is not None:
+            # subgraph.edge(prev_var, var)
+
+        prev_var = var
 
     dot.subgraph(subgraph)
 
@@ -357,9 +388,9 @@ def main(fip: bool):
     reversed = reverse(c2, None, 1, fip)
 
     var("return", reversed)
-    render(fip, 11)
+    render(fip, 14)
 
-    pop_scope(fip, 11)
+    pop_scope(fip, 14)
 
 main(False)
 
