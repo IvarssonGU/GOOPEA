@@ -81,7 +81,7 @@ pub enum Token {
     #[regex("<|>|<=|>=|==|!=", |lex| lex.slice().to_string())]
     Comparator(String),
 
-    #[regex("[1-9][0-9]*", |lex| lex.slice().parse())]
+    #[regex("[0-9][0-9]*", |lex| lex.slice().parse())]
     Integer(i64),
     // #[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| lex.slice().to_owned())]
     // String(String),

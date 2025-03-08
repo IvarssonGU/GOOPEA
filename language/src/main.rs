@@ -16,15 +16,18 @@ mod error;
 lalrpop_mod!(pub grammar);
 use simple_ast::*;
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/type_error.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/reverse-test.goo")).unwrap();
 
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     println!("{:#?}\n{}", program, program);
 
     let scoped_program = ScopedProgram::new(&program).unwrap();
     println!("{scoped_program}");
-
-    scoped_program.validate().unwrap();
+    let simple_program = from_scoped(&scoped_program);
+    let code = code::Compiler::new().compile(&simple_program);
+    for line in ir::output(&code) {
+        println!("{}", line);
+    }
 }
 
 #[cfg(test)]
