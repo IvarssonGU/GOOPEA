@@ -96,7 +96,16 @@ fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> E
             }
         }
         ast::Expression::Integer(i) => Expression::Integer(*i),
-        ast::Expression::Variable(id) => Expression::Identifier(id.clone()),
+        ast::Expression::Variable(id) => match ast.get_constructor(id)  {
+            Ok(cons) if cons.constructor.arguments.0.len() == 0 => Expression::Constructor(cons.internal_id as i64, Vec::new()),
+            _ => match id.as_str() {
+                "true" => Expression::Constructor(1, Vec::new()),
+                "false" => Expression::Constructor(0, Vec::new()),
+                "True" => Expression::Constructor(1, Vec::new()),
+                "False" => Expression::Constructor(0, Vec::new()),
+                _ => Expression::Identifier(id.clone())
+            }   
+        },
         ast::Expression::Match(match_exp) => Expression::Match(
             Box::from(from_expression(&ast::Expression::Variable(match_exp.variable.clone()), ast)), 
             match_exp.cases.iter().map(|case| MatchCase {

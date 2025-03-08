@@ -22,7 +22,6 @@ fn main() {
     println!("{:#?}\n{}", program, program);
 
     let scoped_program = ScopedProgram::new(&program).unwrap();
-    println!("{scoped_program}");
     let simple_program = from_scoped(&scoped_program);
     let code = code::Compiler::new().compile(&simple_program);
     for line in ir::output(&code) {
