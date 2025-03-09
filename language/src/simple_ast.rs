@@ -6,6 +6,7 @@ pub type Program = Vec<FunctionDefinition>;
 
 #[derive(Debug, Clone)]
 pub struct FunctionDefinition {
+    pub return_type_len: u8,
     pub id: String,
     pub args: Vec<String>,
     pub body: Expression,
@@ -71,8 +72,10 @@ impl Display for Operator {
 
 pub fn from_scoped(ast: &scoped_ast::ScopedProgram) -> Program {
     let mut program = Vec::new();
+    
     for (id, scoped_fun) in &ast.functions {
         program.push(FunctionDefinition {
+            return_type_len: scoped_fun.def.signature.result_type.0.len() as u8,
             id: id.clone(),
             args: scoped_fun.def.variables.0.clone(),
             body: from_expression(&scoped_fun.body.expr, ast),

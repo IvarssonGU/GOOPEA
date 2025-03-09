@@ -4,6 +4,7 @@ use crate::simple_ast::*;
 pub struct Compiler {
     var_counter: u32,
     generated_statements: Vec<Statement>,
+    unboxed_tuple_structs: Vec<u8>,
 }
 
 impl Compiler {
@@ -11,6 +12,7 @@ impl Compiler {
         Compiler {
             var_counter: 0,
             generated_statements: Vec::new(),
+            unboxed_tuple_structs: Vec::new(),
         }
     }
 
@@ -25,8 +27,9 @@ impl Compiler {
         for def in prog {
             programs.push(self.compile_def(def));
         }
-        programs
-    } 
+        Prog(programs, self.unboxed_tuple_structs.clone())
+    }
+
     fn compile_def(&mut self, def: &FunctionDefinition) -> Def {
         let result = self.compile_exp(&def.body);
         let mut statements = self.generated_statements.clone();
@@ -37,6 +40,11 @@ impl Compiler {
         }
         self.generated_statements.clear();
         Def {
+            type_len: match def.return_type_len {
+                0  => None,
+                1 => None,
+                n => Some(n),
+            },
             id: def.id.clone(),
             args: def.args.clone(),
             body: statements,
@@ -87,7 +95,7 @@ impl Compiler {
                 self.generated_statements.push(Statement::Decl(var.clone()));
                 let result = self.compile_exp(exp);
                 self.generated_statements.push(Statement::Assign(
-                    true,
+                    Some(None),
                     match_var.clone(),
                     result.clone(),
                 ));
@@ -123,17 +131,17 @@ impl Compiler {
                     match &case.pattern {
                         Pattern::Identifier(id) => {
                             self.generated_statements.push(Statement::Assign(
-                                true,
+                                Some(None),
                                 id.clone(),
                                 Operand::Identifier(match_var.clone()),
                             ));
                         }
-                        Pattern::Constructor(tag, options) => {
+                        Pattern::Constructor(_, options) => {
                             for i in 0..options.len() {
                                 match &options[i] {
                                     None => (),
                                     Some(id) => self.generated_statements.push(Statement::Assign(
-                                        true,
+                                        Some(None),
                                         id.to_string(),
                                         Operand::DerefField(match_var.clone(), i as i64 + 1),
                                     )),
@@ -145,7 +153,7 @@ impl Compiler {
 
                     let match_exp = self.compile_exp(&case.body);
                     self.generated_statements.push(Statement::Assign(
-                        false,
+                        None,
                         var.clone(),
                         match_exp,
                     ));
@@ -153,8 +161,22 @@ impl Compiler {
                 }
                 Operand::Identifier(var)
             },
-            Expression::Let(_, _, _) => Operand::Integer(0),
-            Expression::UTuple(_) => Operand::Integer(0)
+            Expression::Let(vars, bind_exp, exp) => {
+                let result_bind = self.compile_exp(bind_exp);
+                let result_var = self.next_var();
+                self.generated_statements.push(Statement::Assign(Some(Some(vars.len() as u8)), result_var.clone(), result_bind));
+                for (i, var) in vars.iter().enumerate() {
+                    self.generated_statements.push(
+                        Statement::Assign(Some(None), var.clone(), Operand::AccessField(result_var.clone(), i as i64)),
+                    );
+                }
+                self.compile_exp(exp)
+            },
+            Expression::UTuple(exps) => {
+                self.unboxed_tuple_structs.push(exps.len() as u8);
+                let results = exps.iter().map(|exp| self.compile_exp(exp)).collect();
+                Operand::UTuple(results)
+            }
         }
     }
 }
