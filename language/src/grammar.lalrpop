@@ -118,13 +118,22 @@ Expression: Expression = {
         }
     },
 
-    #[precedence(level="2")] #[assoc(side="left")]
-    <e1: Expression> <op: "*/"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
+    #[precedence(level="2")]
+    <op: "+-"> <e: Expression> => {
+        if op == "+" {
+            e
+        } else {
+            Expression::FunctionCall(op, UTuple(vec![Expression::Integer(0), e]))
+        }
+    },
 
     #[precedence(level="3")] #[assoc(side="left")]
+    <e1: Expression> <op: "*/"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
+
+    #[precedence(level="4")] #[assoc(side="left")]
     <e1: Expression> <op: "+-"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
 
-    /*#[precedence(level="4")] #[assoc(side="left")]
+    /*#[precedence(level="5")] #[assoc(side="left")]
     <e1: Expression> <op: "cmp"> <e2: Expression> => {
         let operation = match op.as_str() {
             "==" => Operator::Equal,
@@ -139,7 +148,7 @@ Expression: Expression = {
         Expression::Operation(operation, Box::new(e1), Box::new(e2))
     },*/
 
-    #[precedence(level="5")]
+    #[precedence(level="6")]
     "match" <variable: "id"> "{" <cases: MatchCases> "}" => {
         Expression::Match(MatchExpression { variable, cases })
     },

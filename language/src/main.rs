@@ -15,7 +15,7 @@ lalrpop_mod!(pub grammar);
 mod lexer;
 
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/arithmetic.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/integer.goo")).unwrap();
 
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     println!("{:#?}\n{}", program, program);
