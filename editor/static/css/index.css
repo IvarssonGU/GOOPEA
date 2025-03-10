@@ -16,7 +16,7 @@ body {
 #output {
     /* width: 99%; */
     height: 99%;
-    margin-top: -2px;
+    /* margin-top: -2px; */
 }
 
 .output-container {
@@ -45,10 +45,16 @@ textarea {
     outline: none;
     resize: none;
     width: 99%;
+    border: none;
 }
 
 #code-cell, #output-cell {
     height:70vh;
+}
+
+#output-cell {
+    border: 1px solid gray;
+    border-radius: 2px;
 }
 
 #display {
@@ -64,11 +70,12 @@ textarea {
 #runtime {
     display:inline-block;
     padding: 15px 15px 15px 15px;
-    border: 1px solid gray
-    /* border-radius: 2px; */
+    border: 1px solid gray;
+    border-radius: 2px;
 }
 
-#button-cell {
+/* containing run and clear buttons */
+ #button-cell { 
     text-align: right;
     /* width:min-content; */
 }

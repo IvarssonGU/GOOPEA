@@ -1,15 +1,19 @@
 CodeMirror.defineSimpleMode("GOOPEA", {
     start: [
-        {regex: /(?:fip|match|enum|let|in|Cons)\b/, token: "keyword"},
-        {regex: /true|false|Nil/, token: "atom"},
+        {regex: /(?:fip|match|enum|let|in)\b/, token: "keyword"},
+        {regex: /Nil|Cons/, token: "atom"},
+        {regex: /true|false/, token: "atom"},
+        {regex: /[\{\[\()]/, token: "bracket", indent: true},
+        {regex: /[\}\]\)]/, token: "bracket", dedent: true},
+        // {regex: /[A-Z][a-z]*([A-Z][a-z]*)*(?=\()/, token: "def"},
         {regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number"},
+        {regex: /[A-Z][a-z]*([A-Z][a-z]*)*\b/, token: "variable-2"},
         {regex: /\/\/.*/, token: "comment"},
         {regex: /\/\*/, token: "comment", next: "comment"},
         {regex: /[-+\/*]+/, token: "operator"},
-        {regex: /[\{\[\(]/, token: "variable-2", indent: true},
-        {regex: /[\}\]\)]/, token: "variable-2", dedent: true},
         {regex: /[a-z$][\w$]*/, token: "variable"},
-        {regex: /:|=/, token: "variable-3"},
+        {regex: /:|=/, token: "punctuation"},
+        // {regex: /:|=/, token: "variable-3"},
     ],
     comment: [
         {regex: /.*?\*\//, token: "comment", next: "start"},
@@ -105,18 +109,21 @@ keymap & extrakeys in configuration of codemirror
 
 //this is a line comment
 
-098783458275 //numbers
+0987834582755654565 //numbers
 
-fip match enum Cons //keywords
+fip match enum in let //"keywords"
 
-Nil true false //atoms
+Cons Nil //"atoms" constructors
 
-() {} [] //variable-2
+EverythingThatStartsWithCapitalAndOnlyContainsLetters 	//"variable-2"
 
-= : //variable-3
+() {} [] //"bracket"
 
-the rest //variable-1
+= : //"punctuation"
 
++ - / * //"operator"
+
+the rest //variable (black)
 
 enum List = Nil, Cons(Int, List);
 
@@ -131,6 +138,6 @@ fip List: List
 ReverseList list = ReverseHelper(list, Nil);
 
 fip (): ()
-main = print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
+Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil))))); 
 
 */

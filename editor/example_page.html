@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="./static/css/example_page.css">
 	<link rel="stylesheet" href="./static/css/navbar.css">
 
-    <title>Examples</title>
+    <title>GOOPEA examples</title>
 </head>
 <body>
     <div class="nav">
@@ -19,11 +19,14 @@
     <div class="container">
         <table width="100%">
             <tr>
-                <th>Example 1: reverse</th>
+                <th>
+                    Example 1: reverse
+                    <button id="temp-button">run</button>
+                </th>
                 <th>Diagram</th>
             </tr>
             <tr>
-                <td id="example1-codecell">
+                <td id="example1-code-cell">
                     <textarea id="example1-code">
 enum List = Nil, Cons(Int, List);
 
@@ -38,7 +41,7 @@ fip List: List
 ReverseList list = ReverseHelper(list, Nil);
 
 fip (): ()
-main = print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
+Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
 </textarea>
                 </td>
                 <td rowspan="3">
@@ -54,7 +57,7 @@ main = print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
                 <th>Output</th>
             </tr>
             <tr>
-                <td>
+                <td id="example1-output-cell">
                     <textarea id="example1-output" readonly="true">
 Cons(3, Cons(2, Cons(1, Nil)))
 </textarea>
