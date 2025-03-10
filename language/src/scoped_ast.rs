@@ -3,15 +3,15 @@ use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADT
 
 #[derive(Debug)]
 pub struct ConstructorReference<'a> {
-    adt: &'a ADTDefinition,
-    constructor: &'a ConstructorDefinition,
-    internal_id: usize // Each constructor in an ADT is given a unique internal_id
+    pub adt: &'a ADTDefinition,
+    pub constructor: &'a ConstructorDefinition,
+    pub internal_id: usize // Each constructor in an ADT is given a unique internal_id
 }
 
 #[derive(Debug)]
 pub struct ScopedFunction<'a> {
-    def: &'a FunctionDefinition,
-    body: ScopedExpressionNode<'a>
+    pub def: &'a FunctionDefinition,
+    pub body: ScopedExpressionNode<'a>
 }
 
 #[derive(Clone, Debug)]
@@ -25,10 +25,10 @@ type Scope<'a> = HashMap<VID, Rc<VariableDefinition>>;
 
 #[derive(Clone, Debug)]
 pub struct ScopedExpressionNode<'a> {
-    expr: &'a Expression,
-    children: ScopeChildren<'a>,
-    scope: Scope<'a>,
-    tp: ExpressionType
+    pub expr: &'a Expression,
+    pub children: ScopeChildren<'a>,
+    pub scope: Scope<'a>,
+    pub tp: ExpressionType
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,10 +88,10 @@ impl<'a> ScopeChildren<'a> {
 #[derive(Debug)]
 pub struct ScopedProgram<'a> {
     adts: HashMap<AID, &'a ADTDefinition>,
-    constructors: HashMap<FID, ConstructorReference<'a>>,
-    functions: HashMap<FID, ScopedFunction<'a>>,
+    pub constructors: HashMap<FID, ConstructorReference<'a>>,
+    pub functions: HashMap<FID, ScopedFunction<'a>>,
     all_signatures: HashMap<FID, FunctionSignature>,
-    program: &'a Program
+    pub program: &'a Program
 }
 
 impl<'a> ScopedProgram<'a> {
