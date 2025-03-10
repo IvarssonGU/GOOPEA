@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 import graphviz
     
@@ -11,9 +12,23 @@ from PIL import Image, ImageFont, ImageDraw
 #    print(f)
 #    os.remove(f)
 
-SEP_W = 10
+SEP_W = 5
+TARGET_WIDTH = 1920
+H = 1080
+CODE_PERC = 0.4
+
+CODE_WIDTH = math.ceil((TARGET_WIDTH - SEP_W) * CODE_PERC)
+FIG_WIDTH = math.ceil((TARGET_WIDTH - SEP_W) * (1 - CODE_PERC))
+
+def get_paste_location(x, y, rw, rh, tw, th):
+    return (
+        (x + max(math.ceil((tw - rw) / 2), 0)),
+        (y + max(math.ceil((th - rh) / 2), 0))
+    )
+
 def add_code_to_side(base_img, line, fip):
     im1 = Image.new('RGB', (1000, 800), color = (255,255,255))
+
     fnt = ImageFont.truetype("CONSOLA.TTF", 37)
     draw = ImageDraw.Draw(im1)
 
@@ -30,11 +45,15 @@ def add_code_to_side(base_img, line, fip):
     draw.multiline_text((20, 400), not_selected_line_code, font=fnt, fill=(0,0,0), anchor="lm", spacing=25)
     draw.multiline_text((20, 400), selected_line_code, font=fnt, fill=(255,0,0), anchor="lm", spacing=25)
     
-    im2 = Image.open(base_img)
+    im1.thumbnail((CODE_WIDTH, H))
 
-    dst = Image.new('RGB', (im1.width + im2.width + SEP_W, im1.height))
-    dst.paste(im1, (0, 0))
-    dst.paste(im2, (im1.width + SEP_W, 0))
+    im2 = Image.open(base_img)
+    
+    dst = Image.new('RGB', (TARGET_WIDTH, H), color = (255,255,255))
+    dst.paste(im1, get_paste_location(0, 0, im1.width, im1.height, CODE_WIDTH, H))
+    dst.paste(im2, get_paste_location(CODE_WIDTH + SEP_W, 0, im2.width, im2.height, FIG_WIDTH, H))
+    dst.paste(Image.new('RGB', (SEP_W, H), color = (0,0,0)), (CODE_WIDTH, 0))
+
 
     dst.save(base_img)
 
@@ -56,8 +75,8 @@ def render(fip: bool, line: int):
 
     dot = graphviz.Digraph(format='png')
     dot.attr(rankdir='TD')
-    dot.attr(dpi='200')
-    dot.attr(size='10,4!')
+    dot.attr(dpi='1')
+    dot.attr(size=f'{FIG_WIDTH},{H}!')
     dot.attr(ordering="out")
 
     node_parent = {}
@@ -100,12 +119,12 @@ def render(fip: bool, line: int):
                 fillcolor = "orange"
                 bordercolor = "brown"
 
-            next_text = "Nil" if next is None else ""
+            next_text = "Empty" if next is None else ""
             label = f'''<
             <table cellspacing="0" bgcolor="{fillcolor}" color = "{bordercolor}" BORDER="0" CELLBORDER="1" >
                 <tr>
                     <td bgcolor="gray" style = "dashed">refs</td>
-                    <td>value</td>
+                    <td>val</td>
                     <td>next</td>
                 </tr>
 
@@ -147,7 +166,7 @@ def render(fip: bool, line: int):
         if var in removed_vars: 
             fillcolor = "red"
     
-        content_label = "Nil"
+        content_label = "Empty"
         if isinstance(vars[var], int): content_label = str(vars[var])
         if isinstance(vars[var], str): content_label = ""
 
@@ -328,21 +347,18 @@ def reverse(list: Optional[str], acc: Optional[str], depth: int, fip: bool) -> s
         x = nodes[list][0]
         xs = nodes[list][1]
 
-        xvar = var("x", x)
-        xsvar = var("xs", xs)
+        xvar = var("val", x)
+        xsvar = var("next", xs)
         render(fip, 6)
 
 
-        remove_vars([accvar, xvar], fip, 7)
+        remove_vars([accvar, xvar] if not fip else [accvar, xvar, listvar], fip, 7)
         c = cons(x, acc, list if fip else None)
-        if not fip:
-            listvar = var("list", c)
-        else:
-            set_var_content(listvar, c)
+        listvar = var("acc", c)
 
         render(fip, 7)
 
-        remove_vars([xsvar, listvar], fip, 7)
+        remove_vars([xsvar, listvar], fip, 8)
 
         # if fip: temp_vars.append(accvar)
         res = reverse(xs, c, depth + 1, fip)

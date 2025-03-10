@@ -1,14 +1,14 @@
-data List = Nil | Cons(Int, List)
+data List = Empty | Cons(Int, List)
     
 Reverse(list, acc) =
     match list {
-        Nil: acc,
-        Cons(x, xs): 
-            let list = Cons(x, acc) in 
-            Reverse(xs, list)
+        Empty: acc,
+        Cons(val, next): 
+            let acc = Cons(val, acc) in 
+            Reverse(next, acc)
     }
 
 Main() =
-    let temp = Cons(1, Nil) in
-    let temp = Cons(2, temp) in
-    Reverse(temp, Nil)
+    let temp = Cons(2, Empty) in
+    let temp = Cons(1, temp) in
+    Reverse(temp, Empty)
