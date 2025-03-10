@@ -74,7 +74,7 @@ pub enum Expression {
 
 #[derive(Debug, Clone)]
 pub struct MatchExpression {
-    pub variable: VID, // What to match on
+    pub expr: Box<Expression>, // What to match on
     pub cases: Vec<MatchCase>
 }
 

@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, rc::Rc, sync::atomic::AtomicUsize};
+use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, iter, rc::Rc, sync::atomic::AtomicUsize};
 use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
 #[derive(Debug)]
@@ -60,6 +60,7 @@ impl ExpressionType {
 #[derive(Debug, Clone)]
 pub enum ScopeChildren<'a> {
     Many(Vec<ScopedExpressionNode<'a>>),
+    Match(Box<ScopedExpressionNode<'a>>, Vec<ScopedExpressionNode<'a>>),
     Two(Box<ScopedExpressionNode<'a>>, Box<ScopedExpressionNode<'a>>),
     Zero
 }
@@ -68,6 +69,7 @@ impl<'a> ScopeChildren<'a> {
     fn scopes(&self) -> Vec<&ScopedExpressionNode<'a>> {
         match &self {
             ScopeChildren::Many(s) => s.iter().collect(),
+            ScopeChildren::Match(expr, exprs) => iter::once(&**expr).chain(exprs.iter()).collect(),
             ScopeChildren::Two(s1, s2) => vec![s1, s2],
             ScopeChildren::Zero => vec![]
         }
@@ -280,10 +282,11 @@ impl<'a> ScopedExpressionNode<'a> {
             },
             Expression::Variable(vid) => { self.get_var(vid)?; },
             Expression::Match(match_expression) => {
-                let var_def = self.get_var(&match_expression.variable)?;
-                let aid: &AID = match &var_def.tp {
-                    Type::Int => return Err(CompileError::WrongVariableTypeInMatch),
-                    Type::ADT(aid) => &aid,
+                let ScopeChildren::Match(expr_scope, _) = &self.children else { panic!() };
+                let aid: &AID = match &expr_scope.tp {
+                    ExpressionType::UTuple(_) => return Err(CompileError::WrongVariableTypeInMatch),
+                    ExpressionType::Type(Type::Int) => return Err(CompileError::WrongVariableTypeInMatch),
+                    ExpressionType::Type(Type::ADT(aid)) => aid,
                 };
 
                 self.children.get_same_type().ok_or_else(|| CompileError::MissmatchedTypes(self.expr))?;
@@ -409,7 +412,8 @@ fn scope_expression<'a, 'b>(
             (children, tp)
         },
         Expression::Match(match_expr) => {
-            let children = ScopeChildren::Many(
+            let children = ScopeChildren::Match(
+                Box::new(scope_expression(&match_expr.expr, &scope, vec![], function_signatures, constructor_signatures)?),
                 match_expr.cases.iter().map(|case| {
                     let cons_sig: &ConstructorSignature = constructor_signatures.get(&case.cons_id).ok_or(CompileError::UnknownConstructor(&case.cons_id))?;
                     if cons_sig.0.len() != case.vars.0.len() {

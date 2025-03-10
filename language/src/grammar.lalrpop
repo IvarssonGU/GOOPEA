@@ -149,8 +149,8 @@ Expression: Expression = {
     },*/
 
     #[precedence(level="6")]
-    "match" <variable: "id"> "{" <cases: MatchCases> "}" => {
-        Expression::Match(MatchExpression { variable, cases })
+    "match" <expr: Expression> "{" <cases: MatchCases> "}" => {
+        Expression::Match(MatchExpression { expr: Box::new(expr), cases })
     },
 
     "let" <vars: UTuple<"id">> "=" <e1: FunctionCall> "in" <e2: Expression> => {

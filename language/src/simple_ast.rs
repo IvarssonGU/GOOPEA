@@ -98,7 +98,7 @@ fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> E
         ast::Expression::Integer(i) => Expression::Integer(*i),
         ast::Expression::Variable(id) => Expression::Identifier(id.clone()),
         ast::Expression::Match(match_exp) => Expression::Match(
-            Box::from(from_expression(&ast::Expression::Variable(match_exp.variable.clone()), ast)), 
+            Box::from(from_expression(&match_exp.expr, ast)), 
             match_exp.cases.iter().map(|case| MatchCase {
                 pattern: {
                     if case.vars.0.len() == 0 {
