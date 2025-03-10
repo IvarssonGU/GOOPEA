@@ -1,4 +1,4 @@
-use std::{cell::RefMut, collections::{HashMap, HashSet}, fmt::{Display, Formatter}, path::MAIN_SEPARATOR, rc::Rc, sync::{atomic::AtomicUsize, Arc, LazyLock}};
+use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, rc::Rc, sync::atomic::AtomicUsize};
 use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
 #[derive(Debug)]
@@ -309,7 +309,7 @@ impl<'a> ScopedExpressionNode<'a> {
                     return Err(CompileError::NonExhaustiveMatch)
                 }
             },
-            Expression::LetEqualIn(vars, e1, e2) => {
+            Expression::LetEqualIn(vars, e1, _) => {
                 let fid = match &**e1 {
                     Expression::FunctionCall(fid, _) => fid,
                     _ => return Err(CompileError::LetHasNoFunctionCall(&self.expr))

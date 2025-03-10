@@ -101,7 +101,13 @@ Expression: Expression = {
     #[precedence(level="0")]
     "id" => Expression::Variable(<>),
     "int" => Expression::Integer(<>),
-    UTuple<ExpressionReset> => Expression::UTuple(<>),
+    <mut tup: UTuple<ExpressionReset>> => {
+        if tup.0.len() == 1 {
+            tup.0.pop().unwrap()
+        } else {
+            Expression::UTuple(tup)
+        }
+    },
 
 
     #[precedence(level="1")]
