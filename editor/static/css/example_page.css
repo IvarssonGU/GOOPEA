@@ -24,10 +24,6 @@ table {
     table-layout: fixed;
 }
 
-/* .example1-diagrams {
-    /* border: 2px solid gray; */
-    /* border-radius: 2px; */
-/* } */ 
 #example1-diagrams-cell {
     border: 1px solid gray;
     border-radius: 2px;
@@ -40,8 +36,6 @@ table {
 #example1-code {
     width: 98%;
     height: 100%;
-    /* vertical-align: top; */
-    /* height: 200px; */
 }
 #example1-code-cell {
     border: 1px solid gray;

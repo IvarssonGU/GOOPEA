@@ -1,30 +1,3 @@
-CodeMirror.defineSimpleMode("GOOPEA", {
-    start: [
-        {regex: /(?:fip|match|enum|let|in)\b/, token: "keyword"},
-        {regex: /Nil|Cons/, token: "def"},
-        {regex: /true|false/, token: "atom"},
-        {regex: /[\{\[\()]/, token: "bracket", indent: true},
-        {regex: /[\}\]\)]/, token: "bracket", dedent: true},
-        // {regex: /[A-Z][a-z]*([A-Z][a-z]*)*(?=\()/, token: "def"},
-        {regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number"},
-        {regex: /[A-Z][a-z]*([A-Z][a-z]*)*\b/, token: "variable-2"},
-        {regex: /\/\/.*/, token: "comment"},
-        {regex: /\/\*/, token: "comment", next: "comment"},
-        {regex: /[-+\/*]+/, token: "operator"},
-        {regex: /[a-z$][\w$]*/, token: "variable"},
-        {regex: /:|=/, token: "punctuation"},
-        // {regex: /:|=/, token: "variable-3"},
-    ],
-    comment: [
-        {regex: /.*?\*\//, token: "comment", next: "start"},
-        {regex: /.*/, token: "comment"}
-    ],
-    meta: {
-        dontIndentStates: ["comment"],
-        lineComment: "//"
-    }
-});
-
 let output_textarea = document.getElementById("output");
 
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
@@ -33,9 +6,11 @@ var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     styleActiveLine: true,
     mode: "GOOPEA",
     autoCloseBrackets: true,
+    matchBrackets: true,
 });
 
 editor.setSize("100%", "100%");
+editor.setOption("extraKeys", key_binds);
 
 window.onload = function() {
     if ("code" in sessionStorage) {
@@ -94,14 +69,21 @@ install if necessary:
 cargo install wasm-pack
 cargo install basic-http-server
 
-commands to run:
+commands to run first time or when changing rust code: (make sure to be in /GOOPEA/editor)
 cargo clean
 cargo build
 wasm-pack build --target no-modules
 basic-http-server
 
-to look into later
-keymap & extrakeys in configuration of codemirror
+command to run: (make sure to be in /GOOPEA/editor)
+basic-http-server
+
+TODO
+- keymap & extrakeys in configuration of codemirror
+- documentation page
+    - syntax guide?
+- more examples
+- memory visualization instead of diagrams
 */
 
 
