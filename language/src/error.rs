@@ -30,7 +30,8 @@ pub enum CompileError<'a> {
     InvalidPattern,
     MatchHasMultipleWildcards,
     MatchHasCaseAfterWildcard,
-    MatchHasMultipleTupleCases
+    MatchHasMultipleTupleCases,
+    InternalError
 }
 
 impl<'a> Display for CompileError<'a> {

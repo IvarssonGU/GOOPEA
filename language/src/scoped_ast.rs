@@ -1,5 +1,5 @@
 use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, iter, rc::Rc, sync::atomic::AtomicUsize};
-use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID, Pattern}, error::{CompileError, CompileResult}};
+use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, MatchExpression, Pattern, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
 #[derive(Debug)]
 pub struct ConstructorReference<'a> {
@@ -32,7 +32,7 @@ pub struct ScopedExpressionNode<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum ExpressionType {
+pub enum ExpressionType {
     UTuple(UTuple<Type>),
     Type(Type)
 }
@@ -61,7 +61,6 @@ impl ExpressionType {
 pub enum ScopeChildren<'a> {
     Many(Vec<ScopedExpressionNode<'a>>),
     Match(Box<ScopedExpressionNode<'a>>, Vec<ScopedExpressionNode<'a>>),
-    Two(Box<ScopedExpressionNode<'a>>, Box<ScopedExpressionNode<'a>>),
     Zero
 }
 
@@ -70,7 +69,6 @@ impl<'a> ScopeChildren<'a> {
         match &self {
             ScopeChildren::Many(s) => s.iter().collect(),
             ScopeChildren::Match(expr, exprs) => iter::once(&**expr).chain(exprs.iter()).collect(),
-            ScopeChildren::Two(s1, s2) => vec![s1, s2],
             ScopeChildren::Zero => vec![]
         }
     }
@@ -192,7 +190,7 @@ impl<'a> ScopedProgram<'a> {
         self.validate_all_types()?;
 
         for (_, func) in &self.functions {
-            func.body.validate(self)?;
+            func.body.validate_recursively(self)?;
             
             let return_type = match &func.body.tp {
                 ExpressionType::UTuple(utuple) => utuple.clone(),
@@ -255,137 +253,148 @@ impl FunctionSignature {
 }
 
 impl<'a> ScopedExpressionNode<'a> {
-    fn validate(&self, program: &'a ScopedProgram) -> CompileResult {
-        let expected_scope_children_count: Option<usize> = match self.expr {
-            Expression::UTuple(_) | Expression::FunctionCall(_, _) | Expression::Match(_) => None,
-            Expression::Integer(_) | Expression::Variable(_) => Some(0),
-            //Expression::LetEqualIn(_, _, _) => Some(2),
-        };
-
-        if  expected_scope_children_count.is_some_and(|x| x != self.children.scopes().len()) {
-            panic!("Unexpected number of scope children")
-        }
+    fn validate_recursively(&self, program: &'a ScopedProgram) -> CompileResult {
+        self.validate_correct_scope_children()?;
 
         match self.expr {
-            Expression::FunctionCall(fid, args) => {
-                let expected_arg_type = &program.all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.argument_type;
-
-                if args.0.len() != expected_arg_type.0.len() {
-                    return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
-                }
-
-                let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
-                if &arg_type != expected_arg_type {
-                    return Err(CompileError::WrongArgumentType(fid.clone(), arg_type, expected_arg_type.clone()))
-                }
-            },
+            Expression::FunctionCall(fid, args) => self.validate_as_function_call(program, fid, args)?,
             Expression::Variable(vid) => { self.get_var(vid)?; },
-            Expression::Match(match_expression) => {
-                let ScopeChildren::Match(expr_scope, case_scopes) = &self.children else { panic!() };
-                get_scopes_same_type(case_scopes.iter()).ok_or_else(|| CompileError::MissmatchedTypes(self.expr))?;
-            
-                let mut has_wildcard = false;
-                for case in &match_expression.cases {
-                    let mut case_is_wildcard = false;
-
-                    match &case.pattern {
-                        Pattern::UTuple(vars) => if vars.0.len() == 1 { case_is_wildcard = true },
-                        _ => ()
-                    }
-
-                    if has_wildcard {
-                        if !case_is_wildcard {
-                            return Err(CompileError::MatchHasCaseAfterWildcard)
-                        } else {
-                            return Err(CompileError::MatchHasMultipleWildcards)
-                        }
-                    }
-
-                    has_wildcard = has_wildcard || case_is_wildcard;
-                }
-
-                match &expr_scope.tp {
-                    ExpressionType::UTuple(_) => {
-                        if match_expression.cases.len() == 0 {
-                            return Err(CompileError::NonExhaustiveMatch)
-                        } else if match_expression.cases.len() > 1 {
-                            return Err(CompileError::MatchHasMultipleTupleCases)
-                        }
-
-                        match &match_expression.cases[0].pattern {
-                            Pattern::Integer(_) |
-                            Pattern::Constructor(_, _) => return Err(CompileError::InvalidPatternInMatchCase),
-                            Pattern::UTuple(_) => {
-                                // We know the tuple has the correct argument and variable types from type inference
-                            },
-                        }
-                    },
-                    ExpressionType::Type(Type::Int) => {
-                        let mut used_ints = HashSet::new();
-                        for case in &match_expression.cases {
-                            match &case.pattern {
-                                Pattern::Integer(i) => {
-                                    if !used_ints.insert(i) {
-                                        return Err(CompileError::MultipleOccurencesOfIntInMatch);
-                                    }
-                                },
-                                Pattern::Constructor(_, _) => return Err(CompileError::InvalidPatternInMatchCase),
-                                Pattern::UTuple(tup) => if tup.0.len() != 1 { return Err(CompileError::InvalidPatternInMatchCase) },
-                            }
-                        }
-
-                        if !has_wildcard {
-                            return Err(CompileError::NonExhaustiveMatch)
-                        }
-                    },
-                    ExpressionType::Type(Type::ADT(aid)) => {
-                        let mut used_constructors = HashSet::new();
-                        for case in &match_expression.cases {
-                            match &case.pattern {
-                                Pattern::Integer(_) => return Err(CompileError::InvalidPatternInMatchCase),
-                                Pattern::UTuple(tup) => if tup.0.len() != 1 { return Err(CompileError::InvalidPatternInMatchCase) },
-                                Pattern::Constructor(fid, vars) => {
-                                    let cons = program.get_constructor(fid)?;
-                                    if &cons.adt.id != aid {
-                                        return Err(CompileError::InvalidPatternInMatchCase);
-                                    }
-                
-                                    if vars.0.len() != cons.constructor.arguments.0.len() {
-                                        return Err(CompileError::WrongVariableCountInMatchCase(case))
-                                    }
-                
-                                    if !used_constructors.insert(fid) {
-                                        return Err(CompileError::MultipleOccurencesOfConstructorInMatch);
-                                    }
-                                }
-                            }
-                        }
-        
-                        let adt = program.adts.get(aid).unwrap();
-                        if !has_wildcard && used_constructors.len() < adt.constructors.len() {
-                            return Err(CompileError::NonExhaustiveMatch)
-                        }
-                    },
-                };
-            },
-            /*Expression::LetEqualIn(vars, e1, _) => {
-                let fid = match &**e1 {
-                    Expression::FunctionCall(fid, _) => fid,
-                    _ => return Err(CompileError::LetHasNoFunctionCall(&self.expr))
-                };
-
-                let signature = program.all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?;
-                if signature.result_type.0.len() != vars.0.len() {
-                    return Err(CompileError::WrongVariableCountInLetStatement(&self.expr));
-                }
-            },*/
+            Expression::Match(match_expression) => self.validate_as_match(program, match_expression)?,
             Expression::UTuple(_) => (), // Should already be validated by type inference
             Expression::Integer(_) => (),
         }
 
         for node in self.children.scopes() {
-            node.validate(program)?;
+            node.validate_recursively(program)?;
         }
+
+        Ok(())
+    }
+
+    fn validate_correct_scope_children(&self) -> CompileResult {
+        match self.expr {
+            Expression::UTuple(_) | Expression::FunctionCall(_, _) => {
+                let ScopeChildren::Many(_) = self.children else {
+                    return Err(CompileError::InternalError);
+                };
+            },
+            Expression::Integer(_) | Expression::Variable(_) => {
+                let ScopeChildren::Zero = self.children else {
+                    return Err(CompileError::InternalError);
+                };
+            },
+            Expression::Match(_) => {
+                let ScopeChildren::Match(_, _) = self.children else {
+                    return Err(CompileError::InternalError);
+                };
+            },
+        }
+
+        Ok(())
+    }
+
+    fn validate_as_function_call(&self, program: &'a ScopedProgram, fid: &'a FID, args: &'a UTuple<Expression>) -> CompileResult {
+        let expected_arg_type = &program.all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.argument_type;
+
+        if args.0.len() != expected_arg_type.0.len() {
+            return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
+        }
+
+        let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
+        if &arg_type != expected_arg_type {
+            return Err(CompileError::WrongArgumentType(fid.clone(), arg_type, expected_arg_type.clone()))
+        }
+
+        Ok(())
+    }
+
+    fn validate_as_match(&self, program: &'a ScopedProgram, match_expression: &'a MatchExpression) -> CompileResult {
+        let ScopeChildren::Match(expr_scope, case_scopes) = &self.children else { panic!() };
+        get_scopes_same_type(case_scopes.iter()).ok_or_else(|| CompileError::MissmatchedTypes(self.expr))?;
+    
+        let mut has_wildcard = false;
+        for case in &match_expression.cases {
+            let mut case_is_wildcard = false;
+
+            match &case.pattern {
+                Pattern::UTuple(vars) => if vars.0.len() == 1 { case_is_wildcard = true },
+                _ => ()
+            }
+
+            if has_wildcard {
+                if !case_is_wildcard {
+                    return Err(CompileError::MatchHasCaseAfterWildcard)
+                } else {
+                    return Err(CompileError::MatchHasMultipleWildcards)
+                }
+            }
+
+            has_wildcard = has_wildcard || case_is_wildcard;
+        }
+
+        match &expr_scope.tp {
+            ExpressionType::UTuple(_) => {
+                if match_expression.cases.len() == 0 {
+                    return Err(CompileError::NonExhaustiveMatch)
+                } else if match_expression.cases.len() > 1 {
+                    return Err(CompileError::MatchHasMultipleTupleCases)
+                }
+
+                match &match_expression.cases[0].pattern {
+                    Pattern::Integer(_) |
+                    Pattern::Constructor(_, _) => return Err(CompileError::InvalidPatternInMatchCase),
+                    Pattern::UTuple(_) => {
+                        // We know the tuple has the correct argument and variable types from type inference
+                    },
+                }
+            },
+            ExpressionType::Type(Type::Int) => {
+                let mut used_ints = HashSet::new();
+                for case in &match_expression.cases {
+                    match &case.pattern {
+                        Pattern::Integer(i) => {
+                            if !used_ints.insert(i) {
+                                return Err(CompileError::MultipleOccurencesOfIntInMatch);
+                            }
+                        },
+                        Pattern::Constructor(_, _) => return Err(CompileError::InvalidPatternInMatchCase),
+                        Pattern::UTuple(tup) => if tup.0.len() != 1 { return Err(CompileError::InvalidPatternInMatchCase) },
+                    }
+                }
+
+                if !has_wildcard {
+                    return Err(CompileError::NonExhaustiveMatch)
+                }
+            },
+            ExpressionType::Type(Type::ADT(aid)) => {
+                let mut used_constructors = HashSet::new();
+                for case in &match_expression.cases {
+                    match &case.pattern {
+                        Pattern::Integer(_) => return Err(CompileError::InvalidPatternInMatchCase),
+                        Pattern::UTuple(tup) => if tup.0.len() != 1 { return Err(CompileError::InvalidPatternInMatchCase) },
+                        Pattern::Constructor(fid, vars) => {
+                            let cons = program.get_constructor(fid)?;
+                            if &cons.adt.id != aid {
+                                return Err(CompileError::InvalidPatternInMatchCase);
+                            }
+        
+                            if vars.0.len() != cons.constructor.arguments.0.len() {
+                                return Err(CompileError::WrongVariableCountInMatchCase(case))
+                            }
+        
+                            if !used_constructors.insert(fid) {
+                                return Err(CompileError::MultipleOccurencesOfConstructorInMatch);
+                            }
+                        }
+                    }
+                }
+
+                let adt = program.adts.get(aid).unwrap();
+                if !has_wildcard && used_constructors.len() < adt.constructors.len() {
+                    return Err(CompileError::NonExhaustiveMatch)
+                }
+            },
+        };
 
         Ok(())
     }
@@ -438,35 +447,10 @@ fn scope_expression<'a, 'b>(
         },
         Expression::Integer(_) => (ScopeChildren::Zero, ExpressionType::Type(Type::Int)),
         Expression::Variable(var) => 
-            (
-                ScopeChildren::Zero, 
-                ExpressionType::Type(scope.get(var).ok_or_else(|| CompileError::UnknownVariable(var))?.tp.clone())
-            ),
-        /*Expression::LetEqualIn(vars, e1, e2) => {
-            let mut new_vars = vec![];
-            
-            let signature = match &**e1 {
-                Expression::FunctionCall(fid, _) => function_signatures.get(fid).ok_or(CompileError::UnknownFunction(fid))?,
-                _ => return Err(CompileError::LetHasNoFunctionCall(expr))
-            };
-
-            if vars.0.len() != signature.result_type.0.len() {
-                return Err(CompileError::WrongVariableCountInLetStatement(&expr))
-            }
-
-            for (vid, tp) in vars.0.iter().zip(signature.result_type.0.iter()) {
-                new_vars.push(VariableDefinition { id: vid.clone(), tp: tp.clone(), internal_id: get_new_internal_id() });
-            }
-
-            let e1 = scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?;
-            let e2 = scope_expression(e2, &scope, new_vars, function_signatures, constructor_signatures)?;
-
-            let tp = e2.tp.clone();
-            let children = ScopeChildren::Two(Box::new(e1), Box::new(e2));
-
-
-            (children, tp)
-        },*/
+        (
+            ScopeChildren::Zero, 
+            ExpressionType::Type(scope.get(var).ok_or_else(|| CompileError::UnknownVariable(var))?.tp.clone())
+        ),
         Expression::Match(match_expr) => {
             let match_on_scope = scope_expression(&match_expr.expr, &scope, vec![], function_signatures, constructor_signatures)?;
             let match_on_type = match_on_scope.tp.clone();
