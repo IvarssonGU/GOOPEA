@@ -16,7 +16,7 @@ mod error;
 lalrpop_mod!(pub grammar);
 use simple_ast::*;
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/complex_match.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/reverse.goo")).unwrap();
 
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     println!("{:#?}\n{}", program, program);

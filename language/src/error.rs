@@ -31,7 +31,11 @@ pub enum CompileError<'a> {
     MatchHasMultipleWildcards,
     MatchHasCaseAfterWildcard,
     MatchHasMultipleTupleCases,
-    InternalError
+    InternalError,
+
+    FIPFunctionHasUnusedVar(VID),
+    FIPFunctionHasMultipleUsedVar(VID),
+    FIPFunctionAllocatesMemory
 }
 
 impl<'a> Display for CompileError<'a> {
