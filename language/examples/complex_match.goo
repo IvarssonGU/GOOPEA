@@ -1,4 +1,4 @@
-enum Animal = Cat, Dog; //, Chimera(Int, Int);
+enum Animal = Cat, Dog;
 
 Animal: Animal
 Convert x = match x {
@@ -6,24 +6,28 @@ Convert x = match x {
     Dog: Cat
 };
 
-//(Animal, Animal): Animal
-//chimera (a, b) = match a {
-//    Cat: match b {
-//        Cat: Chimera(2, 0),
-//        Dog: Chimera(1, 1),
-//        Chimera(x, y): Chimera(x+1, y)
-//    },
-//    Dog: match b {
-//        Cat: Chimera(1, 1),
-//        Dog: Chimera(0, 2),
-//        Chimera(x, y): Chimera(x, y+1)
-//    },
-//    Chimera(j, k): match b {
-//        Cat: Chimera(j+1, k),
-//        Dog: Chimera(j, k+1),
-//        Chimera(x, y): Chimera(j+x, y+k)
-//    }
-//};
+(): Int
+MatchUnbox = match (1, 2) {
+    (x, y): x + y
+};
+
+(): (Int, Int)
+Coord = (7, 5);
+
+(): Int
+LetUnbox = let x = 3 in x;
+
+(): Int
+MatchUnbox2 = match Coord {
+    (x, y): x - y
+};
+
+Int: Int
+Fib i = match i {
+    0: 1,
+    1: 1,
+    n: Fib (i-1) + Fib(i - 2)
+};
 
 (): Animal
 Main = match Convert Cat {

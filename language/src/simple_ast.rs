@@ -101,13 +101,19 @@ fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> E
             Box::from(from_expression(&match_exp.expr, ast)), 
             match_exp.cases.iter().map(|case| MatchCase {
                 pattern: {
-                    if case.vars.0.len() == 0 {
-                        Pattern::Atom(ast.get_constructor(&case.cons_id).unwrap().internal_id as i64)
-                    }
-                    else {
-                        Pattern::Constructor(
-                            ast.get_constructor(&case.cons_id).unwrap().internal_id as i64, 
-                            case.vars.0.iter().map(|var| Some(var.clone())).collect())
+                    match &case.pattern {
+                        ast::Pattern::Integer(_) => todo!(),
+                        ast::Pattern::UTuple(utuple) => todo!(),
+                        ast::Pattern::Constructor(fid, vars) => {
+                            if vars.0.len() == 0 {
+                                Pattern::Atom(ast.get_constructor(fid).unwrap().internal_id as i64)
+                            }
+                            else {
+                                Pattern::Constructor(
+                                    ast.get_constructor(fid).unwrap().internal_id as i64, 
+                                    vars.0.iter().map(|var| Some(var.clone())).collect())
+                            }
+                        },
                     }
                 },
                 body: from_expression(&case.body, ast)
