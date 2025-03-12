@@ -69,25 +69,26 @@ pub enum Expression {
     Integer(i64),
     Variable(VID),
     Match(MatchExpression),
-    LetEqualIn(UTuple<VID>, Box<Expression>, Box<Expression>) // First expression may only be a function invocation. I don't know how to enforce this by type system without making everything messy.
 }
 
 #[derive(Debug, Clone)]
 pub struct MatchExpression {
-    pub variable: VID, // What to match on
+    pub expr: Box<Expression>, // What to match on
     pub cases: Vec<MatchCase>
 }
 
 // A case in a match statement
 #[derive(Debug, Clone)]
 pub struct MatchCase {
-    pub cons_id: FID,
-    pub vars: UTuple<VID>,
+    pub pattern: Pattern,
     pub body: Expression // Code to execute if the case matches
 }
 
-pub fn generate_wildcard_vid() -> VID {
-    Alphanumeric.sample_string(&mut rand::rng(), 16)
+#[derive(Debug, Clone)]
+pub enum Pattern {
+    Integer(i64),
+    Constructor(FID, UTuple<VID>),
+    UTuple(UTuple<VID>)
 }
 
 impl Definition {
@@ -127,7 +128,8 @@ impl Program {
         }
     }
 }
-    
+
+
 // ====== Pretty Print Code ======
 
 pub fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
@@ -299,14 +301,14 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
             write_separated_list(f, match_expr.cases.iter(), ", ", |f, case| write!(f, "{case} "))?;
             write!(f, "}}")
         },
-        Expression::LetEqualIn(vars, e1, e2) => {
+        /*Expression::LetEqualIn(vars, e1, e2) => {
             write!(f, "let ")?;
             write_implicit_utuple(f, &vars.0, ", ", |f, vid| write!(f, "{vid}"))?;
             write!(f, " = ", )?;
             write_expression_inline(f, e1, indent)?;
             write!(f, " in ")?;
             write_expression_inline(f, e2, indent)
-        }
+        }*/
     }
 }
 
@@ -350,12 +352,27 @@ fn write_expression_multiline(f: &mut Formatter, expression: &Expression, indent
 }
 
 fn write_adt_match_case(f: &mut Formatter, case: &MatchCase, indent: usize) -> std::fmt::Result {
-    write!(f, "{}{}: ", case.cons_id, case.vars)?;
+    write!(f, "{}: ", case.pattern)?;
     write_expression(f, &case.body, indent + 1)
 }
 
 impl Display for MatchCase {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write_adt_match_case(f, self, 0)
+    }
+}
+
+impl Display for Pattern {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pattern::Integer(x) => write!(f, "{x}"),
+            Pattern::Constructor(fid, vars) => {
+                write!(f, "{} ", fid)?;
+                write_implicit_utuple(f, &vars.0, ", ", |f, vid| write!(f, "{vid}"))
+            },
+            Pattern::UTuple(utuple) => {
+                write_implicit_utuple(f, &utuple.0, ", ", |f, vid| { write!(f, "{vid}") })
+            },
+        }
     }
 }
