@@ -109,16 +109,10 @@ impl<'a> ScopedProgram<'a> {
         }
 
         let mut constructor_signatures: HashMap<FID, &ConstructorSignature> = HashMap::new();
-        let mut zero_argument_constructor_variables = Vec::new();
         for def in &program.0 {
             match def {
                 Definition::ADTDefinition(def) => {
                     constructor_signatures.extend(def.constructors.iter().map(|cons| (cons.id.clone(), &cons.arguments)));
-                    zero_argument_constructor_variables.extend(
-                        def.constructors.iter()
-                        .filter(|c| c.arguments.0.len() == 0)
-                        .map(|c| VariableDefinition { id: c.id.clone(), tp: Type::ADT(def.id.clone()), internal_id: get_new_internal_id() }) 
-                    );
 
                     all_function_signatures.extend(def.constructors.iter().map(
                         |cons| {
@@ -139,9 +133,6 @@ impl<'a> ScopedProgram<'a> {
         }
 
         reset_internal_id_counter();
-
-        let mut default_scope = HashMap::new();
-        default_scope.extend(zero_argument_constructor_variables.into_iter().map(|c| (c.id.clone(), Rc::new(c))));
 
         let mut adts = HashMap::new();
         let mut constructors = HashMap::new();
@@ -170,7 +161,7 @@ impl<'a> ScopedProgram<'a> {
                         def.id.clone(), 
                         ScopedFunction { 
                             def, 
-                            body: scope_expression(&def.body, &default_scope, function_variables, &all_function_signatures, &constructor_signatures)?
+                            body: scope_expression(&def.body, &HashMap::new(), function_variables, &all_function_signatures, &constructor_signatures)?
                         }
                     );
                 }
