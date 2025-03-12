@@ -259,7 +259,7 @@ impl<'a> ScopedExpressionNode<'a> {
         let expected_scope_children_count: Option<usize> = match self.expr {
             Expression::UTuple(_) | Expression::FunctionCall(_, _) | Expression::Match(_) => None,
             Expression::Integer(_) | Expression::Variable(_) => Some(0),
-            Expression::LetEqualIn(_, _, _) => Some(2),
+            //Expression::LetEqualIn(_, _, _) => Some(2),
         };
 
         if  expected_scope_children_count.is_some_and(|x| x != self.children.scopes().len()) {
@@ -368,7 +368,7 @@ impl<'a> ScopedExpressionNode<'a> {
                     },
                 };
             },
-            Expression::LetEqualIn(vars, e1, _) => {
+            /*Expression::LetEqualIn(vars, e1, _) => {
                 let fid = match &**e1 {
                     Expression::FunctionCall(fid, _) => fid,
                     _ => return Err(CompileError::LetHasNoFunctionCall(&self.expr))
@@ -378,7 +378,7 @@ impl<'a> ScopedExpressionNode<'a> {
                 if signature.result_type.0.len() != vars.0.len() {
                     return Err(CompileError::WrongVariableCountInLetStatement(&self.expr));
                 }
-            },
+            },*/
             Expression::UTuple(_) => (), // Should already be validated by type inference
             Expression::Integer(_) => (),
         }
@@ -442,7 +442,7 @@ fn scope_expression<'a, 'b>(
                 ScopeChildren::Zero, 
                 ExpressionType::Type(scope.get(var).ok_or_else(|| CompileError::UnknownVariable(var))?.tp.clone())
             ),
-        Expression::LetEqualIn(vars, e1, e2) => {
+        /*Expression::LetEqualIn(vars, e1, e2) => {
             let mut new_vars = vec![];
             
             let signature = match &**e1 {
@@ -466,7 +466,7 @@ fn scope_expression<'a, 'b>(
 
 
             (children, tp)
-        },
+        },*/
         Expression::Match(match_expr) => {
             let match_on_scope = scope_expression(&match_expr.expr, &scope, vec![], function_signatures, constructor_signatures)?;
             let match_on_type = match_on_scope.tp.clone();

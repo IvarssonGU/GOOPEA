@@ -69,7 +69,6 @@ pub enum Expression {
     Integer(i64),
     Variable(VID),
     Match(MatchExpression),
-    LetEqualIn(UTuple<VID>, Box<Expression>, Box<Expression>) // First expression may only be a function invocation. I don't know how to enforce this by type system without making everything messy.
 }
 
 #[derive(Debug, Clone)]
@@ -302,14 +301,14 @@ fn write_expression_inline(f: &mut Formatter, expression: &Expression, indent: u
             write_separated_list(f, match_expr.cases.iter(), ", ", |f, case| write!(f, "{case} "))?;
             write!(f, "}}")
         },
-        Expression::LetEqualIn(vars, e1, e2) => {
+        /*Expression::LetEqualIn(vars, e1, e2) => {
             write!(f, "let ")?;
             write_implicit_utuple(f, &vars.0, ", ", |f, vid| write!(f, "{vid}"))?;
             write!(f, " = ", )?;
             write_expression_inline(f, e1, indent)?;
             write!(f, " in ")?;
             write_expression_inline(f, e2, indent)
-        }
+        }*/
     }
 }
 
