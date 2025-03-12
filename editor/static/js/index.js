@@ -66,24 +66,18 @@ function save_code(opt) {
 
 /*
 install if necessary:
-cargo install wasm-pack
-cargo install basic-http-server
-
+    cargo install wasm-pack
+    cargo install basic-http-server
 commands to run first time or when changing rust code: (make sure to be in /GOOPEA/editor)
-cargo clean
-cargo build
-wasm-pack build --target no-modules
-basic-http-server
+    cargo clean
+    cargo build
+    wasm-pack build --target no-modules
+    basic-http-server
+command to run otherwise: (make sure to be in /GOOPEA/editor)
+    basic-http-server
 
-command to run: (make sure to be in /GOOPEA/editor)
-basic-http-server
-
-TODO
-- keymap & extrakeys in configuration of codemirror
-- documentation page
-    - syntax guide?
-- more examples
-- memory visualization instead of diagrams
+or: (linux)
+    GOOPEA.sh
 */
 
 
@@ -107,7 +101,7 @@ EverythingThatStartsWithCapitalAndOnlyContainsLetters 	//"variable-2"
 
 + - / * //"operator"
 
-the rest //variable (black)
+the rest //"variable" (black)
 
 enum List = Nil, Cons(Int, List);
 

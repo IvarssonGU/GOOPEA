@@ -1,3 +1,42 @@
 body {
     font-family: 'Courier New', Courier, monospace;
 }
+
+#container-table {
+    width: 90%;
+    margin: auto;
+    padding-top: 1%;
+}
+
+/* table, th, td {
+    border:2px solid black;
+} */
+
+.toggle-content {
+    padding-left: 5%;
+}
+
+.toggle-header {
+    cursor: pointer;
+    background-color: white;
+    outline: none;
+    border: none;
+    vertical-align: middle;
+    font-size: larger;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+}
+
+.toggle-header::before{
+    color: black;
+    content: '\2795\fe0e'; /*plus*/
+    float:left;
+    padding-right: 15px;
+    margin-top: -3px;
+}
+
+.open::before{
+    color: black;
+    content: '\2796\fe0e'; /*minus*/
+    float:left;
+}

@@ -68,4 +68,7 @@ var key_binds = {
             cm.scrollIntoView();
             });
     },
+    "Ctrl-/": function(cm) { //toggle line comment
+        cm.toggleComment();
+    }
 };
