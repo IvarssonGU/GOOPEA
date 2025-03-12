@@ -1,7 +1,7 @@
 CodeMirror.defineSimpleMode("GOOPEA", {
     start: [
         {regex: /(?:fip|match|enum|let|in)\b/, token: "keyword"},
-        {regex: /Nil|Cons/, token: "atom"},
+        {regex: /Nil|Cons/, token: "def"},
         {regex: /true|false/, token: "atom"},
         {regex: /[\{\[\()]/, token: "bracket", indent: true},
         {regex: /[\}\]\)]/, token: "bracket", dedent: true},
@@ -113,7 +113,9 @@ keymap & extrakeys in configuration of codemirror
 
 fip match enum in let //"keywords"
 
-Cons Nil //"atoms" constructors
+Cons Nil //"def" constructors
+
+true false //"atom"
 
 EverythingThatStartsWithCapitalAndOnlyContainsLetters 	//"variable-2"
 
