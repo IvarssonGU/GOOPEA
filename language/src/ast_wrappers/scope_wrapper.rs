@@ -4,10 +4,11 @@ use crate::{ast::{Expression, Pattern, Program, Type, UTuple, VID}, error::Compi
 
 use super::{ast_wrapper::{ExprChildren, ExprWrapper, WrappedProgram}, type_wrapper::ExpressionType};
 
+pub type ScopeWrapperData = Scope;
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
-pub type ScopeWrapper<'a> = ExprWrapper<'a, Scope, Expression>;
+pub type ScopeWrapper<'a> = ExprWrapper<'a, ScopeWrapperData>;
 
-pub type ScopedProgram<'a> = WrappedProgram<'a, Scope, Expression, Program>;
+pub type ScopedProgram<'a> = WrappedProgram<'a, ScopeWrapperData>;
 
 #[derive(Clone, Debug, Eq)]
 pub struct VariableDefinition {
@@ -80,7 +81,6 @@ pub fn scope_expression<'a, 'b>(
 
     Ok(ExprWrapper {
         expr,
-        content: expr,
         children,
         data: scope
     })

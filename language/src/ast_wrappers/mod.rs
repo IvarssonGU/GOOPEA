@@ -148,26 +148,28 @@ impl<'a> BaseWrappedProgram<'a> {
 }
 
 impl<'a> TypedProgram<'a> {
-    pub fn new(program: &'a ScopedProgram) -> Result<Self, CompileError<'a>> {
+    pub fn new(program: ScopedProgram<'a>) -> Result<Self, CompileError<'a>> {
+        let functions = program.functions.into_iter().map(|(fid, func)| {
+            let base_var_types = func.def.variables.0.iter().zip(func.def.signature.argument_type.0.iter()).map(
+                |(vid, tp)| {
+                    (func.body.data.get(vid).unwrap().internal_id, tp.clone())
+                }
+            ).collect::<HashMap<_, _>>();
+
+            type_expression(func.body, base_var_types, &program.all_signatures).map(|body|
+                (fid.clone(), WrappedFunction {
+                    def: func.def,
+                    body: body
+                })
+            )
+        }).collect::<Result<HashMap<_, _>, _>>()?;
+
         Ok(WrappedProgram {
-            adts: program.adts.clone(),
-            constructors: program.constructors.clone(),
-            functions: program.functions.iter().map(|(fid, func)| {
-                let base_var_types = func.def.variables.0.iter().zip(func.def.signature.argument_type.0.iter()).map(
-                    |(vid, tp)| {
-                        (func.body.data.get(vid).unwrap().internal_id, tp.clone())
-                    }
-                ).collect::<HashMap<_, _>>();
-    
-                type_expression(&func.body, base_var_types, &program.all_signatures).map(|body|
-                    (fid.clone(), WrappedFunction {
-                        def: func.def,
-                        body: body
-                    })
-                )
-            }).collect::<Result<HashMap<_, _>, _>>()?,
-            all_signatures: program.all_signatures.clone(),
-            program
+            adts: program.adts,
+            constructors: program.constructors,
+            functions,
+            all_signatures: program.all_signatures,
+            program: program.program
         })
     }
 }

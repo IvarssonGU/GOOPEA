@@ -1,27 +1,32 @@
-use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, hash::Hash, iter, rc::Rc, sync::atomic::AtomicUsize};
+use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, hash::Hash, iter, ops::Deref, rc::Rc, sync::atomic::AtomicUsize};
 use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, MatchExpression, Pattern, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
 #[derive(Debug)]
-pub struct WrappedProgram<'a, D, C, P> {
+pub struct WrappedProgram<'a, D> {
     pub adts: HashMap<AID, &'a ADTDefinition>,
     pub constructors: HashMap<FID, ConstructorReference<'a>>,
-    pub functions: HashMap<FID, WrappedFunction<'a, D, C>>,
+    pub functions: HashMap<FID, WrappedFunction<'a, D>>,
     pub all_signatures: HashMap<FID, FunctionSignature>,
-    pub program: &'a P
+    pub program: &'a Program
 }
 
 #[derive(Debug)]
-pub struct WrappedFunction<'a, D, C> {
+pub struct WrappedFunction<'a, D> {
     pub def: &'a FunctionDefinition,
-    pub body: ExprWrapper<'a, D, C>,
+    pub body: ExprWrapper<'a, D>,
 }
 
 #[derive(Debug)]
-pub struct ExprWrapper<'a, D, C> {
+pub struct ExprWrapper<'a, D> {
     pub expr: &'a Expression,
-    pub content: &'a C,
-    pub children: ExprChildren<'a, D, C>,
+    pub children: ExprChildren<'a, D>,
     pub data: D
+}
+
+#[derive(Debug, Clone)]
+pub struct ChainedData<D, P> {
+    pub data: D,
+    pub prev: P
 }
 
 #[derive(Debug, Clone)]
@@ -32,14 +37,14 @@ pub struct ConstructorReference<'a> {
 }
 
 #[derive(Debug)]
-pub enum ExprChildren<'a, D, C> {
-    Many(Vec<ExprWrapper<'a, D, C>>),
-    Match(Box<ExprWrapper<'a, D, C>>, Vec<ExprWrapper<'a, D, C>>),
+pub enum ExprChildren<'a, D> {
+    Many(Vec<ExprWrapper<'a, D>>),
+    Match(Box<ExprWrapper<'a, D>>, Vec<ExprWrapper<'a, D>>),
     Zero
 }
 
-impl<'a, D, C> ExprChildren<'a, D, C> {
-    pub fn all_children(&self) -> Vec<&ExprWrapper<'a, D, C>> {
+impl<'a, D> ExprChildren<'a, D> {
+    pub fn all_children(&self) -> Vec<&ExprWrapper<'a, D>> {
         match &self {
             ExprChildren::Many(s) => s.iter().collect(),
             ExprChildren::Match(expr, exprs) => iter::once(&**expr).chain(exprs.iter()).collect(),
@@ -48,15 +53,11 @@ impl<'a, D, C> ExprChildren<'a, D, C> {
     }
 }
 
-impl<'a, 'b: 'a, D, C, P> WrappedProgram<'a, D, C, P> {
-    pub fn wrap<ND, NC>(&'a self, wrapper_func: impl Fn(&WrappedFunction<'a, D, C>) -> Result<WrappedFunction<'b, ND, NC>, CompileError<'b>>) -> Result<WrappedProgram<'b, ND, NC, Self>, CompileError<'b>> {
-        Ok(WrappedProgram {
-            adts: self.adts.clone(),
-            constructors: self.constructors.clone(),
-            functions: self.functions.iter().map(|(fid, func)| wrapper_func(func).map(|func| (fid.clone(), func))).collect::<Result<HashMap<_, _>, _>>()?,
-            all_signatures: self.all_signatures.clone(),
-            program: self
-        })
+impl<D, P> Deref for ChainedData<D, P> {
+    type Target = D;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
     }
 }
 

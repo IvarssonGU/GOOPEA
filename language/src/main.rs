@@ -23,7 +23,7 @@ fn main() {
     println!("{:#?}\n{}", program, program);
 
     let scoped_program = ScopedProgram::new(&program).unwrap();
-    let typed_program = TypedProgram::new(&scoped_program).unwrap();
+    let typed_program = TypedProgram::new(scoped_program).unwrap();
 
     //scoped_program.validate().unwrap();
 }
