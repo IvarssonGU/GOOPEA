@@ -1,6 +1,7 @@
 use crate::ir::*;
 use crate::typed_ast::*;
 use std::collections::HashMap;
+use std::fmt;
 use std::iter::Peekable;
 
 fn extract_ifs<'a, T: Iterator<Item = &'a Statement>>(statements: &mut Peekable<T>) -> IStatement {
@@ -11,7 +12,7 @@ fn extract_ifs<'a, T: Iterator<Item = &'a Statement>>(statements: &mut Peekable<
             Statement::If(operand) | Statement::ElseIf(operand) => {
                 let body = extract_body(statements);
                 (operand.clone(), body)
-            },
+            }
             _ => panic!("yolo"),
         };
 
@@ -90,6 +91,52 @@ impl IDef {
     }
 }
 
+impl fmt::Display for IDef {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn write_indent(f: &mut fmt::Formatter, s: IStatement, indent: usize) -> fmt::Result {
+            match s {
+                IStatement::IfExpr(items) => {
+                    let n_cases = items.len();
+                    for (i, (operand, statements)) in items.iter().enumerate() {
+                        write!(f, "{}", "    ".repeat(indent))?;
+                        writeln!(
+                            f,
+                            "{} {:?}:",
+                            if i == 0 { "if" } else { "else if" },
+                            operand
+                        )?;
+                        let n_statements = statements.len();
+                        for (j, statement) in statements.iter().enumerate() {
+                            write_indent(f, statement.clone(), indent + 1)?;
+                            if i < n_cases - 1 || j < n_statements - 1 {
+                                writeln!(f, "")?;
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    write!(f, "{}", "    ".repeat(indent))?;
+                    write!(f, "{:?}", s)?;
+                }
+            }
+
+            Ok(())
+        }
+
+        writeln!(f, "function {}{:?}:", self.id, self.args)?;
+
+        let len = self.body.len();
+        for (i, statement) in self.body.iter().enumerate() {
+            write_indent(f, statement.clone(), 1)?;
+            if i < len - 1 {
+                writeln!(f, "")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum IStatement {
     Decl(String),
@@ -135,11 +182,7 @@ impl Interpreter {
                 IStatement::Assign(_, name, operand) => {
                     local_vars.insert(name.clone(), self.eval_op(operand.clone(), &local_vars));
                 }
-                IStatement::IfExpr(bruh) => {
-                    for (op, code) in bruh {
-
-                    }
-                },
+                IStatement::IfExpr(bruh) => for (op, code) in bruh {},
                 IStatement::Return(operand) => return self.eval_op(operand.clone(), &local_vars),
                 IStatement::Print(operand) => todo!(),
             }
@@ -150,7 +193,9 @@ impl Interpreter {
 
     fn eval_op(&self, op: Operand, local_variables: &HashMap<String, i64>) -> i64 {
         match op {
-            Operand::Identifier(name) => *local_variables.get(&name).expect(&format!("Cant find identifier {}", name)),
+            Operand::Identifier(name) => *local_variables
+                .get(&name)
+                .expect(&format!("Cant find identifier {}", name)),
             Operand::BinOp(operator, operand, operand1) => {
                 let left = self.eval_op(*operand, local_variables);
                 let right = self.eval_op(*operand1, local_variables);
@@ -177,6 +222,17 @@ impl Interpreter {
                 self.run_fn(&name, arguments)
             }
             Operand::DerefField(_, _) => todo!(),
+            Operand::Condition(_, _, __, _) => todo!(),
         }
     }
+}
+
+pub fn interpreter_test() {
+    let shit = Def {
+        id: "test_function".to_string(),
+        args: Vec::new(),
+        body: vec![],
+    };
+
+    println!("hello test");
 }
