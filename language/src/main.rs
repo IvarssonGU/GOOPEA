@@ -21,8 +21,10 @@ fn main() {
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
 
     let scoped_program = ScopedProgram::new(&program).unwrap();
+    scoped_program.validate().unwrap();
     let simple_program = from_scoped(&scoped_program);
-    let code = code::Compiler::new().compile(&simple_program);
+    let with_ref_count = add_refcounts(&simple_program);
+    let code = code::Compiler::new().compile(&with_ref_count);
     println!("{}", ir::output(&code).join("\n"));
 }
 
