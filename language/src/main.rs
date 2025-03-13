@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 use lalrpop_util::lalrpop_mod;
 use lexer::Lexer;
-use ast_wrappers::ast_wrapper::*;
+use ast_wrappers::{ast_wrapper::*, scope_wrapper::ScopedProgram, type_wrapper::TypedProgram};
 
 mod code;
 mod ir;
@@ -12,7 +12,7 @@ mod simple_ast;
 mod ast;
 mod lexer;
 mod error;
-mod ast_wrappers;
+pub mod ast_wrappers;
 
 lalrpop_mod!(pub grammar);
 use simple_ast::*;
@@ -22,10 +22,10 @@ fn main() {
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     println!("{:#?}\n{}", program, program);
 
-    let scoped_program = WrappedProgram::new(&program).unwrap();
-    println!("{scoped_program}");
+    let scoped_program = ScopedProgram::new(&program).unwrap();
+    let typed_program = TypedProgram::new(&scoped_program).unwrap();
 
-    scoped_program.validate().unwrap();
+    //scoped_program.validate().unwrap();
 }
 
 #[cfg(test)]
