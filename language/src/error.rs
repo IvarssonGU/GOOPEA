@@ -11,7 +11,7 @@ pub enum CompileError<'a> {
     UnknownVariable(&'a FID),
     UnknownConstructor(&'a FID),
     MultipleDefinitions(&'a str),
-    InconsistentVariableCountInFunctionDefinition(&'a FunctionDefinition),
+    InconsistentVariableCountInFunctionDefinition,
     WrongVariableCountInLetStatement(&'a Expression),
     WrongVariableCountInMatchCase(&'a MatchCase),
     WrongVariableCountInFunctionCall(&'a Expression),

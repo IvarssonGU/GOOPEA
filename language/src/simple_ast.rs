@@ -75,7 +75,7 @@ pub fn from_scoped(ast: &ScopedProgram) -> Program {
     for (id, scoped_fun) in &ast.functions {
         program.push(FunctionDefinition {
             id: id.clone(),
-            args: scoped_fun.def.variables.0.clone(),
+            args: scoped_fun.vars.0.clone(),
             body: from_expression(&scoped_fun.body.expr, ast),
         });
     }

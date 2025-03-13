@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{ast::{ConstructorSignature, Expression, FunctionSignature, Pattern, Type, UTuple, FID}, error::{CompileError, CompileResult}};
 
-use super::{ast_wrapper::{ExprChildren, ChainedData, ExprWrapper, WrappedProgram}, scope_wrapper::{ScopeWrapper, ScopeWrapperData, ScopedProgram}};
+use super::{ast_wrapper::{ChainedData, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram}, scope_wrapper::{ScopeWrapper, ScopeWrapperData, ScopedProgram}};
 
 pub type TypeWrapperData = ChainedData<ExpressionType, ScopeWrapperData>;
 
@@ -95,7 +95,7 @@ pub fn type_expression<'a, 'b>(
             ));
             (typed_children, tp)
         },
-        Expression::FunctionCall(fid, tup) => {
+        Expression::FunctionCall(fid, _) => {
             let ExprChildren::Many(scoped_children) = expr.children else { panic!() };
             let children = ExprChildren::Many(scoped_children.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?);
             
@@ -168,4 +168,61 @@ pub fn type_expression<'a, 'b>(
         children,
         data: ChainedData { data: tp, prev: expr.data }
     })
+}
+
+impl<'a> TypedProgram<'a> {
+    pub fn new(program: ScopedProgram<'a>) -> Result<Self, CompileError<'a>> {
+        let mut all_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
+        for op in "+-/*".chars() {
+            all_function_signatures.insert(op.to_string(), FunctionSignature { 
+                argument_type: UTuple(vec![Type::Int, Type::Int]),
+                result_type: UTuple(vec![Type::Int]),
+                is_fip: true
+            });
+        }
+
+        for (fid, cons) in &program.constructors {
+            all_function_signatures.insert(
+                fid.clone(), 
+                FunctionSignature {
+                    argument_type: cons.constructor.arguments.clone(),
+                    result_type: UTuple(vec! [Type::ADT(fid.clone())]),
+                    is_fip: true
+                }
+            );
+        }
+
+        for (fid, func) in &program.functions {
+            all_function_signatures.insert(fid.clone(), func.signature.clone());
+        }
+
+        let functions = program.functions.into_iter().map(|(fid, func)| {
+            let func_vars = &func.vars.0;
+            let func_types = &func.signature.argument_type.0;
+
+            if func_vars.len() != func_types.len() {
+                return Err(CompileError::InconsistentVariableCountInFunctionDefinition);
+            }
+
+            let base_var_types = func_vars.iter().zip(func_types.iter()).map(
+                |(vid, tp)| {
+                    (func.body.data.get(vid).unwrap().internal_id, tp.clone())
+                }
+            ).collect::<HashMap<_, _>>();
+
+            type_expression(func.body, base_var_types, &all_function_signatures).map(|body|
+                (fid.clone(), WrappedFunction {
+                    body,
+                    signature: func.signature,
+                    vars: func.vars
+                })
+            )
+        }).collect::<Result<HashMap<_, _>, _>>()?;
+
+        Ok(WrappedProgram {
+            adts: program.adts,
+            constructors: program.constructors,
+            functions,
+        })
+    }
 }

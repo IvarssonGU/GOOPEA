@@ -1,8 +1,8 @@
 use std::{collections::HashMap, hash::Hash, rc::Rc, sync::atomic::AtomicUsize};
 
-use crate::{ast::{Expression, Pattern, Program, Type, UTuple, VID}, error::CompileError};
+use crate::{ast::{Definition, Expression, Pattern, Program, Type, UTuple, FID, VID}, error::CompileError};
 
-use super::{ast_wrapper::{ExprChildren, ExprWrapper, WrappedProgram}, type_wrapper::ExpressionType};
+use super::{ast_wrapper::{ConstructorReference, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram}, type_wrapper::ExpressionType};
 
 pub type ScopeWrapperData = Scope;
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
@@ -93,4 +93,100 @@ fn reset_internal_id_counter() {
 
 pub fn get_new_internal_id() -> usize {
     COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+impl<'a> ScopedProgram<'a> {
+    // Creates a new program with scope information
+    // Performs minimum required validation, such as no top level symbol collisions
+    pub fn new(program: &'a Program) -> Result<ScopedProgram<'a>, CompileError<'a>> {
+        program.validate_top_level_ids();
+
+        let mut adts = HashMap::new();
+        let mut constructors = HashMap::new();
+        let mut functions = HashMap::new();
+        for def in &program.0 {
+            match def {
+                Definition::ADTDefinition(def) => {
+                    adts.insert(def.id.clone(), def.clone());
+    
+                    for (internal_id, cons) in def.constructors.iter().enumerate() {    
+                        constructors.insert(cons.id.clone(), ConstructorReference { adt: def.id.clone(), constructor: cons.clone(), internal_id });
+                    }
+                },
+                Definition::FunctionDefinition(def) => {
+                    let base_scope = def.variables.0.iter().map(
+                        |vid| {
+                            (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), internal_id: get_new_internal_id() }))
+                        }
+                    ).collect::<Scope>();
+
+                    let scoped_expression = scope_expression(&def.body, base_scope)?;
+    
+                    functions.insert(
+                        def.id.clone(), 
+                        WrappedFunction { 
+                            signature: def.signature.clone(),
+                            vars: def.variables.clone(),
+                            body: scoped_expression
+                        }
+                    );
+                }
+            }
+        }
+
+        Ok(ScopedProgram {
+            adts,
+            constructors,
+            functions
+        })
+    }
+
+    /*pub fn validate(&self) -> CompileResult {
+        self.validate_all_types()?;
+
+        for (_, func) in &self.functions {
+            func.body.validate_recursively(self)?;
+            
+            let return_type = match &func.body.data.0 {
+                ExpressionType::UTuple(utuple) => utuple.clone(),
+                ExpressionType::Type(tp) => UTuple(vec![tp.clone()]),
+            };
+
+            if return_type != func.def.signature.result_type {
+                return Err(CompileError::WrongReturnType)
+            }
+
+            if func.def.signature.is_fip {
+                let used_vars = func.body.recursively_validate_fip_expression(self)?;
+                // Used can't contain any other variables than those defined for the function
+                // since all variables are guaranteed to have a definition. All variables declared in expressions will already have been checked.
+
+                let func_vars = func.body.data.1.values().map(|x| &**x).collect::<HashSet<_>>();
+                let mut unused_vars = func_vars.difference(&used_vars);
+
+                if let Some(unused_var) = unused_vars.next() {
+                    return Err(CompileError::FIPFunctionHasUnusedVar(unused_var.id.clone()))
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    // Checks so that all types use defined ADT names
+    fn validate_all_types(&self) -> CompileResult {
+        for (_, cons) in &self.constructors {
+            cons.constructor.arguments.validate_in(self)?;
+        }
+
+        for (_, func) in &self.functions {
+            func.def.signature.validate_in(self)?;
+        }
+
+        Ok(())
+    }*/
+
+    pub fn get_constructor(&self, fid: &'a FID) -> Result<&ConstructorReference, CompileError<'a>> {
+        self.constructors.get(fid).ok_or_else(|| CompileError::UnknownConstructor(fid))
+    }
 }

@@ -2,17 +2,16 @@ use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, hash::Hash
 use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, MatchExpression, Pattern, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
 #[derive(Debug)]
-pub struct WrappedProgram<'a, D> {
-    pub adts: HashMap<AID, &'a ADTDefinition>,
-    pub constructors: HashMap<FID, ConstructorReference<'a>>,
-    pub functions: HashMap<FID, WrappedFunction<'a, D>>,
-    pub all_signatures: HashMap<FID, FunctionSignature>,
-    pub program: &'a Program
+pub struct WrappedProgram<'a, ED> {
+    pub adts: HashMap<AID, ADTDefinition>,
+    pub constructors: HashMap<FID, ConstructorReference>,
+    pub functions: HashMap<FID, WrappedFunction<'a, ED>>,
 }
 
 #[derive(Debug)]
 pub struct WrappedFunction<'a, D> {
-    pub def: &'a FunctionDefinition,
+    pub vars: UTuple<VID>,
+    pub signature: FunctionSignature,
     pub body: ExprWrapper<'a, D>,
 }
 
@@ -30,9 +29,9 @@ pub struct ChainedData<D, P> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ConstructorReference<'a> {
-    pub adt: &'a ADTDefinition,
-    pub constructor: &'a ConstructorDefinition,
+pub struct ConstructorReference {
+    pub adt: AID,
+    pub constructor: ConstructorDefinition,
     pub internal_id: usize // Each constructor in an ADT is given a unique internal_id
 }
 
