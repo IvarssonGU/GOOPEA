@@ -1,0 +1,10 @@
+enum Maybe = Nothing, Just Int;
+
+(): (Int, Int)
+nums = (Nothing, 5 * 2 + 9 * 20);
+
+(): Int
+main = let (a, b) = nums() in match a {
+    Nothing: b,
+    Just x: x * b + b
+};

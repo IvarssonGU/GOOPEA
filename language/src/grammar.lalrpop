@@ -1,0 +1,172 @@
+use crate::ast::*;
+use crate::lexer::{Token, LexicalError};
+
+grammar;
+
+extern {
+    type Location = usize;
+    type Error = LexicalError;
+
+    enum Token {
+        "id" => Token::Identifier(<String>),
+        "int" => Token::Integer(<i64>),
+        "(" => Token::LParen,
+        ")" => Token::RParen,
+        "{" => Token::LBrace,
+        "}" => Token::RBrace,
+        ":" => Token::Colon,
+        "," => Token::Comma,
+        "=" => Token::Equal,
+        "_" => Token::Wildcard,
+        "fip" => Token::Fip,
+        "match" => Token::Match,
+        "enum" => Token::Enum,
+        "let" => Token::Let,
+        "in" => Token::In,
+        "+-" => Token::PlusMinus(<String>),
+        "*/" => Token::MultiplyDivide(<String>),
+        "cmp" => Token::Comparator(<String>),
+        ";" => Token::EOL
+    }
+}
+
+pub Program: Program = {
+    Definition* => Program(<>)
+}
+
+#[inline]
+Pattern: String = {
+    "id" => <>,
+    "_" => generate_wildcard_vid()
+}
+
+#[inline]
+OptionalImplicitUTuple<T>: UTuple<T> = {
+    ImplicitUTuple<T>? => {
+        <>.unwrap_or_else(|| UTuple(vec![]))
+    }
+}
+
+#[inline]
+ImplicitUTuple<T>: UTuple<T> = {
+    T => UTuple(vec![<>]),
+    UTuple<T> => <>
+}
+
+#[inline]
+UTuple<T>: UTuple<T> = {
+    "(" <mut others: (<T> ",")*> <last: T?> ")" => {
+        if let Some(last) = last { others.push(last); }
+        UTuple(others)
+    }
+}
+
+Definition: Definition = {
+    "enum" <id: "id"> "=" <first: Constructor> <rest: ("," <Constructor>)*> ";" => {
+        let mut constructors = vec![first];
+        constructors.extend(rest.into_iter());
+        Definition::ADTDefinition(ADTDefinition { id, constructors })
+    },
+
+    <signature: FunctionSignature> <id: "id"> <variables: OptionalImplicitUTuple<Pattern>> "=" <body: Expression> ";" => {
+        Definition::FunctionDefinition(FunctionDefinition {
+            id,
+            variables,
+            signature,
+            body
+        })
+    }
+}
+
+Constructor: ConstructorDefinition = {
+    <id: "id"> <arguments: OptionalImplicitUTuple<Type>> => ConstructorDefinition { id, arguments } 
+}
+
+Type: Type = {
+    "id" => {
+        if <> == "Int" { Type::Int }
+        else { Type::ADT(<>) }
+    },
+}
+
+#[inline]
+FunctionSignature: FunctionSignature = {
+    <fip: "fip"?> <argument_type: ImplicitUTuple<Type>> ":" <result_type: ImplicitUTuple<Type>> => {
+        FunctionSignature { is_fip: fip.is_some(), argument_type, result_type }
+    }
+}
+
+ExpressionReset = <Expression>;
+Expression: Expression = {
+    #[precedence(level="0")]
+    "id" => Expression::Variable(<>),
+    "int" => Expression::Integer(<>),
+    UTuple<ExpressionReset> => Expression::UTuple(<>),
+
+
+    #[precedence(level="1")]
+    <id: "id"> <arg: Expression> => { // Can't simplify this as just 'FunctionCall', but don't understand why.
+        match arg {
+            Expression::UTuple(tup) => Expression::FunctionCall(id, tup),
+            _ => Expression::FunctionCall(id, UTuple(vec![arg]))
+        }
+    },
+
+    #[precedence(level="2")] #[assoc(side="left")]
+    <e1: Expression> <op: "*/"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
+
+    #[precedence(level="3")] #[assoc(side="left")]
+    <e1: Expression> <op: "+-"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
+
+    /*#[precedence(level="4")] #[assoc(side="left")]
+    <e1: Expression> <op: "cmp"> <e2: Expression> => {
+        let operation = match op.as_str() {
+            "==" => Operator::Equal,
+            "!=" => Operator::NotEqual,
+            "<" => Operator::Less,
+            "<=" => Operator::LessOrEqual,
+            ">" => Operator::Greater,
+            ">=" => Operator::GreaterOrEqual,
+            _ => panic!("???")
+        };
+
+        Expression::Operation(operation, Box::new(e1), Box::new(e2))
+    },*/
+
+    #[precedence(level="5")]
+    "match" <variable: "id"> "{" <cases: MatchCases> "}" => {
+        Expression::Match(MatchExpression { variable, cases })
+    },
+
+    "let" <vars: UTuple<"id">> "=" <e1: FunctionCall> "in" <e2: Expression> => {
+        Expression::LetEqualIn(vars, Box::new(e1), Box::new(e2))
+    }
+}
+
+#[inline]
+FunctionCall: Expression = {
+    <id: "id"> <arg: Expression> => {
+        match arg {
+            Expression::UTuple(tup) => Expression::FunctionCall(id, tup),
+            _ => Expression::FunctionCall(id, UTuple(vec![arg]))
+        }
+    },
+}
+
+#[inline]
+MatchCases: Vec<MatchCase> = {
+    <first: MatchCase> <rest: ("," <MatchCase>)*> => {
+        let mut cases = vec![first];
+        cases.extend(rest);
+        cases
+    }
+}
+
+#[inline]
+MatchCase: MatchCase = {
+    <cons_id: "id"> <vars: OptionalImplicitUTuple<Pattern>> ":" <body: Expression> => MatchCase { 
+        cons_id, 
+        vars,
+        body 
+    }
+}

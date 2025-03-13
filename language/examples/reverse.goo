@@ -1,0 +1,11 @@
+enum List = Nil, Cons(List, Int);
+    
+fip (List, List): List
+ReverseHelper(list, acc) =
+        match list {
+            Nil: acc,
+            Cons(xs, x): ReverseHelper(xs, Cons(acc, x))
+        };
+
+fip List: List
+ReverseList list = ReverseHelper(list, Nil);

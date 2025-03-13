@@ -1,0 +1,20 @@
+enum List = Nil, Cons(Int, List);
+enum Tree = Empty, Node(Tree, Int, Tree);
+
+Tree: Tree
+flip tree = match tree {
+    Empty: Empty,
+    Node(left, v, right): Node(flip(right), v, flip(left))
+};
+
+Tree: Int
+sum tree = match tree {
+    Empty: 0,
+    Node(left, v, right): v + sum(left) + sum(right)
+};
+
+(): Tree
+build = Node(Node(Empty, 1, Node(Node(Empty, 23, Empty), 15, Node(Empty, 89, Empty))), 57, Node(Empty, 91, Empty));
+
+(): Int
+main = sum(flip(build()));
