@@ -9,10 +9,9 @@ pub struct ConstructorReference<'a> {
 }
 
 #[derive(Debug)]
-pub struct ScopedFunction<'a> {
+pub struct WrappedFunction<'a, D, C> {
     pub def: &'a FunctionDefinition,
-    pub body: ScopedExpressionNode<'a>,
-    pub scope: Scope
+    pub body: ASTWrapper<'a, D, C>,
 }
 
 #[derive(Clone, Debug, Eq)]
@@ -35,13 +34,14 @@ impl Hash for VariableDefinition {
 }
 
 type Scope = HashMap<VID, Rc<VariableDefinition>>;
+type ScopeWrapper<'a> = ASTWrapper<'a, (ExpressionType, Scope), Expression>;
 
-#[derive(Clone, Debug)]
-pub struct ScopedExpressionNode<'a> {
+#[derive(Debug)]
+pub struct ASTWrapper<'a, D, C> {
     pub expr: &'a Expression,
-    pub children: ScopeChildren<'a>,
-    pub scope: Scope,
-    pub tp: ExpressionType
+    pub content: &'a C,
+    pub children: WrapperChildren<'a, D, C>,
+    pub data: D
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -70,41 +70,43 @@ impl ExpressionType {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum ScopeChildren<'a> {
-    Many(Vec<ScopedExpressionNode<'a>>),
-    Match(Box<ScopedExpressionNode<'a>>, Vec<ScopedExpressionNode<'a>>),
+#[derive(Debug)]
+pub enum WrapperChildren<'a, D, C> {
+    Many(Vec<ASTWrapper<'a, D, C>>),
+    Match(Box<ASTWrapper<'a, D, C>>, Vec<ASTWrapper<'a, D, C>>),
     Zero
 }
 
-impl<'a> ScopeChildren<'a> {
-    fn scopes(&self) -> Vec<&ScopedExpressionNode<'a>> {
+impl<'a, D, C> WrapperChildren<'a, D, C> {
+    fn all_children(&self) -> Vec<&ASTWrapper<'a, D, C>> {
         match &self {
-            ScopeChildren::Many(s) => s.iter().collect(),
-            ScopeChildren::Match(expr, exprs) => iter::once(&**expr).chain(exprs.iter()).collect(),
-            ScopeChildren::Zero => vec![]
+            WrapperChildren::Many(s) => s.iter().collect(),
+            WrapperChildren::Match(expr, exprs) => iter::once(&**expr).chain(exprs.iter()).collect(),
+            WrapperChildren::Zero => vec![]
         }
     }
 }
 
-fn get_scopes_same_type<'a, 'b: 'a>(mut iter: impl Iterator<Item = &'a ScopedExpressionNode<'b>>) -> Option<ExpressionType> {
-    let tp = iter.next()?.tp.clone();
+fn get_scopes_same_type<'a, 'b: 'a>(mut iter: impl Iterator<Item = &'a ScopeWrapper<'b>>) -> Option<ExpressionType> {
+    let tp = iter.next()?.data.0.clone();
 
     for x in iter {
-        if x.tp != tp { return None; }
+        if x.data.0 != tp { return None; }
     }
 
     Some(tp)
 }
 
 #[derive(Debug)]
-pub struct ScopedProgram<'a> {
+pub struct WrappedProgram<'a, D, C> {
     adts: HashMap<AID, &'a ADTDefinition>,
     pub constructors: HashMap<FID, ConstructorReference<'a>>,
-    pub functions: HashMap<FID, ScopedFunction<'a>>,
+    pub functions: HashMap<FID, WrappedFunction<'a, D, C>>,
     all_signatures: HashMap<FID, FunctionSignature>,
     pub program: &'a Program
 }
+
+pub(crate) type ScopedProgram<'a> = WrappedProgram<'a, (ExpressionType, Scope), Expression>;
 
 impl<'a> ScopedProgram<'a> {
     // Creates a new program with scope information
@@ -172,9 +174,8 @@ impl<'a> ScopedProgram<'a> {
     
                     functions.insert(
                         def.id.clone(), 
-                        ScopedFunction { 
+                        WrappedFunction { 
                             def,
-                            scope: base_scope.clone(),
                             body: scope_expression(&def.body, base_scope, &all_function_signatures, &constructor_signatures)?
                         }
                     );
@@ -182,7 +183,7 @@ impl<'a> ScopedProgram<'a> {
             }
         }
 
-        Ok(ScopedProgram {
+        Ok(WrappedProgram {
             adts,
             constructors,
             functions,
@@ -197,7 +198,7 @@ impl<'a> ScopedProgram<'a> {
         for (_, func) in &self.functions {
             func.body.validate_recursively(self)?;
             
-            let return_type = match &func.body.tp {
+            let return_type = match &func.body.data.0 {
                 ExpressionType::UTuple(utuple) => utuple.clone(),
                 ExpressionType::Type(tp) => UTuple(vec![tp.clone()]),
             };
@@ -211,7 +212,7 @@ impl<'a> ScopedProgram<'a> {
                 // Used can't contain any other variables than those defined for the function
                 // since all variables are guaranteed to have a definition. All variables declared in expressions will already have been checked.
 
-                let func_vars = func.scope.values().map(|x| &**x).collect::<HashSet<_>>();
+                let func_vars = func.body.data.1.values().map(|x| &**x).collect::<HashSet<_>>();
                 let mut unused_vars = func_vars.difference(&used_vars);
 
                 if let Some(unused_var) = unused_vars.next() {
@@ -270,7 +271,7 @@ impl FunctionSignature {
     }
 }
 
-impl<'a> ScopedExpressionNode<'a> {
+impl<'a> ScopeWrapper<'a> {
     fn validate_recursively(&self, program: &'a ScopedProgram) -> CompileResult {
         self.validate_correct_scope_children()?;
 
@@ -282,7 +283,7 @@ impl<'a> ScopedExpressionNode<'a> {
             Expression::Integer(_) => (),
         }
 
-        for node in self.children.scopes() {
+        for node in self.children.all_children() {
             node.validate_recursively(program)?;
         }
 
@@ -292,17 +293,17 @@ impl<'a> ScopedExpressionNode<'a> {
     fn validate_correct_scope_children(&self) -> CompileResult {
         match self.expr {
             Expression::UTuple(_) | Expression::FunctionCall(_, _) => {
-                let ScopeChildren::Many(_) = self.children else {
+                let WrapperChildren::Many(_) = self.children else {
                     return Err(CompileError::InternalError);
                 };
             },
             Expression::Integer(_) | Expression::Variable(_) => {
-                let ScopeChildren::Zero = self.children else {
+                let WrapperChildren::Zero = self.children else {
                     return Err(CompileError::InternalError);
                 };
             },
             Expression::Match(_) => {
-                let ScopeChildren::Match(_, _) = self.children else {
+                let WrapperChildren::Match(_, _) = self.children else {
                     return Err(CompileError::InternalError);
                 };
             },
@@ -318,7 +319,7 @@ impl<'a> ScopedExpressionNode<'a> {
             return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
         }
 
-        let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
+        let arg_type: UTuple<Type> = UTuple(self.children.all_children().iter().map(|scope| scope.data.0.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
         if &arg_type != expected_arg_type {
             return Err(CompileError::WrongArgumentType(fid.clone(), arg_type, expected_arg_type.clone()))
         }
@@ -327,7 +328,7 @@ impl<'a> ScopedExpressionNode<'a> {
     }
 
     fn validate_as_match(&self, program: &'a ScopedProgram, match_expression: &'a MatchExpression) -> CompileResult {
-        let ScopeChildren::Match(expr_scope, case_scopes) = &self.children else { panic!() };
+        let WrapperChildren::Match(expr_scope, case_scopes) = &self.children else { panic!() };
         get_scopes_same_type(case_scopes.iter()).ok_or_else(|| CompileError::MissmatchedTypes(self.expr))?;
     
         let mut has_wildcard = false;
@@ -350,7 +351,7 @@ impl<'a> ScopedExpressionNode<'a> {
             has_wildcard = has_wildcard || case_is_wildcard;
         }
 
-        match &expr_scope.tp {
+        match &expr_scope.data.0 {
             ExpressionType::UTuple(_) => {
                 if match_expression.cases.len() == 0 {
                     return Err(CompileError::NonExhaustiveMatch)
@@ -431,7 +432,7 @@ impl<'a> ScopedExpressionNode<'a> {
 
         match &self.expr {
             Expression::FunctionCall(_, _) | Expression::UTuple(_) => {
-                for child in self.children.scopes() {
+                for child in self.children.all_children() {
                     let child_used_vars = child.recursively_validate_fip_expression(program)?;
                     if let Some(double_var) = used_vars.intersection(&child_used_vars).next() {
                         return Err(CompileError::FIPFunctionHasMultipleUsedVar(double_var.id.clone()))
@@ -441,9 +442,9 @@ impl<'a> ScopedExpressionNode<'a> {
                 }
             },
             Expression::Integer(_) => (),
-            Expression::Variable(vid) => { used_vars.insert(self.scope.get(vid).unwrap()); },
+            Expression::Variable(vid) => { used_vars.insert(self.data.1.get(vid).unwrap()); },
             Expression::Match(expr) => {
-                let ScopeChildren::Match(e1, case_scopes) = &self.children else { panic!() };
+                let WrapperChildren::Match(e1, case_scopes) = &self.children else { panic!() };
 
                 used_vars.extend(e1.recursively_validate_fip_expression(program)?);
 
@@ -456,7 +457,7 @@ impl<'a> ScopedExpressionNode<'a> {
                         Pattern::Integer(_) => (),
                         Pattern::Constructor(_, vars) | Pattern::UTuple(vars) => {
                             for vid in &vars.0 {
-                                if !child_used_vars.remove(&**child.scope.get(vid).unwrap()) {
+                                if !child_used_vars.remove(&**child.data.1.get(vid).unwrap()) {
                                     return Err(CompileError::FIPFunctionHasUnusedVar(vid.clone()))
                                 }
                             }
@@ -486,7 +487,7 @@ impl<'a> ScopedExpressionNode<'a> {
     }
 
     fn get_var(&'a self, vid: &'a VID) -> Result<&'a Rc<VariableDefinition>, CompileError<'a>> {
-        self.scope.get(vid).ok_or_else(|| CompileError::UnknownVariable(vid))
+        self.data.1.get(vid).ok_or_else(|| CompileError::UnknownVariable(vid))
     }
 }
 
@@ -509,33 +510,33 @@ fn scope_expression<'a, 'b>(
     scope: Scope,
     function_signatures: &HashMap<FID, FunctionSignature>,
     constructor_signatures: &HashMap<FID, &'b ConstructorSignature>,
-) -> Result<ScopedExpressionNode<'a>, CompileError<'a>> 
+) -> Result<ScopeWrapper<'a>, CompileError<'a>> 
 {
     let (children, tp) = match expr {
         Expression::UTuple(tup) => {
-            let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, scope.clone(), function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
+            let children = WrapperChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, scope.clone(), function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
             let tp = ExpressionType::UTuple(UTuple(
-                children.scopes().iter().map(|s| s.tp.tp().ok_or_else(|| CompileError::UnexpectedUTuple).map(|t| t.clone())).collect::<Result<_, _>>()?
+                children.all_children().iter().map(|s| s.data.0.tp().ok_or_else(|| CompileError::UnexpectedUTuple).map(|t| t.clone())).collect::<Result<_, _>>()?
             ));
             (children, tp)
         },
         Expression::FunctionCall(fid, tup) => {
-            let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, scope.clone(), function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
+            let children = WrapperChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, scope.clone(), function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
             let return_type = &function_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.result_type;
             let tp = if return_type.0.len() == 1 { ExpressionType::Type(return_type.0[0].clone()) } else { ExpressionType::UTuple(return_type.clone()) };
             (children, tp)
         },
-        Expression::Integer(_) => (ScopeChildren::Zero, ExpressionType::Type(Type::Int)),
+        Expression::Integer(_) => (WrapperChildren::Zero, ExpressionType::Type(Type::Int)),
         Expression::Variable(var) => 
         (
-            ScopeChildren::Zero, 
+            WrapperChildren::Zero, 
             ExpressionType::Type(scope.get(var).ok_or_else(|| CompileError::UnknownVariable(var))?.tp.clone())
         ),
         Expression::Match(match_expr) => {
             let match_on_scope = scope_expression(&match_expr.expr, scope.clone(), function_signatures, constructor_signatures)?;
-            let match_on_type = match_on_scope.tp.clone();
+            let match_on_type = match_on_scope.data.0.clone();
 
-            let case_scopes: Vec<ScopedExpressionNode<'_>> = match_expr.cases.iter().map(|case| {
+            let case_scopes: Vec<ScopeWrapper<'_>> = match_expr.cases.iter().map(|case| {
                 match &case.pattern {
                     Pattern::Integer(_) => scope_expression(&case.body, scope.clone(), function_signatures, constructor_signatures),
                     Pattern::UTuple(vars) => {
@@ -589,7 +590,7 @@ fn scope_expression<'a, 'b>(
 
             let tp = get_scopes_same_type(case_scopes.iter()).ok_or_else(|| CompileError::MissmatchedTypes(expr))?;
 
-            let children = ScopeChildren::Match(
+            let children = WrapperChildren::Match(
                 Box::new(match_on_scope),
                 case_scopes
             );
@@ -598,11 +599,11 @@ fn scope_expression<'a, 'b>(
         }
     };
 
-    Ok(ScopedExpressionNode {
+    Ok(ASTWrapper {
         expr,
+        content: expr,
         children,
-        scope,
-        tp
+        data: (tp, scope)
     })
 }
 
@@ -668,7 +669,7 @@ impl Display for ScopedProgram<'_> {
     }
 }
 
-impl Display for ScopedFunction<'_> {
+impl<'a> Display for WrappedFunction<'a, (ExpressionType, Scope), Expression> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.def.signature)?;
         write!(f, "{} ", self.def.id)?;
@@ -681,10 +682,10 @@ impl Display for ScopedFunction<'_> {
     }
 }
 
-fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpressionNode<'a>, indent: usize) -> std::fmt::Result {
+fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopeWrapper<'a>, indent: usize) -> std::fmt::Result {
     write_indent(f, indent)?;
-    write!(f, "// type = {}, scope = ", node.tp)?;
-    write_scope(f, &node.scope, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
+    write!(f, "// type = {}, scope = ", node.data.0)?;
+    write_scope(f, &node.data.1, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
     writeln!(f)?;
 
     match &node.expr {
@@ -703,7 +704,7 @@ fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopedExpre
         //Expression::Operation(operator, expression, expression1) => todo!(),
         //Expression::LetEqualIn(utuple, expression, expression1) => todo!(),
         _ => {
-            for child in node.children.scopes() {
+            for child in node.children.all_children() {
                 write_scoped_expression_node(f, child, indent+1)?;
             }
         }

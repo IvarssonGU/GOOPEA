@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
-use crate::scoped_ast;
+use crate::ast_wrappers::ast_wrapper;
 use crate::ast;
 
 pub type Program = Vec<FunctionDefinition>;
@@ -69,7 +69,7 @@ impl Display for Operator {
     }
 }
 
-pub fn from_scoped(ast: &scoped_ast::ScopedProgram) -> Program {
+pub fn from_scoped(ast: &ast_wrapper::ScopedProgram) -> Program {
     let mut program = Vec::new();
     for (id, scoped_fun) in &ast.functions {
         program.push(FunctionDefinition {
@@ -81,7 +81,7 @@ pub fn from_scoped(ast: &scoped_ast::ScopedProgram) -> Program {
     program
 }
 
-fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> Expression {
+fn from_expression(expr: &ast::Expression, ast: &ast_wrapper::ScopedProgram) -> Expression {
     match expr {
         ast::Expression::FunctionCall(id, args) => {
             match id.as_str() {
