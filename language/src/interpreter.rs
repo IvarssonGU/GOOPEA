@@ -1,10 +1,12 @@
 use crate::ir::*;
-use crate::typed_ast::*;
+use crate::simple_ast::Operator;
 use std::collections::HashMap;
 use std::fmt;
 use std::iter::Peekable;
 
-fn extract_ifs<'a, T: Iterator<Item = &'a Statement>>(statements: &mut Peekable<T>) -> IStatement {
+fn extract_ifs<'a, T: Iterator<Item = &'a Statement>>(
+    statements: &mut Peekable<T>,
+) -> Vec<(Operand, Vec<IStatement>)> {
     let mut chain = Vec::new();
 
     loop {
@@ -26,7 +28,7 @@ fn extract_ifs<'a, T: Iterator<Item = &'a Statement>>(statements: &mut Peekable<
         }
     }
 
-    IStatement::IfExpr(chain)
+    chain
 }
 
 fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
@@ -35,7 +37,7 @@ fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
     let mut istatements = Vec::new();
     while let Some(statement) = statements.peek() {
         let x = match statement {
-            Statement::If(_) => extract_ifs(statements),
+            Statement::If(_) => IStatement::IfExpr(extract_ifs(statements)),
             Statement::ElseIf(_) => todo!(),
             Statement::EndIf => {
                 statements.next();
@@ -53,9 +55,9 @@ fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
                 statements.next();
                 IStatement::AssignField(s.clone(), *i, o.clone())
             }
-            Statement::Assign(b, s, operand) => {
+            Statement::Assign(_, s, operand) => {
                 statements.next();
-                IStatement::Assign(*b, s.clone(), operand.clone())
+                IStatement::Assign(s.clone(), operand.clone())
             }
             Statement::Return(o) => {
                 statements.next();
@@ -143,19 +145,21 @@ pub enum IStatement {
     IfExpr(Vec<(Operand, Vec<IStatement>)>),
     InitConstructor(String, i64),
     AssignField(String, i64, Operand),
-    Assign(bool, String, Operand),
+    Assign(String, Operand),
     Return(Operand),
     Print(Operand),
 }
 
 pub struct Interpreter {
     functions: HashMap<String, IDef>,
+    heap: Vec<Vec<i64>>
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             functions: HashMap::new(),
+            heap: Vec::new()
         }
     }
 
@@ -164,8 +168,14 @@ impl Interpreter {
         self
     }
 
-    pub fn run_fn(&self, name: &str, passed_args: Vec<i64>) -> i64 {
-        let function = self.functions.get(name).unwrap();
+    fn malloc(&mut self, width: usize) -> usize {
+        self.heap.push(vec![0; width]);
+        self.heap.len() - 1
+    }
+
+    pub fn run_fn(&mut self, name: &str, passed_args: Vec<i64>) -> i64 {
+        // clone to not borrow self
+        let function = self.functions.get(name).unwrap().clone();
 
         // fill local vars with passed arguments
         let mut local_vars: HashMap<String, i64> = HashMap::new();
@@ -177,28 +187,34 @@ impl Interpreter {
         while let Some(shit) = statements.next() {
             match shit {
                 IStatement::Decl(_) => (), // does nothing
-                IStatement::InitConstructor(_, _) => todo!(),
-                IStatement::AssignField(name, val, operand) => todo!(),
-                IStatement::Assign(_, name, operand) => {
-                    local_vars.insert(name.clone(), self.eval_op(operand.clone(), &local_vars));
+                IStatement::InitConstructor(name, width) => {
+                    let pointer = self.malloc(*width as usize);
+                    local_vars.insert(name.clone(), pointer as i64);
+                },
+                IStatement::AssignField(name, index, operand) => {
+                    let pointer = local_vars.get(name).unwrap();
+                    self.heap[*pointer as usize][*index as usize] = self.eval_op(operand, &local_vars);
+                },
+                IStatement::Assign(name, operand) => {
+                    local_vars.insert(name.clone(), self.eval_op(operand, &local_vars));
                 }
                 IStatement::IfExpr(bruh) => for (op, code) in bruh {},
-                IStatement::Return(operand) => return self.eval_op(operand.clone(), &local_vars),
-                IStatement::Print(operand) => todo!(),
+                IStatement::Return(operand) => return self.eval_op(operand, &local_vars),
+                IStatement::Print(operand) => println!("{}", self.eval_op(operand, &local_vars)),
             }
         }
 
         0
     }
 
-    fn eval_op(&self, op: Operand, local_variables: &HashMap<String, i64>) -> i64 {
+    fn eval_op(&mut self, op: &Operand, local_variables: &HashMap<String, i64>) -> i64 {
         match op {
             Operand::Identifier(name) => *local_variables
-                .get(&name)
+                .get(name)
                 .expect(&format!("Cant find identifier {}", name)),
             Operand::BinOp(operator, operand, operand1) => {
-                let left = self.eval_op(*operand, local_variables);
-                let right = self.eval_op(*operand1, local_variables);
+                let left = self.eval_op(operand, local_variables);
+                let right = self.eval_op(operand1, local_variables);
                 match operator {
                     Operator::Equal => (left == right) as i64,
                     Operator::NotEqual => (left != right) as i64,
@@ -212,17 +228,19 @@ impl Interpreter {
                     Operator::Div => left / right,
                 }
             }
-            Operand::Integer(i) => i,
+            Operand::Integer(i) => *i,
             Operand::Application(name, operands) => {
                 let arguments: Vec<i64> = operands
                     .iter()
-                    .map(|op| self.eval_op(op.clone(), local_variables))
+                    .map(|op| self.eval_op(op, local_variables))
                     .collect();
 
                 self.run_fn(&name, arguments)
             }
             Operand::DerefField(_, _) => todo!(),
             Operand::Condition(_, _, __, _) => todo!(),
+            Operand::AccessField(_, _) => todo!(),
+            Operand::UTuple(operands) => todo!(),
         }
     }
 }
@@ -232,6 +250,7 @@ pub fn interpreter_test() {
         id: "test_function".to_string(),
         args: Vec::new(),
         body: vec![],
+        type_len: None,
     };
 
     println!("hello test");
