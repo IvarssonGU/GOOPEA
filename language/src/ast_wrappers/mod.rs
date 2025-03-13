@@ -9,6 +9,7 @@ use crate::{ast::{ConstructorSignature, Definition, FunctionSignature, Program, 
 pub mod ast_wrapper;
 pub mod type_wrapper;
 pub mod scope_wrapper;
+pub mod base_wrapper;
 
-pub type FullyWrappedProgram<'a> = TypedProgram<'a>;
-pub type BaseWrappedProgram<'a> = ScopedProgram<'a>;
+pub type FullyWrappedProgram = TypedProgram;
+pub type BaseWrappedProgram = ScopedProgram;

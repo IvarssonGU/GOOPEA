@@ -4,15 +4,17 @@ use std::fmt::{Debug, Display, Formatter, Write};
 use rand::distr::Alphanumeric;
 use rand::distr::SampleString;
 
+use crate::ast_wrappers::base_wrapper::BaseWrapper;
+
 // A program consists of a list of definitions
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Program(pub Vec<Definition>);
 
 pub type FID = String; // Function ID, (also including ADT constructors)
 pub type VID = String; // Variable ID
 pub type AID = String; // ADT ID
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Definition {
     ADTDefinition(ADTDefinition),
     FunctionDefinition(FunctionDefinition)
@@ -42,10 +44,10 @@ pub enum Type {
     ADT(AID)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FunctionDefinition {
     pub id: FID,
-    pub body: Expression,
+    pub body: BaseWrapper,
     pub variables: UTuple<VID>,
     pub signature: FunctionSignature
 }
@@ -64,24 +66,11 @@ pub struct FunctionSignature {
 // (1, 5, Nil)
 #[derive(Debug, Clone)]
 pub enum Expression {
-    UTuple(UTuple<Expression>),
-    FunctionCall(FID, UTuple<Expression>),
+    UTuple,
+    FunctionCall(FID),
     Integer(i64),
     Variable(VID),
-    Match(MatchExpression),
-}
-
-#[derive(Debug, Clone)]
-pub struct MatchExpression {
-    pub expr: Box<Expression>, // What to match on
-    pub cases: Vec<MatchCase>
-}
-
-// A case in a match statement
-#[derive(Debug, Clone)]
-pub struct MatchCase {
-    pub pattern: Pattern,
-    pub body: Expression // Code to execute if the case matches
+    Match(Vec<Pattern>),
 }
 
 #[derive(Debug, Clone)]
@@ -132,7 +121,7 @@ impl Program {
 
 // ====== Pretty Print Code ======
 
-pub fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
+/*pub fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
     write!(f, "{}", "    ".repeat(indent))
 }
 
@@ -375,4 +364,4 @@ impl Display for Pattern {
             },
         }
     }
-}
+}*/

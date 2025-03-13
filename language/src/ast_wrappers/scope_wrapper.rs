@@ -2,13 +2,13 @@ use std::{collections::HashMap, hash::Hash, rc::Rc, sync::atomic::AtomicUsize};
 
 use crate::{ast::{Definition, Expression, Pattern, Program, Type, UTuple, FID, VID}, error::CompileError};
 
-use super::{ast_wrapper::{ConstructorReference, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram}, type_wrapper::ExpressionType};
+use super::{ast_wrapper::{ChainedData, ConstructorReference, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram}, base_wrapper::{BaseProgram, BaseWrapper, BaseWrapperData}, type_wrapper::ExpressionType};
 
-pub type ScopeWrapperData = Scope;
+pub type ScopeWrapperData = ChainedData<Scope, BaseWrapperData>;
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
-pub type ScopeWrapper<'a> = ExprWrapper<'a, ScopeWrapperData>;
+pub type ScopeWrapper = ExprWrapper<ScopeWrapperData>;
 
-pub type ScopedProgram<'a> = WrappedProgram<'a, ScopeWrapperData>;
+pub type ScopedProgram = WrappedProgram<ScopeWrapperData>;
 
 #[derive(Clone, Debug, Eq)]
 pub struct VariableDefinition {
@@ -39,25 +39,28 @@ fn extended_scope(base: &Scope, new_vars: impl Iterator<Item = VariableDefinitio
 // A variable definition contains type information 
 // Checks that each case in match has correct number of arguments for the constructor
 // Does type inference on variables and expression, with minimum type checking
-pub fn scope_expression<'a, 'b>(
-    expr: &'a Expression, 
+pub fn scope_expression<'a>(
+    expr: BaseWrapper, 
     scope: Scope
-) -> Result<ScopeWrapper<'a>, CompileError<'a>> 
+) -> Result<ScopeWrapper, CompileError> 
 {
-    let children = match expr {
-        Expression::UTuple(tup) | Expression::FunctionCall(_, tup) => {
-            ExprChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, scope.clone())).collect::<Result<_, _>>()?)
+    let children = match &expr.data {
+        Expression::UTuple | Expression::FunctionCall(_) => {
+            let ExprChildren::Many(children) = expr.children else { panic!() };
+            ExprChildren::Many(children.into_iter().map(|expr| scope_expression(expr, scope.clone())).collect::<Result<_, _>>()?)
         },
         Expression::Integer(_) | Expression::Variable(_) => ExprChildren::Zero,
-        Expression::Match(match_expr) => {
-            let match_child = scope_expression(&match_expr.expr, scope.clone())?;
+        Expression::Match(patterns) => {
+            let ExprChildren::Match(base_match_child, base_case_children) = expr.children else { panic!() };
 
-            let case_scopes: Vec<ScopeWrapper<'_>> = match_expr.cases.iter().map(|case| {
-                match &case.pattern {
-                    Pattern::Integer(_) => scope_expression(&case.body, scope.clone()),
+            let scoped_match_child = scope_expression(*base_match_child, scope.clone())?;
+
+            let case_scopes: Vec<ScopeWrapper> = patterns.iter().zip(base_case_children).map(|(pattern, child)| {
+                match pattern {
+                    Pattern::Integer(_) => scope_expression(child, scope.clone()),
                     Pattern::UTuple(vars) | Pattern::Constructor(_, vars) => {
                         scope_expression(
-                            &case.body,
+                            child,
                             extended_scope(
                                 &scope, 
                                 vars.0.iter().map(|new_vid| {
@@ -73,16 +76,15 @@ pub fn scope_expression<'a, 'b>(
             }).collect::<Result<_, _>>()?;
 
             ExprChildren::Match(
-                Box::new(match_child),
+                Box::new(scoped_match_child),
                 case_scopes
             )
         }
     };
 
     Ok(ExprWrapper {
-        expr,
         children,
-        data: scope
+        data: ChainedData { data: scope, prev: expr.data }
     })
 }
 
@@ -95,48 +97,33 @@ pub fn get_new_internal_id() -> usize {
     COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
-impl<'a> ScopedProgram<'a> {
+impl ScopedProgram {
     // Creates a new program with scope information
     // Performs minimum required validation, such as no top level symbol collisions
-    pub fn new(program: &'a Program) -> Result<ScopedProgram<'a>, CompileError<'a>> {
-        program.validate_top_level_ids();
-
-        let mut adts = HashMap::new();
-        let mut constructors = HashMap::new();
+    pub fn new(program: BaseProgram) -> Result<ScopedProgram, CompileError> {
         let mut functions = HashMap::new();
-        for def in &program.0 {
-            match def {
-                Definition::ADTDefinition(def) => {
-                    adts.insert(def.id.clone(), def.clone());
-    
-                    for (internal_id, cons) in def.constructors.iter().enumerate() {    
-                        constructors.insert(cons.id.clone(), ConstructorReference { adt: def.id.clone(), constructor: cons.clone(), internal_id });
-                    }
-                },
-                Definition::FunctionDefinition(def) => {
-                    let base_scope = def.variables.0.iter().map(
-                        |vid| {
-                            (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), internal_id: get_new_internal_id() }))
-                        }
-                    ).collect::<Scope>();
-
-                    let scoped_expression = scope_expression(&def.body, base_scope)?;
-    
-                    functions.insert(
-                        def.id.clone(), 
-                        WrappedFunction { 
-                            signature: def.signature.clone(),
-                            vars: def.variables.clone(),
-                            body: scoped_expression
-                        }
-                    );
+        for (fid, func) in program.functions {
+            let base_scope = func.vars.0.iter().map(
+                |vid| {
+                    (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), internal_id: get_new_internal_id() }))
                 }
-            }
+            ).collect::<Scope>();
+
+            let scoped_expression = scope_expression(func.body, base_scope)?;
+
+            functions.insert(
+                fid, 
+                WrappedFunction { 
+                    signature: func.signature,
+                    vars: func.vars,
+                    body: scoped_expression
+                }
+            );
         }
 
         Ok(ScopedProgram {
-            adts,
-            constructors,
+            adts: program.adts,
+            constructors: program.constructors,
             functions
         })
     }
@@ -186,7 +173,7 @@ impl<'a> ScopedProgram<'a> {
         Ok(())
     }*/
 
-    pub fn get_constructor(&self, fid: &'a FID) -> Result<&ConstructorReference, CompileError<'a>> {
-        self.constructors.get(fid).ok_or_else(|| CompileError::UnknownConstructor(fid))
+    pub fn get_constructor<'a>(&self, fid: &'a FID) -> Result<&ConstructorReference, CompileError> {
+        self.constructors.get(fid).ok_or_else(|| CompileError::UnknownConstructor)
     }
 }

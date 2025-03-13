@@ -1,5 +1,7 @@
 use crate::ast::*;
 use crate::lexer::{Token, LexicalError};
+use crate::ast_wrappers::base_wrapper::*;
+use crate::ast_wrappers::ast_wrapper::*;
 
 grammar;
 
@@ -92,25 +94,28 @@ FunctionSignature: FunctionSignature = {
 }
 
 ExpressionReset = <Expression>;
-Expression: Expression = {
+Expression: BaseWrapper = {
     #[precedence(level="0")]
-    "noncap_id" => Expression::Variable(<>),
-    "cap_id" => Expression::FunctionCall(<>, UTuple(vec![])),
-    "int" => Expression::Integer(<>),
+    "noncap_id" => BaseWrapper::variable(<>),
+    "cap_id" => BaseWrapper::function_call(<>, UTuple(vec![])),
+    "int" => BaseWrapper::integer(<>),
     <mut tup: UTuple<ExpressionReset>> => {
         if tup.0.len() == 1 {
             tup.0.pop().unwrap()
         } else {
-            Expression::UTuple(tup)
+            BaseWrapper::utuple(tup)
         }
     },
 
 
     #[precedence(level="1")]
-    <id: "cap_id"> <arg: Expression> => { // Can't simplify this as just 'FunctionCall', but don't understand why.
-        match arg {
-            Expression::UTuple(tup) => Expression::FunctionCall(id, tup),
-            _ => Expression::FunctionCall(id, UTuple(vec![arg]))
+    <id: "cap_id"> <arg: Expression> => {
+        match arg.data {
+            Expression::UTuple => {
+                let ExprChildren::Many(children) = arg.children else { panic!() };
+                BaseWrapper::function_call(id, UTuple(children))
+            },
+            _ => BaseWrapper::function_call(id, UTuple(vec![arg]))
         }
     },
 
@@ -119,15 +124,15 @@ Expression: Expression = {
         if op == "+" {
             e
         } else {
-            Expression::FunctionCall(op, UTuple(vec![Expression::Integer(0), e]))
+            BaseWrapper::operation(op, BaseWrapper::integer(0), e)
         }
     },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <e1: Expression> <op: "*/"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
+    <e1: Expression> <op: "*/"> <e2: Expression> => BaseWrapper::operation(op, e1, e2),
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <e1: Expression> <op: "+-"> <e2: Expression> => Expression::FunctionCall(op, UTuple(vec![e1, e2])),
+    <e1: Expression> <op: "+-"> <e2: Expression> => BaseWrapper::operation(op, e1, e2),
 
     /*#[precedence(level="5")] #[assoc(side="left")]
     <e1: Expression> <op: "cmp"> <e2: Expression> => {
@@ -146,28 +151,16 @@ Expression: Expression = {
 
     #[precedence(level="6")]
     "match" <expr: Expression> "{" <cases: MatchCases> "}" => {
-        Expression::Match(MatchExpression { expr: Box::new(expr), cases })
+        BaseWrapper::mtch(expr, cases)
     },
 
     "let" <vars: ImplicitUTuple<"noncap_id">> "=" <e1: Expression> "in" <e2: Expression> => {
-        Expression::Match(MatchExpression { expr: Box::new(e1), cases: vec![MatchCase { pattern: Pattern::UTuple(vars), body: e2 }] })
+        BaseWrapper::mtch(e1, vec![(Pattern::UTuple(vars), e2)])
     }
 }
 
 #[inline]
-FunctionCall: Expression = {
-    <id: "cap_id"> <arg: Expression> => {
-        match arg {
-            Expression::UTuple(tup) => Expression::FunctionCall(id, tup),
-            _ => Expression::FunctionCall(id, UTuple(vec![arg]))
-        }
-    },
-
-    "cap_id" => Expression::FunctionCall(<>, UTuple(vec![]))
-}
-
-#[inline]
-MatchCases: Vec<MatchCase> = {
+MatchCases: Vec<(Pattern, BaseWrapper)> = {
     <first: MatchCase> <rest: ("," <MatchCase>)*> => {
         let mut cases = vec![first];
         cases.extend(rest);
@@ -189,9 +182,6 @@ Pattern: Pattern = {
 }
 
 #[inline]
-MatchCase: MatchCase = {
-    <pattern: Pattern> ":" <body: Expression> => MatchCase { 
-        pattern,
-        body 
-    }
+MatchCase: (Pattern, BaseWrapper) = {
+    <pattern: Pattern> ":" <body: Expression> => (pattern, body)
 }

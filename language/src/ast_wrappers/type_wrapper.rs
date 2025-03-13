@@ -6,10 +6,10 @@ use super::{ast_wrapper::{ChainedData, ExprChildren, ExprWrapper, WrappedFunctio
 
 pub type TypeWrapperData = ChainedData<ExpressionType, ScopeWrapperData>;
 
-pub type TypeWrapper<'a> = ExprWrapper<'a, TypeWrapperData>;
-pub type TypedProgram<'a> = WrappedProgram<'a, TypeWrapperData>;
+pub type TypeWrapper = ExprWrapper<TypeWrapperData>;
+pub type TypedProgram = WrappedProgram<TypeWrapperData>;
 
-fn get_children_same_type<'a, 'b: 'a>(mut iter: impl Iterator<Item = &'a TypeWrapper<'b>>) -> Option<ExpressionType> {
+fn get_children_same_type<'a>(mut iter: impl Iterator<Item = &'a TypeWrapper>) -> Option<ExpressionType> {
     let tp = iter.next()?.data.data.clone();
 
     for x in iter {
@@ -51,7 +51,7 @@ impl Type {
             Type::Int => Ok(()),
             Type::ADT(aid) => {
                 if !program.adts.contains_key(aid) { 
-                    Err(CompileError::UnknownADTInType(aid)) 
+                    Err(CompileError::UnknownADTInType) 
                 } else { 
                     Ok(()) 
                 }
@@ -79,14 +79,14 @@ impl FunctionSignature {
 // A variable definition contains type information 
 // Checks that each case in match has correct number of arguments for the constructor
 // Does type inference on variables and expression, with minimum type checking
-pub fn type_expression<'a, 'b>(
-    expr: ScopeWrapper<'a>,
+pub fn type_expression(
+    expr: ScopeWrapper,
     var_types: HashMap<usize, Type>,
-    function_signatures: &'b HashMap<FID, FunctionSignature>
-) -> Result<TypeWrapper<'a>, CompileError<'a>> 
+    function_signatures: &HashMap<FID, FunctionSignature>
+) -> Result<TypeWrapper, CompileError> 
 {
-    let (children, tp) = match expr.expr {
-        Expression::UTuple(tup) => {
+    let (children, tp) = match &expr.data.prev {
+        Expression::UTuple => {
             let ExprChildren::Many(scoped_children) = expr.children else { panic!() };
             let typed_children = ExprChildren::Many(scoped_children.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?);
             
@@ -95,11 +95,11 @@ pub fn type_expression<'a, 'b>(
             ));
             (typed_children, tp)
         },
-        Expression::FunctionCall(fid, _) => {
+        Expression::FunctionCall(fid) => {
             let ExprChildren::Many(scoped_children) = expr.children else { panic!() };
             let children = ExprChildren::Many(scoped_children.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?);
             
-            let return_type = &function_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.result_type;
+            let return_type = &function_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction)?.result_type;
             let tp = if return_type.0.len() == 1 { ExpressionType::Type(return_type.0[0].clone()) } else { ExpressionType::UTuple(return_type.clone()) };
             (children, tp)
         },
@@ -107,15 +107,15 @@ pub fn type_expression<'a, 'b>(
         Expression::Variable(var) => 
         (
             ExprChildren::Zero, 
-            ExpressionType::Type(var_types.get(&expr.data.get(var).unwrap().internal_id).ok_or_else(|| CompileError::UnknownVariable(var))?.clone())
+            ExpressionType::Type(var_types.get(&expr.data.get(var).unwrap().internal_id).ok_or_else(|| CompileError::UnknownVariable)?.clone())
         ),
-        Expression::Match(match_expr) => {
+        Expression::Match(patterns) => {
             let ExprChildren::Match(match_child_scoped, case_children) = expr.children else { panic!() };
 
             let match_child_typed = type_expression(*match_child_scoped, var_types.clone(), function_signatures)?;
 
-            let case_scopes: Vec<TypeWrapper<'_>> = match_expr.cases.iter().zip(case_children.into_iter()).map(|(case, child)| {
-                match &case.pattern {
+            let type_children: Vec<TypeWrapper> = patterns.iter().zip(case_children.into_iter()).map(|(pattern, child)| {
+                match pattern {
                     Pattern::Integer(_) => type_expression(child, var_types.clone(), function_signatures),
                     Pattern::UTuple(vars) => {
                         let types = match &match_child_typed.data.data {
@@ -134,7 +134,7 @@ pub fn type_expression<'a, 'b>(
                         type_expression( child, var_types, function_signatures)
                     },
                     Pattern::Constructor(fid, vars) => {
-                        let cons_sig: &ConstructorSignature = &function_signatures.get(fid).ok_or(CompileError::UnknownConstructor(fid))?.argument_type;
+                        let cons_sig: &ConstructorSignature = &function_signatures.get(fid).ok_or(CompileError::UnknownConstructor)?.argument_type;
                         if cons_sig.0.len() != vars.0.len() {
                             panic!("Wrong number of arguments in match statement of case {}", fid);
                         }
@@ -152,11 +152,11 @@ pub fn type_expression<'a, 'b>(
                 }
             }).collect::<Result<_, _>>()?;
 
-            let tp = get_children_same_type(case_scopes.iter()).ok_or_else(|| CompileError::MissmatchedTypes(expr.expr))?;
+            let tp = get_children_same_type(type_children.iter()).ok_or_else(|| CompileError::MissmatchedTypes)?;
 
             let children = ExprChildren::Match(
                 Box::new(match_child_typed),
-                case_scopes
+                type_children
             );
 
             (children, tp)
@@ -164,14 +164,13 @@ pub fn type_expression<'a, 'b>(
     };
 
     Ok(ExprWrapper {
-        expr: expr.expr,
         children,
         data: ChainedData { data: tp, prev: expr.data }
     })
 }
 
-impl<'a> TypedProgram<'a> {
-    pub fn new(program: ScopedProgram<'a>) -> Result<Self, CompileError<'a>> {
+impl TypedProgram {
+    pub fn new<'a>(program: ScopedProgram) -> Result<Self, CompileError> {
         let mut all_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
         for op in "+-/*".chars() {
             all_function_signatures.insert(op.to_string(), FunctionSignature { 

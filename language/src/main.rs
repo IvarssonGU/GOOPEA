@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 use lalrpop_util::lalrpop_mod;
 use lexer::Lexer;
-use ast_wrappers::{ast_wrapper::*, scope_wrapper::ScopedProgram, type_wrapper::TypedProgram};
+use ast_wrappers::{ast_wrapper::*, base_wrapper::BaseProgram, scope_wrapper::ScopedProgram, type_wrapper::TypedProgram};
 
 mod code;
 mod ir;
@@ -20,9 +20,8 @@ fn main() {
     let code = fs::read_to_string(Path::new("examples/reverse.goo")).unwrap();
 
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
-    println!("{:#?}\n{}", program, program);
-
-    let scoped_program = ScopedProgram::new(&program).unwrap();
+    let base_program = BaseProgram::new(program).unwrap();
+    let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
 
     //scoped_program.validate().unwrap();
@@ -37,7 +36,7 @@ mod tests {
 
     fn parse_example(path: &Path) -> () {
         let code = fs::read_to_string(path).unwrap();
-        println!("{}", grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap());
+        grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     }
 
     #[test]

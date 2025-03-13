@@ -1,24 +1,25 @@
 use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, hash::Hash, iter, ops::Deref, rc::Rc, sync::atomic::AtomicUsize};
-use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, MatchExpression, Pattern, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
+use crate::{ast::{ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Pattern, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
+
+use super::base_wrapper::BaseWrapper;
 
 #[derive(Debug)]
-pub struct WrappedProgram<'a, ED> {
+pub struct WrappedProgram<ED> {
     pub adts: HashMap<AID, ADTDefinition>,
     pub constructors: HashMap<FID, ConstructorReference>,
-    pub functions: HashMap<FID, WrappedFunction<'a, ED>>,
+    pub functions: HashMap<FID, WrappedFunction<ED>>,
 }
 
 #[derive(Debug)]
-pub struct WrappedFunction<'a, D> {
+pub struct WrappedFunction<D> {
     pub vars: UTuple<VID>,
     pub signature: FunctionSignature,
-    pub body: ExprWrapper<'a, D>,
+    pub body: ExprWrapper<D>,
 }
 
 #[derive(Debug)]
-pub struct ExprWrapper<'a, D> {
-    pub expr: &'a Expression,
-    pub children: ExprChildren<'a, D>,
+pub struct ExprWrapper<D> {
+    pub children: ExprChildren<D>,
     pub data: D
 }
 
@@ -36,19 +37,25 @@ pub struct ConstructorReference {
 }
 
 #[derive(Debug)]
-pub enum ExprChildren<'a, D> {
-    Many(Vec<ExprWrapper<'a, D>>),
-    Match(Box<ExprWrapper<'a, D>>, Vec<ExprWrapper<'a, D>>),
+pub enum ExprChildren<D> {
+    Many(Vec<ExprWrapper<D>>),
+    Match(Box<ExprWrapper<D>>, Vec<ExprWrapper<D>>),
     Zero
 }
 
-impl<'a, D> ExprChildren<'a, D> {
-    pub fn all_children(&self) -> Vec<&ExprWrapper<'a, D>> {
+impl<D> ExprChildren<D> {
+    pub fn all_children(&self) -> Vec<&ExprWrapper<D>> {
         match &self {
             ExprChildren::Many(s) => s.iter().collect(),
             ExprChildren::Match(expr, exprs) => iter::once(&**expr).chain(exprs.iter()).collect(),
             ExprChildren::Zero => vec![]
         }
+    }
+}
+
+impl<D> ExprWrapper<D> {
+    pub fn new(data: D, children: ExprChildren<D>) -> Self {
+        ExprWrapper { data, children }
     }
 }
 
