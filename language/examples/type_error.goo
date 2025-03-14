@@ -1,0 +1,10 @@
+enum Animal = Dog, Cat;
+
+Int: Int
+inc x = x + 1;
+
+(): Int
+main = print (inc Dog);
+
+Int: ()
+print x = ();
