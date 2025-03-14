@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter, Result};
-use crate::ast_wrappers::ast_wrapper::{self, ExprChildren};
 use crate::ast;
 use crate::ast_wrappers::scope_wrapper::ScopedProgram;
 use crate::ast_wrappers::type_wrapper::{TypeWrapper, TypedProgram};
@@ -85,26 +84,24 @@ pub fn from_scoped(ast: &TypedProgram) -> Program {
 
 fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
     match &expr.expr {
-        ast::Expression::FunctionCall(id) => {
+        ast::Expression::FunctionCall(id, args) => {
             match id.as_str() {
-                "+" => Expression::Operation(Operator::Add, Box::from(from_expression(expr.children.all_children()[0], ast)), Box::from(from_expression(expr.children.all_children()[1], ast))),
-                "-" => Expression::Operation(Operator::Sub, Box::from(from_expression(expr.children.all_children()[0], ast)), Box::from(from_expression(expr.children.all_children()[1], ast))),
-                "*" => Expression::Operation(Operator::Mul, Box::from(from_expression(expr.children.all_children()[0], ast)), Box::from(from_expression(expr.children.all_children()[1], ast))),
-                "/" => Expression::Operation(Operator::Div, Box::from(from_expression(expr.children.all_children()[0], ast)), Box::from(from_expression(expr.children.all_children()[1], ast))),
+                "+" => Expression::Operation(Operator::Add, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
+                "-" => Expression::Operation(Operator::Sub, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
+                "*" => Expression::Operation(Operator::Mul, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
+                "/" => Expression::Operation(Operator::Div, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
                 _ => match ast.constructors.get(id) {
-                    Some(cons) => Expression::Constructor(cons.internal_id as i64, expr.children.all_children().into_iter().map(|arg| from_expression(arg, ast)).collect()),
-                    _ => Expression::FunctionCall(id.clone(), expr.children.all_children().into_iter().map(|arg| from_expression(arg, ast)).collect())
+                    Some(cons) => Expression::Constructor(cons.internal_id as i64, args.0.iter().map(|arg| from_expression(arg, ast)).collect()),
+                    _ => Expression::FunctionCall(id.clone(), args.0.iter().map(|arg| from_expression(arg, ast)).collect())
                 }
             }
         }
         ast::Expression::Integer(i) => Expression::Integer(*i),
         ast::Expression::Variable(id) => Expression::Identifier(id.clone()),
-        ast::Expression::Match(patterns) => {
-            let ExprChildren::Match(match_child, case_children) = &expr.children else { panic!() };
-
+        ast::Expression::Match(match_expr, cases) => {
             Expression::Match(
-                Box::from(from_expression(&match_child, ast)), 
-                patterns.iter().zip(case_children.iter()).map(|(pattern, child)| MatchCase {
+                Box::from(from_expression(&match_expr, ast)), 
+                cases.iter().map(|(pattern, child)| MatchCase {
                     pattern: {
                         match pattern {
                             ast::Pattern::Integer(_) => todo!(),
@@ -124,7 +121,7 @@ fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
                     body: from_expression(child, ast)
             }).collect())
         },
-        ast::Expression::UTuple => Expression::UTuple(expr.children.all_children().into_iter().map(|expr| from_expression(expr, ast)).collect()),
+        ast::Expression::UTuple(args) => Expression::UTuple(args.0.iter().map(|expr| from_expression(expr, ast)).collect()),
         //ast::Expression::LetEqualIn(ids, left, right) => Expression::Let(ids.0.clone(), Box::from(from_expression(&left, ast)), Box::from(from_expression(&right, ast))),
     }
 }

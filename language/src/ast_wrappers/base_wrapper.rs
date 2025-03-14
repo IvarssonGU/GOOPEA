@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{ast::{Definition, Expression, Pattern, Program, UTuple, FID, VID}, error::CompileError};
 
-use super::ast_wrapper::{ConstructorReference, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram};
+use super::ast_wrapper::{ConstructorReference, ExprWrapper, WrappedFunction, WrappedProgram};
 
 
 pub type BaseWrapper = ExprWrapper<()>;
@@ -47,12 +47,12 @@ impl BaseProgram {
 }
 
 impl BaseWrapper {
-    pub fn integer(x: i64) -> Self { Self::new(Expression::Integer(x), (), ExprChildren::Zero) }
+    pub fn integer(x: i64) -> Self { Self::new((),Expression::Integer(x)) }
 
-    pub fn variable(vid: VID) -> Self { Self::new(Expression::Variable(vid), (),ExprChildren::Zero) }
+    pub fn variable(vid: VID) -> Self { Self::new((), Expression::Variable(vid)) }
 
     pub fn function_call(fid: FID, args: UTuple<Self>) -> Self {
-        Self::new(Expression::FunctionCall(fid), (), ExprChildren::Many(args.0))
+        Self::new((), Expression::FunctionCall(fid, args))
     }
 
     pub fn operation(operation: String, l: Self, r: Self) -> Self {
@@ -60,12 +60,10 @@ impl BaseWrapper {
     }
 
     pub fn utuple(args: UTuple<Self>) -> Self {
-        Self::new(Expression::UTuple, (),ExprChildren::Many(args.0))
+        Self::new((), Expression::UTuple(args))
     }
 
     pub fn mtch(match_on: Self, cases: Vec<(Pattern, Self)>) -> Self {
-        let (patterns, case_bodies) = cases.into_iter().unzip();
-
-        Self::new(Expression::Match(patterns), (),ExprChildren::Match(Box::new(match_on), case_bodies))
+        Self::new((), Expression::Match(Box::new(match_on), cases))
     }
 }

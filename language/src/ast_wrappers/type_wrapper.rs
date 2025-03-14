@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{ast::{ConstructorSignature, Expression, FunctionSignature, Pattern, Type, UTuple, FID}, error::{CompileError, CompileResult}};
 
-use super::{ast_wrapper::{ChainedData, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram}, scope_wrapper::{ScopeWrapper, ScopeWrapperData, ScopedProgram}};
+use super::{ast_wrapper::{ChainedData, ExprWrapper, WrappedFunction, WrappedProgram}, scope_wrapper::{ScopeWrapper, ScopeWrapperData, ScopedProgram}};
 
 pub type TypeWrapperData = ChainedData<ExpressionType, ScopeWrapperData>;
 
@@ -85,37 +85,33 @@ pub fn type_expression(
     function_signatures: &HashMap<FID, FunctionSignature>
 ) -> Result<TypeWrapper, CompileError> 
 {
-    let (children, tp) = match &expr.expr {
-        Expression::UTuple => {
-            let ExprChildren::Many(scoped_children) = expr.children else { panic!() };
-            let typed_children = ExprChildren::Many(scoped_children.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?);
+    let (new_expr, tp) = match expr.expr {
+        Expression::UTuple(args) => {
+            let typed_args: Vec<_> = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?;
             
             let tp = ExpressionType::UTuple(UTuple(
-                typed_children.all_children().iter().map(|s| s.data.tp().ok_or_else(|| CompileError::UnexpectedUTuple).map(|t| t.clone())).collect::<Result<_, _>>()?
+                typed_args.iter().map(|s| s.data.tp().ok_or_else(|| CompileError::UnexpectedUTuple).map(|t| t.clone())).collect::<Result<_, _>>()?
             ));
-            (typed_children, tp)
+            (Expression::UTuple(UTuple(typed_args)), tp)
         },
-        Expression::FunctionCall(fid) => {
-            let ExprChildren::Many(scoped_children) = expr.children else { panic!() };
-            let children = ExprChildren::Many(scoped_children.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?);
+        Expression::FunctionCall(fid, args) => {
+            let typed_args = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?;
             
-            let return_type = &function_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction)?.result_type;
+            let return_type = &function_signatures.get(&fid).ok_or_else(|| CompileError::UnknownFunction)?.result_type;
             let tp = if return_type.0.len() == 1 { ExpressionType::Type(return_type.0[0].clone()) } else { ExpressionType::UTuple(return_type.clone()) };
-            (children, tp)
+            (Expression::FunctionCall(fid, UTuple(typed_args)), tp)
         },
-        Expression::Integer(_) => (ExprChildren::Zero, ExpressionType::Type(Type::Int)),
-        Expression::Variable(var) => 
-        (
-            ExprChildren::Zero, 
-            ExpressionType::Type(var_types.get(&expr.data.get(var).unwrap().internal_id).ok_or_else(|| CompileError::UnknownVariable)?.clone())
-        ),
-        Expression::Match(patterns) => {
-            let ExprChildren::Match(match_child_scoped, case_children) = expr.children else { panic!() };
+        Expression::Integer(x) => (Expression::Integer(x), ExpressionType::Type(Type::Int)),
+        Expression::Variable(var) => {
+            let tp = ExpressionType::Type(var_types.get(&expr.data.get(&var).unwrap().internal_id).ok_or_else(|| CompileError::UnknownVariable)?.clone());
 
-            let match_child_typed = type_expression(*match_child_scoped, var_types.clone(), function_signatures)?;
+            (Expression::Variable(var), tp)
+        },
+        Expression::Match(match_expr, cases) => {
+            let match_child_typed = type_expression(*match_expr, var_types.clone(), function_signatures)?;
 
-            let type_children: Vec<TypeWrapper> = patterns.iter().zip(case_children.into_iter()).map(|(pattern, child)| {
-                match pattern {
+            let new_cases: Vec<(Pattern, TypeWrapper)> = cases.into_iter().map(|(pattern, child)| {
+                match &pattern {
                     Pattern::Integer(_) => type_expression(child, var_types.clone(), function_signatures),
                     Pattern::UTuple(vars) => {
                         let types = match &match_child_typed.data.data {
@@ -149,23 +145,22 @@ pub fn type_expression(
 
                         type_expression(child, var_types, function_signatures)
                     },
-                }
+                }.map(move |new_expr| (pattern, new_expr))
             }).collect::<Result<_, _>>()?;
 
-            let tp = get_children_same_type(type_children.iter()).ok_or_else(|| CompileError::MissmatchedTypes)?;
+            let tp = get_children_same_type(new_cases.iter().map(|(_, e)| e)).ok_or_else(|| CompileError::MissmatchedTypes)?;
 
-            let children = ExprChildren::Match(
+            let new_expr = Expression::Match(
                 Box::new(match_child_typed),
-                type_children
+                new_cases
             );
 
-            (children, tp)
+            (new_expr, tp)
         }
     };
 
     Ok(ExprWrapper {
-        children,
-        expr: expr.expr,
+        expr: new_expr,
         data: ChainedData { data: tp, prev: expr.data }
     })
 }

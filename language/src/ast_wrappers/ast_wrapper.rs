@@ -19,8 +19,7 @@ pub struct WrappedFunction<D> {
 
 #[derive(Debug)]
 pub struct ExprWrapper<D> {
-    pub children: ExprChildren<D>,
-    pub expr: Expression,
+    pub expr: Expression<D>,
     pub data: D
 }
 
@@ -37,26 +36,9 @@ pub struct ConstructorReference {
     pub internal_id: usize // Each constructor in an ADT is given a unique internal_id
 }
 
-#[derive(Debug)]
-pub enum ExprChildren<D> {
-    Many(Vec<ExprWrapper<D>>),
-    Match(Box<ExprWrapper<D>>, Vec<ExprWrapper<D>>),
-    Zero
-}
-
-impl<D> ExprChildren<D> {
-    pub fn all_children(&self) -> Vec<&ExprWrapper<D>> {
-        match &self {
-            ExprChildren::Many(s) => s.iter().collect(),
-            ExprChildren::Match(expr, exprs) => iter::once(&**expr).chain(exprs.iter()).collect(),
-            ExprChildren::Zero => vec![]
-        }
-    }
-}
-
 impl<D> ExprWrapper<D> {
-    pub fn new(expr: Expression, data: D, children: ExprChildren<D>) -> Self {
-        ExprWrapper { data, children, expr }
+    pub fn new(data: D, expr: Expression<D>) -> Self {
+        ExprWrapper { data, expr }
     }
 }
 

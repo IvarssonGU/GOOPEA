@@ -4,6 +4,7 @@ use std::fmt::{Debug, Display, Formatter, Write};
 use rand::distr::Alphanumeric;
 use rand::distr::SampleString;
 
+use crate::ast_wrappers::ast_wrapper::ExprWrapper;
 use crate::ast_wrappers::base_wrapper::BaseWrapper;
 
 // A program consists of a list of definitions
@@ -64,13 +65,13 @@ pub struct FunctionSignature {
 // 4 * 5
 // Cons (0, Nil)
 // (1, 5, Nil)
-#[derive(Debug, Clone)]
-pub enum Expression {
-    UTuple,
-    FunctionCall(FID),
+#[derive(Debug)]
+pub enum Expression<D> {
+    UTuple(UTuple<ExprWrapper<D>>),
+    FunctionCall(FID, UTuple<ExprWrapper<D>>),
     Integer(i64),
     Variable(VID),
-    Match(Vec<Pattern>),
+    Match(Box<ExprWrapper<D>>, Vec<(Pattern, ExprWrapper<D>)>),
 }
 
 #[derive(Debug, Clone)]

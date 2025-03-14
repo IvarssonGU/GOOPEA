@@ -2,7 +2,7 @@ use std::{collections::HashMap, hash::Hash, rc::Rc, sync::atomic::AtomicUsize};
 
 use crate::{ast::{Definition, Expression, Pattern, Program, Type, UTuple, FID, VID}, error::CompileError};
 
-use super::{ast_wrapper::{ChainedData, ConstructorReference, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram}, base_wrapper::{BaseProgram, BaseWrapper}, type_wrapper::ExpressionType};
+use super::{ast_wrapper::{ChainedData, ConstructorReference, ExprWrapper, WrappedFunction, WrappedProgram}, base_wrapper::{BaseProgram, BaseWrapper}, type_wrapper::ExpressionType};
 
 pub type ScopeWrapperData = Scope;
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
@@ -44,19 +44,20 @@ pub fn scope_expression<'a>(
     scope: Scope
 ) -> Result<ScopeWrapper, CompileError> 
 {
-    let children = match &expr.expr {
-        Expression::UTuple | Expression::FunctionCall(_) => {
-            let ExprChildren::Many(children) = expr.children else { panic!() };
-            ExprChildren::Many(children.into_iter().map(|expr| scope_expression(expr, scope.clone())).collect::<Result<_, _>>()?)
+    let expr = match expr.expr {
+        Expression::UTuple(children) => {
+            Expression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone())).collect::<Result<_, _>>()?))
         },
-        Expression::Integer(_) | Expression::Variable(_) => ExprChildren::Zero,
-        Expression::Match(patterns) => {
-            let ExprChildren::Match(base_match_child, base_case_children) = expr.children else { panic!() };
+        Expression::FunctionCall(fid, children) => {
+            Expression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone())).collect::<Result<_, _>>()?))
+        },
+        Expression::Integer(x) => Expression::Integer(x),
+        Expression::Variable(vid) => Expression::Variable(vid),
+        Expression::Match(match_expr, cases) => {
+            let scoped_match_child = scope_expression(*match_expr, scope.clone())?;
 
-            let scoped_match_child = scope_expression(*base_match_child, scope.clone())?;
-
-            let case_scopes: Vec<ScopeWrapper> = patterns.iter().zip(base_case_children).map(|(pattern, child)| {
-                match pattern {
+            let case_scopes = cases.into_iter().map(|(pattern, child)| {
+                match &pattern {
                     Pattern::Integer(_) => scope_expression(child, scope.clone()),
                     Pattern::UTuple(vars) | Pattern::Constructor(_, vars) => {
                         scope_expression(
@@ -72,10 +73,10 @@ pub fn scope_expression<'a>(
                             )
                         )
                     }
-                }
-            }).collect::<Result<_, _>>()?;
+                }.map(move |new_expr| (pattern, new_expr))
+            }).collect::<Result<Vec<_>, _>>()?;
 
-            ExprChildren::Match(
+            Expression::Match(
                 Box::new(scoped_match_child),
                 case_scopes
             )
@@ -83,8 +84,7 @@ pub fn scope_expression<'a>(
     };
 
     Ok(ExprWrapper {
-        children,
-        expr: expr.expr,
+        expr,
         data: scope
     })
 }
