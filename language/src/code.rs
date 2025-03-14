@@ -117,25 +117,25 @@ impl Compiler {
                 let var = self.next_var();
                 self.generated_statements.push(Statement::Decl(var.clone()));
                 let match_var = self.compile_exp(exp);
-                for (i, ((tag, binds), exp)) in cases.iter().enumerate() {
-                    
-                    if i == cases.len() - 1 {
-                        self.generated_statements.push(Statement::Else);
-                    }
-                    else {
-                        let bool_var = self.next_var();
+                let bool_vars = cases.iter().map(|((tag, binds), exp)| {
+                    let bool_var = self.next_var();
                     self.generated_statements.push(Statement::AssignConditional(
                         bool_var.clone(),
                         binds.len() != 0,
                         match_var.clone(),
                         *tag << 1 | 1
                     ));
-                        if i == 0 {
-                            self.generated_statements.push(Statement::If(Operand::Ident(bool_var.clone())));
-                        } 
-                        else {
-                            self.generated_statements.push(Statement::ElseIf(Operand::Ident(bool_var.clone())));
-                        }
+                    Operand::Ident(bool_var)
+                }).collect::<Vec<Operand>>();
+                for (i, ((tag, binds), exp)) in cases.iter().enumerate() {
+                    if i == cases.len() - 1 {
+                        self.generated_statements.push(Statement::Else);
+                    }
+                    else if i == 0 {
+                            self.generated_statements.push(Statement::If(bool_vars[i].clone()));
+                    } 
+                    else {
+                        self.generated_statements.push(Statement::ElseIf(bool_vars[i].clone()));
                     }
                     if binds.len() > 0 {
                         let binders_var = self.next_var();
