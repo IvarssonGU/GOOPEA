@@ -1,24 +1,48 @@
 use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, hash::Hash, iter, ops::Deref, rc::Rc, sync::atomic::AtomicUsize};
-use crate::{ast::{ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Pattern, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
-use super::base_wrapper::BaseWrapper;
+pub type FID = String; // Function ID, (also including ADT constructors)
+pub type VID = String; // Variable ID
+pub type AID = String; // ADT ID
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UTuple<T>(pub Vec<T>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Type {
+    Int,
+    ADT(AID)
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionSignature {
+    pub argument_type: UTuple<Type>,
+    pub result_type: UTuple<Type>,
+    pub is_fip: bool
+}
 
 #[derive(Debug)]
 pub struct WrappedProgram<ED> {
-    pub adts: HashMap<AID, ADTDefinition>,
-    pub constructors: HashMap<FID, ConstructorReference>,
+    pub adts: HashMap<AID, Vec<FID>>,
+    pub constructors: HashMap<FID, Constructor>,
     pub functions: HashMap<FID, WrappedFunction<ED>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Constructor {
+    pub adt: AID,
+    pub sibling_index: usize,
+    pub args: UTuple<Type>
 }
 
 #[derive(Debug)]
 pub struct WrappedFunction<D> {
     pub vars: UTuple<VID>,
     pub signature: FunctionSignature,
-    pub body: ExprWrapper<D>,
+    pub body: ExpressionNode<D>,
 }
 
 #[derive(Debug)]
-pub struct ExprWrapper<D> {
+pub struct ExpressionNode<D> {
     pub expr: Expression<D>,
     pub data: D
 }
@@ -29,16 +53,25 @@ pub struct ChainedData<D, P> {
     pub prev: P
 }
 
-#[derive(Debug, Clone)]
-pub struct ConstructorReference {
-    pub adt: AID,
-    pub constructor: ConstructorDefinition,
-    pub internal_id: usize // Each constructor in an ADT is given a unique internal_id
+#[derive(Debug)]
+pub enum Expression<D> {
+    UTuple(UTuple<ExpressionNode<D>>),
+    FunctionCall(FID, UTuple<ExpressionNode<D>>),
+    Integer(i64),
+    Variable(VID),
+    Match(Box<ExpressionNode<D>>, Vec<(Pattern, ExpressionNode<D>)>),
 }
 
-impl<D> ExprWrapper<D> {
+#[derive(Debug, Clone)]
+pub enum Pattern {
+    Integer(i64),
+    Constructor(FID, UTuple<VID>),
+    UTuple(UTuple<VID>)
+}
+
+impl<D> ExpressionNode<D> {
     pub fn new(data: D, expr: Expression<D>) -> Self {
-        ExprWrapper { data, expr }
+        ExpressionNode { data, expr }
     }
 }
 
@@ -64,28 +97,6 @@ impl<D, P> Deref for ChainedData<D, P> {
 
         for node in self.children.all_children() {
             node.validate_recursively(program)?;
-        }
-
-        Ok(())
-    }
-
-    fn validate_correct_scope_children(&self) -> CompileResult {
-        match self.expr {
-            Expression::UTuple(_) | Expression::FunctionCall(_, _) => {
-                let ExprChildren::Many(_) = self.children else {
-                    return Err(CompileError::InternalError);
-                };
-            },
-            Expression::Integer(_) | Expression::Variable(_) => {
-                let ExprChildren::Zero = self.children else {
-                    return Err(CompileError::InternalError);
-                };
-            },
-            Expression::Match(_) => {
-                let ExprChildren::Match(_, _) = self.children else {
-                    return Err(CompileError::InternalError);
-                };
-            },
         }
 
         Ok(())
@@ -277,17 +288,21 @@ pub fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
     write!(f, "{}", "    ".repeat(indent))
 }
 
-impl<D: Display> Display for WrappedProgram<D> {
+impl<D> Display for WrappedProgram<D> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for (_, def) in &self.adts {
+        /*for (_, def) in &self.adts {
             writeln!(f, "{def}")?;
-        }
+        }*/
+
+        /*for (_, def) in &self.functions {
+            writeln!(f, "{def}")?;
+        }*/
 
         Ok(())
     }
 }
 
-impl Display for ADTDefinition {
+/*impl Display for ADTDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "enum {} = \n", self.id)?;
         write_indent(f, 1)?;
@@ -307,9 +322,9 @@ impl Display for ADTDefinition {
 
 impl Display for ConstructorDefinition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} {}", self.id, self.arguments)
+        write!(f, "{}{}", self.id, self.arguments)
     }
-}
+}*/
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -342,9 +357,7 @@ pub fn write_implicit_utuple<T>(
 ) -> std::fmt::Result
 {
     if items.len() == 0 { Ok(()) }
-    else if items.len() == 1 { 
-        write(f, &items[0]) 
-    } else {
+    else {
         write!(f, "(")?;
         write_separated_list(f, items.iter(), separator, write)?;
         write!(f, ")")

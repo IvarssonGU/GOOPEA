@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display};
 
-use crate::ast::{Expression, FunctionDefinition, Type, UTuple, AID, FID, VID};
+use crate::ast_wrappers::ast_wrapper::{Type, UTuple, FID, VID};
 
 pub type CompileResult = Result<(), CompileError>;
 

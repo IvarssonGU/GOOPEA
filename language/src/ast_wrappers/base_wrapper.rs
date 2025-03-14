@@ -1,45 +1,45 @@
 use std::collections::HashMap;
 
-use crate::{ast::{Definition, Expression, Pattern, Program, UTuple, FID, VID}, error::CompileError};
+use crate::{ast_wrappers::ast_wrapper::{Expression, Pattern, UTuple, FID, VID}, error::CompileError, grammar, lexer::Lexer};
 
-use super::ast_wrapper::{ConstructorReference, ExprWrapper, WrappedFunction, WrappedProgram};
+use super::ast_wrapper::{Constructor, ExpressionNode, Type, WrappedFunction, WrappedProgram, AID};
 
-
-pub type BaseWrapper = ExprWrapper<()>;
+pub type BaseWrapper = ExpressionNode<()>;
 pub type BaseProgram = WrappedProgram<()>;
 
+#[derive(Debug)]
+pub enum Definition {
+    ADT(AID, Vec<(FID, UTuple<Type>)>),
+    Function(FID, WrappedFunction<()>)
+}
+
 impl BaseProgram {
-    pub fn new(program: Program) -> Result<BaseProgram, CompileError> {
-        program.validate_top_level_ids();
+    pub fn new(code: &str) -> Result<BaseProgram, CompileError> {
+        //program.validate_top_level_ids();
+
+        let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
 
         let mut adts = HashMap::new();
-        let mut constructors = HashMap::new();
+        let mut all_constructors = HashMap::new();
         let mut functions = HashMap::new();
-        for def in program.0 {
+        for def in program {
             match def {
-                Definition::ADTDefinition(def) => {
-                    adts.insert(def.id.clone(), def.clone());
+                Definition::ADT(aid, constructors) => {
+                    adts.insert(aid.clone(), constructors.iter().map(|(fid, _)| fid.clone()).collect());
     
-                    for (internal_id, cons) in def.constructors.iter().enumerate() {    
-                        constructors.insert(cons.id.clone(), ConstructorReference { adt: def.id.clone(), constructor: cons.clone(), internal_id });
+                    for (sibling_index, (fid, args)) in constructors.into_iter().enumerate() {    
+                        all_constructors.insert(fid, Constructor { sibling_index, adt: aid.clone(), args });
                     }
                 },
-                Definition::FunctionDefinition(def) => {    
-                    functions.insert(
-                        def.id.clone(), 
-                        WrappedFunction { 
-                            signature: def.signature.clone(),
-                            vars: def.variables.clone(),
-                            body: def.body
-                        }
-                    );
+                Definition::Function(fid, def) => {    
+                    functions.insert(fid, def);
                 }
             }
         }
 
         Ok(BaseProgram {
             adts,
-            constructors,
+            constructors: all_constructors,
             functions
         })
     }

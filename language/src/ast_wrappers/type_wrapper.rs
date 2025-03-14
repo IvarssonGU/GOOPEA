@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use crate::{ast::{ConstructorSignature, Expression, FunctionSignature, Pattern, Type, UTuple, FID}, error::{CompileError, CompileResult}};
+use crate::error::{CompileError, CompileResult};
 
-use super::{ast_wrapper::{ChainedData, ExprWrapper, WrappedFunction, WrappedProgram}, scope_wrapper::{ScopeWrapper, ScopeWrapperData, ScopedProgram}};
+use super::{ast_wrapper::{ChainedData, Expression, ExpressionNode, FunctionSignature, Pattern, Type, UTuple, WrappedFunction, WrappedProgram, FID}, scope_wrapper::{ScopeWrapper, ScopeWrapperData, ScopedProgram}};
 
 pub type TypeWrapperData = ChainedData<ExpressionType, ScopeWrapperData>;
 
-pub type TypeWrapper = ExprWrapper<TypeWrapperData>;
+pub type TypeWrapper = ExpressionNode<TypeWrapperData>;
 pub type TypedProgram = WrappedProgram<TypeWrapperData>;
 
 fn get_children_same_type<'a>(mut iter: impl Iterator<Item = &'a TypeWrapper>) -> Option<ExpressionType> {
@@ -130,7 +130,7 @@ pub fn type_expression(
                         type_expression( child, var_types, function_signatures)
                     },
                     Pattern::Constructor(fid, vars) => {
-                        let cons_sig: &ConstructorSignature = &function_signatures.get(fid).ok_or(CompileError::UnknownConstructor)?.argument_type;
+                        let cons_sig = &function_signatures.get(fid).ok_or(CompileError::UnknownConstructor)?.argument_type;
                         if cons_sig.0.len() != vars.0.len() {
                             panic!("Wrong number of arguments in match statement of case {}", fid);
                         }
@@ -159,7 +159,7 @@ pub fn type_expression(
         }
     };
 
-    Ok(ExprWrapper {
+    Ok(ExpressionNode {
         expr: new_expr,
         data: ChainedData { data: tp, prev: expr.data }
     })
@@ -180,7 +180,7 @@ impl TypedProgram {
             all_function_signatures.insert(
                 fid.clone(), 
                 FunctionSignature {
-                    argument_type: cons.constructor.arguments.clone(),
+                    argument_type: cons.args.clone(),
                     result_type: UTuple(vec! [Type::ADT(fid.clone())]),
                     is_fip: true
                 }

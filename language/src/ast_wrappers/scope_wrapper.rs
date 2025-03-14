@@ -1,12 +1,12 @@
 use std::{collections::HashMap, hash::Hash, rc::Rc, sync::atomic::AtomicUsize};
 
-use crate::{ast::{Definition, Expression, Pattern, Program, Type, UTuple, FID, VID}, error::CompileError};
+use crate::error::CompileError;
 
-use super::{ast_wrapper::{ChainedData, ConstructorReference, ExprWrapper, WrappedFunction, WrappedProgram}, base_wrapper::{BaseProgram, BaseWrapper}, type_wrapper::ExpressionType};
+use super::{ast_wrapper::{ChainedData, Expression, ExpressionNode, Pattern, UTuple, WrappedFunction, WrappedProgram, VID}, base_wrapper::{BaseProgram, BaseWrapper}, type_wrapper::ExpressionType};
 
 pub type ScopeWrapperData = Scope;
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
-pub type ScopeWrapper = ExprWrapper<ScopeWrapperData>;
+pub type ScopeWrapper = ExpressionNode<ScopeWrapperData>;
 
 pub type ScopedProgram = WrappedProgram<ScopeWrapperData>;
 
@@ -83,7 +83,7 @@ pub fn scope_expression<'a>(
         }
     };
 
-    Ok(ExprWrapper {
+    Ok(ExpressionNode {
         expr,
         data: scope
     })
@@ -173,8 +173,4 @@ impl ScopedProgram {
 
         Ok(())
     }*/
-
-    pub fn get_constructor<'a>(&self, fid: &'a FID) -> Result<&ConstructorReference, CompileError> {
-        self.constructors.get(fid).ok_or_else(|| CompileError::UnknownConstructor)
-    }
 }

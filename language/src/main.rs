@@ -3,30 +3,25 @@
 use std::{fs, path::Path};
 
 use lalrpop_util::lalrpop_mod;
-use lexer::Lexer;
-use ast_wrappers::{ast_wrapper::*, base_wrapper::BaseProgram, scope_wrapper::ScopedProgram, type_wrapper::TypedProgram};
+use ast_wrappers::{base_wrapper::BaseProgram, scope_wrapper::ScopedProgram, type_wrapper::TypedProgram};
 
 mod code;
 mod ir;
 mod simple_ast;
-mod ast;
 mod lexer;
 mod error;
 pub mod ast_wrappers;
 
 lalrpop_mod!(pub grammar);
-use simple_ast::*;
+
 fn main() {
     let code = fs::read_to_string(Path::new("examples/reverse.goo")).unwrap();
 
-    let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
-    let base_program = BaseProgram::new(program).unwrap();
-    //println!("{base_program}");
+    let base_program = BaseProgram::new(&code).unwrap();
+    println!("{base_program}");
 
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
-
-    dbg!(typed_program);
 }
 
 #[cfg(test)]
