@@ -7,19 +7,19 @@ var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     mode: "GOOPEA",
     autoCloseBrackets: true,
     matchBrackets: true,
+    extraKeys: key_binds,
 });
 
 editor.setSize("100%", "100%");
-editor.setOption("extraKeys", key_binds);
 
 window.onload = function() {
-    if ("code" in sessionStorage) {
-        editor.setValue(sessionStorage.getItem("code"));
+    if ("code" in localStorage) {
+        editor.setValue(localStorage.getItem("code"));
     }
 };
 
 window.onbeforeunload = function() {
-    sessionStorage.setItem("code", editor.getValue());
+    localStorage.setItem("code", editor.getValue());
 };
 
 async function run_button_clicked() {
@@ -28,7 +28,7 @@ async function run_button_clicked() {
 	await wasm_bindgen('./pkg/editor_bg.wasm');
 
     let code = editor.getValue();
-    sessionStorage.setItem("code", code);
+    localStorage.setItem("code", code);
     const output = wasm_bindgen.rust_function(code);
     output_textarea.value = output;
 
@@ -48,7 +48,7 @@ function clear_button_clicked() {
 }
 
 function save_code(opt) {
-    sessionStorage.setItem("code", editor.getValue());
+    localStorage.setItem("code", editor.getValue());
 
     switch(opt) {
         case 0:
@@ -62,6 +62,14 @@ function save_code(opt) {
     }
 }
 
+document.addEventListener("keydown", (event) => {
+    if (event.ctrlKey && event.key === 's') {
+        event.preventDefault();
+
+        //copy editor text to clipboard
+        navigator.clipboard.writeText(editor.getValue()); 
+    }
+});
 
 
 /*

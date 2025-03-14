@@ -14,3 +14,9 @@ window.onload = function() {
         });
     }
 };
+
+document.addEventListener("keydown", (event) => {
+    if (event.ctrlKey && event.key === 's') {
+        event.preventDefault();
+    }
+});

@@ -2,8 +2,8 @@
 // Distributed under an MIT license: https://codemirror.net/5/LICENSE
 
 // these are functions originially defined in keymap/sublime.js
-//  decided that all of the sublime keymap was overkill so decided
-//  on a couple that were "most important"
+//  - decided that all of the sublime keymap was overkill so decided
+//      on a couple that were "most important"
 
 var key_binds = {
     "Shift-Alt-Up": function(cm) { //swap line up
@@ -70,5 +70,5 @@ var key_binds = {
     },
     "Ctrl-/": function(cm) { //toggle line comment
         cm.toggleComment();
-    }
+    },
 };

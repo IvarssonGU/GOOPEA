@@ -30,3 +30,9 @@ function show_slide(i) {
 
     slides[slide_index].style.display = "block";
 }
+
+document.addEventListener("keydown", (event) => {
+    if (event.ctrlKey && event.key === 's') {
+        event.preventDefault();
+    }
+});
