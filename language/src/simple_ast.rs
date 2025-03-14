@@ -107,19 +107,27 @@ fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> E
             }   
         },
         ast::Expression::Match(match_exp) => Expression::Match(
-            Box::from(from_expression(&ast::Expression::Variable(match_exp.variable.clone()), ast)), 
-            match_exp.cases.iter().map(|case| 
-                (
-                    if case.vars.0.len() == 0 {
-                        (ast.get_constructor(&case.cons_id).unwrap().internal_id as i64, vec![])
+            Box::from(from_expression(&match_exp.expr, ast)), 
+            match_exp.cases.iter().map(|case| (
+                {
+                    match &case.pattern {
+                        ast::Pattern::Integer(_) => todo!(),
+                        ast::Pattern::UTuple(utuple) => todo!(),
+                        ast::Pattern::Constructor(fid, vars) => {
+                            if vars.0.len() == 0 {
+                                (ast.get_constructor(fid).unwrap().internal_id as i64, vec![])
+                            }
+                            else {
+                                (ast.get_constructor(fid).unwrap().internal_id as i64, vars.0.iter().map(|var| Binder::Variable(var.clone())).collect())
+                            }
+                        },
                     }
-                    else {
-                        (ast.get_constructor(&case.cons_id).unwrap().internal_id as i64, case.vars.0.iter().map(|var| Binder::Variable(var.clone())).collect())
-                    },
-                    from_expression(&case.body, ast)
-                )).collect()),
+                },
+                from_expression(&case.body, ast)
+            )
+            ).collect()),
         ast::Expression::UTuple(exps) => Expression::UTuple(exps.0.iter().map(|expr| from_expression(expr, ast)).collect()),
-        ast::Expression::LetEqualIn(ids, left, right) => Expression::LetApp(ids.0.clone(), Box::from(from_expression(&left, ast)), Box::from(from_expression(&right, ast))),
+        //ast::Expression::LetEqualIn(ids, left, right) => Expression::Let(ids.0.clone(), Box::from(from_expression(&left, ast)), Box::from(from_expression(&right, ast))),
     }
 }
 

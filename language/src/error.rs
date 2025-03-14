@@ -1,3 +1,5 @@
+use std::{error::Error, fmt::Display};
+
 use crate::ast::{Expression, FunctionDefinition, MatchCase, Type, UTuple, AID, FID, VID};
 
 pub type CompileResult<'a> = Result<(), CompileError<'a>>;
@@ -20,9 +22,38 @@ pub enum CompileError<'a> {
     UnexpectedUTuple,
     WrongArgumentType(FID, UTuple<Type>, UTuple<Type>),
     InvalidOperationTypes,
-    WrongVariableTypeInMatch,
-    InvalidConstructorInMatchCase,
+    InvalidPatternInMatchCase,
     MultipleOccurencesOfConstructorInMatch,
+    MultipleOccurencesOfIntInMatch,
     NonExhaustiveMatch,
-    WrongReturnType
+    WrongReturnType,
+    InvalidPattern,
+    MatchHasMultipleWildcards,
+    MatchHasCaseAfterWildcard,
+    MatchHasMultipleTupleCases,
+    InternalError,
+
+    FIPFunctionHasUnusedVar(VID),
+    FIPFunctionHasMultipleUsedVar(VID),
+    FIPFunctionAllocatesMemory
+}
+
+impl<'a> Display for CompileError<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TODO: Better compile errors")
+    }
+}
+
+impl<'b> Error for CompileError<'b> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
 }

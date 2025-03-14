@@ -1,0 +1,36 @@
+enum Animal = Cat, Dog;
+
+Animal: Animal
+Convert x = match x {
+    Cat: Dog,
+    Dog: Cat
+};
+
+(): Int
+MatchUnbox = match (1, 2) {
+    (x, y): x + y
+};
+
+(): (Int, Int)
+Coord = (7, 5);
+
+(): Int
+LetUnbox = let x = 3 in x;
+
+(): Int
+MatchUnbox2 = match Coord {
+    (x, y): x - y
+};
+
+Int: Int
+Fib i = match i {
+    0: 1,
+    1: 1,
+    n: Fib (i-1) + Fib(i - 2)
+};
+
+(): Animal
+Main = match Convert Cat {
+    Cat: Cat,
+    Dog: Dog
+};

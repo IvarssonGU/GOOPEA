@@ -1,5 +1,5 @@
-use std::{cell::RefMut, collections::{HashMap, HashSet}, fmt::{Display, Formatter}, path::MAIN_SEPARATOR, rc::Rc, sync::{atomic::AtomicUsize, Arc, LazyLock}};
-use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
+use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, hash::Hash, iter, rc::Rc, sync::atomic::AtomicUsize};
+use crate::{ast::{write_implicit_utuple, write_indent, write_separated_list, ADTDefinition, ConstructorDefinition, ConstructorSignature, Definition, Expression, FunctionDefinition, FunctionSignature, MatchExpression, Pattern, Program, Type, UTuple, AID, FID, VID}, error::{CompileError, CompileResult}};
 
 #[derive(Debug)]
 pub struct ConstructorReference<'a> {
@@ -11,28 +11,41 @@ pub struct ConstructorReference<'a> {
 #[derive(Debug)]
 pub struct ScopedFunction<'a> {
     pub def: &'a FunctionDefinition,
-    pub body: ScopedExpressionNode<'a>
+    pub body: ScopedExpressionNode<'a>,
+    pub scope: Scope
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct VariableDefinition {
     id: VID,
     tp: Type,
     internal_id: usize // Each definition is given a definitively different internal_id
 }
 
-type Scope<'a> = HashMap<VID, Rc<VariableDefinition>>;
+impl PartialEq for VariableDefinition {
+    fn eq(&self, other: &Self) -> bool {
+       self.internal_id == other.internal_id
+    }
+}
+
+impl Hash for VariableDefinition {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.internal_id.hash(state);
+    }
+}
+
+type Scope = HashMap<VID, Rc<VariableDefinition>>;
 
 #[derive(Clone, Debug)]
 pub struct ScopedExpressionNode<'a> {
     pub expr: &'a Expression,
     pub children: ScopeChildren<'a>,
-    pub scope: Scope<'a>,
+    pub scope: Scope,
     pub tp: ExpressionType
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum ExpressionType {
+pub enum ExpressionType {
     UTuple(UTuple<Type>),
     Type(Type)
 }
@@ -60,7 +73,7 @@ impl ExpressionType {
 #[derive(Debug, Clone)]
 pub enum ScopeChildren<'a> {
     Many(Vec<ScopedExpressionNode<'a>>),
-    Two(Box<ScopedExpressionNode<'a>>, Box<ScopedExpressionNode<'a>>),
+    Match(Box<ScopedExpressionNode<'a>>, Vec<ScopedExpressionNode<'a>>),
     Zero
 }
 
@@ -68,21 +81,20 @@ impl<'a> ScopeChildren<'a> {
     fn scopes(&self) -> Vec<&ScopedExpressionNode<'a>> {
         match &self {
             ScopeChildren::Many(s) => s.iter().collect(),
-            ScopeChildren::Two(s1, s2) => vec![s1, s2],
+            ScopeChildren::Match(expr, exprs) => iter::once(&**expr).chain(exprs.iter()).collect(),
             ScopeChildren::Zero => vec![]
         }
     }
+}
 
-    fn get_same_type(&self) -> Option<ExpressionType> {
-        let mut iter = self.scopes().into_iter();
-        let tp = iter.next()?.tp.clone();
+fn get_scopes_same_type<'a, 'b: 'a>(mut iter: impl Iterator<Item = &'a ScopedExpressionNode<'b>>) -> Option<ExpressionType> {
+    let tp = iter.next()?.tp.clone();
 
-        for x in iter {
-            if x.tp != tp { return None; }
-        }
-
-        Some(tp)
+    for x in iter {
+        if x.tp != tp { return None; }
     }
+
+    Some(tp)
 }
 
 #[derive(Debug)]
@@ -110,16 +122,10 @@ impl<'a> ScopedProgram<'a> {
         }
 
         let mut constructor_signatures: HashMap<FID, &ConstructorSignature> = HashMap::new();
-        let mut zero_argument_constructor_variables = Vec::new();
         for def in &program.0 {
             match def {
                 Definition::ADTDefinition(def) => {
                     constructor_signatures.extend(def.constructors.iter().map(|cons| (cons.id.clone(), &cons.arguments)));
-                    zero_argument_constructor_variables.extend(
-                        def.constructors.iter()
-                        .filter(|c| c.arguments.0.len() == 0)
-                        .map(|c| VariableDefinition { id: c.id.clone(), tp: Type::ADT(def.id.clone()), internal_id: get_new_internal_id() }) 
-                    );
 
                     all_function_signatures.extend(def.constructors.iter().map(
                         |cons| {
@@ -141,9 +147,6 @@ impl<'a> ScopedProgram<'a> {
 
         reset_internal_id_counter();
 
-        let mut default_scope = HashMap::new();
-        default_scope.extend(zero_argument_constructor_variables.into_iter().map(|c| (c.id.clone(), Rc::new(c))));
-
         let mut adts = HashMap::new();
         let mut constructors = HashMap::new();
         let mut functions = HashMap::new();
@@ -161,17 +164,18 @@ impl<'a> ScopedProgram<'a> {
                         return Err(CompileError::InconsistentVariableCountInFunctionDefinition(def))
                     }
     
-                    let function_variables = def.variables.0.iter().zip(def.signature.argument_type.0.iter()).map(
+                    let base_scope = def.variables.0.iter().zip(def.signature.argument_type.0.iter()).map(
                         |(vid, tp)| {
-                            VariableDefinition { id: vid.clone(), tp: tp.clone(), internal_id: get_new_internal_id() }
+                            (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), tp: tp.clone(), internal_id: get_new_internal_id() }))
                         }
-                    ).collect::<Vec<_>>();
+                    ).collect::<Scope>();
     
                     functions.insert(
                         def.id.clone(), 
                         ScopedFunction { 
-                            def, 
-                            body: scope_expression(&def.body, &default_scope, function_variables, &all_function_signatures, &constructor_signatures)?
+                            def,
+                            scope: base_scope.clone(),
+                            body: scope_expression(&def.body, base_scope, &all_function_signatures, &constructor_signatures)?
                         }
                     );
                 }
@@ -191,7 +195,7 @@ impl<'a> ScopedProgram<'a> {
         self.validate_all_types()?;
 
         for (_, func) in &self.functions {
-            func.body.validate(self)?;
+            func.body.validate_recursively(self)?;
             
             let return_type = match &func.body.tp {
                 ExpressionType::UTuple(utuple) => utuple.clone(),
@@ -200,6 +204,19 @@ impl<'a> ScopedProgram<'a> {
 
             if return_type != func.def.signature.result_type {
                 return Err(CompileError::WrongReturnType)
+            }
+
+            if func.def.signature.is_fip {
+                let used_vars = func.body.recursively_validate_fip_expression(self)?;
+                // Used can't contain any other variables than those defined for the function
+                // since all variables are guaranteed to have a definition. All variables declared in expressions will already have been checked.
+
+                let func_vars = func.scope.values().map(|x| &**x).collect::<HashSet<_>>();
+                let mut unused_vars = func_vars.difference(&used_vars);
+
+                if let Some(unused_var) = unused_vars.next() {
+                    return Err(CompileError::FIPFunctionHasUnusedVar(unused_var.id.clone()))
+                }
             }
         }
 
@@ -254,81 +271,218 @@ impl FunctionSignature {
 }
 
 impl<'a> ScopedExpressionNode<'a> {
-    fn validate(&self, program: &'a ScopedProgram) -> CompileResult {
-        let expected_scope_children_count: Option<usize> = match self.expr {
-            Expression::UTuple(_) | Expression::FunctionCall(_, _) | Expression::Match(_) => None,
-            Expression::Integer(_) | Expression::Variable(_) => Some(0),
-            Expression::LetEqualIn(_, _, _) => Some(2),
-        };
-
-        if  expected_scope_children_count.is_some_and(|x| x != self.children.scopes().len()) {
-            panic!("Unexpected number of scope children")
-        }
+    fn validate_recursively(&self, program: &'a ScopedProgram) -> CompileResult {
+        self.validate_correct_scope_children()?;
 
         match self.expr {
-            Expression::FunctionCall(fid, args) => {
-                let expected_arg_type = &program.all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.argument_type;
-
-                if args.0.len() != expected_arg_type.0.len() {
-                    return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
-                }
-
-                let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
-                if &arg_type != expected_arg_type {
-                    return Err(CompileError::WrongArgumentType(fid.clone(), arg_type, expected_arg_type.clone()))
-                }
-            },
+            Expression::FunctionCall(fid, args) => self.validate_as_function_call(program, fid, args)?,
             Expression::Variable(vid) => { self.get_var(vid)?; },
-            Expression::Match(match_expression) => {
-                let var_def = self.get_var(&match_expression.variable)?;
-                let aid: &AID = match &var_def.tp {
-                    Type::Int => return Err(CompileError::WrongVariableTypeInMatch),
-                    Type::ADT(aid) => &aid,
-                };
-
-                self.children.get_same_type().ok_or_else(|| CompileError::MissmatchedTypes(self.expr))?;
-
-                let mut used_constructors = HashSet::new();
-                for case in &match_expression.cases {
-                    let cons = program.get_constructor(&case.cons_id)?;
-                    if &cons.adt.id != aid {
-                        return Err(CompileError::InvalidConstructorInMatchCase);
-                    }
-
-                    if case.vars.0.len() != cons.constructor.arguments.0.len() {
-                        return Err(CompileError::WrongVariableCountInMatchCase(case))
-                    }
-
-                    if !used_constructors.insert(&case.cons_id) {
-                        return Err(CompileError::MultipleOccurencesOfConstructorInMatch);
-                    }
-                }
-
-                let adt = program.adts.get(aid).unwrap();
-                if used_constructors.len() < adt.constructors.len() {
-                    return Err(CompileError::NonExhaustiveMatch)
-                }
-            },
-            Expression::LetEqualIn(vars, e1, e2) => {
-                let fid = match &**e1 {
-                    Expression::FunctionCall(fid, _) => fid,
-                    _ => return Err(CompileError::LetHasNoFunctionCall(&self.expr))
-                };
-
-                let signature = program.all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?;
-                if signature.result_type.0.len() != vars.0.len() {
-                    return Err(CompileError::WrongVariableCountInLetStatement(&self.expr));
-                }
-            },
+            Expression::Match(match_expression) => self.validate_as_match(program, match_expression)?,
             Expression::UTuple(_) => (), // Should already be validated by type inference
             Expression::Integer(_) => (),
         }
 
         for node in self.children.scopes() {
-            node.validate(program)?;
+            node.validate_recursively(program)?;
         }
 
         Ok(())
+    }
+
+    fn validate_correct_scope_children(&self) -> CompileResult {
+        match self.expr {
+            Expression::UTuple(_) | Expression::FunctionCall(_, _) => {
+                let ScopeChildren::Many(_) = self.children else {
+                    return Err(CompileError::InternalError);
+                };
+            },
+            Expression::Integer(_) | Expression::Variable(_) => {
+                let ScopeChildren::Zero = self.children else {
+                    return Err(CompileError::InternalError);
+                };
+            },
+            Expression::Match(_) => {
+                let ScopeChildren::Match(_, _) = self.children else {
+                    return Err(CompileError::InternalError);
+                };
+            },
+        }
+
+        Ok(())
+    }
+
+    fn validate_as_function_call(&self, program: &'a ScopedProgram, fid: &'a FID, args: &'a UTuple<Expression>) -> CompileResult {
+        let expected_arg_type = &program.all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.argument_type;
+
+        if args.0.len() != expected_arg_type.0.len() {
+            return Err(CompileError::WrongVariableCountInFunctionCall(&self.expr));
+        }
+
+        let arg_type: UTuple<Type> = UTuple(self.children.scopes().iter().map(|scope| scope.tp.expect_tp().map(|x| x.clone())).collect::<Result<_, _>>()?);
+        if &arg_type != expected_arg_type {
+            return Err(CompileError::WrongArgumentType(fid.clone(), arg_type, expected_arg_type.clone()))
+        }
+
+        Ok(())
+    }
+
+    fn validate_as_match(&self, program: &'a ScopedProgram, match_expression: &'a MatchExpression) -> CompileResult {
+        let ScopeChildren::Match(expr_scope, case_scopes) = &self.children else { panic!() };
+        get_scopes_same_type(case_scopes.iter()).ok_or_else(|| CompileError::MissmatchedTypes(self.expr))?;
+    
+        let mut has_wildcard = false;
+        for case in &match_expression.cases {
+            let mut case_is_wildcard = false;
+
+            match &case.pattern {
+                Pattern::UTuple(vars) => if vars.0.len() == 1 { case_is_wildcard = true },
+                _ => ()
+            }
+
+            if has_wildcard {
+                if !case_is_wildcard {
+                    return Err(CompileError::MatchHasCaseAfterWildcard)
+                } else {
+                    return Err(CompileError::MatchHasMultipleWildcards)
+                }
+            }
+
+            has_wildcard = has_wildcard || case_is_wildcard;
+        }
+
+        match &expr_scope.tp {
+            ExpressionType::UTuple(_) => {
+                if match_expression.cases.len() == 0 {
+                    return Err(CompileError::NonExhaustiveMatch)
+                } else if match_expression.cases.len() > 1 {
+                    return Err(CompileError::MatchHasMultipleTupleCases)
+                }
+
+                match &match_expression.cases[0].pattern {
+                    Pattern::Integer(_) |
+                    Pattern::Constructor(_, _) => return Err(CompileError::InvalidPatternInMatchCase),
+                    Pattern::UTuple(_) => {
+                        // We know the tuple has the correct argument and variable types from type inference
+                    },
+                }
+            },
+            ExpressionType::Type(Type::Int) => {
+                let mut used_ints = HashSet::new();
+                for case in &match_expression.cases {
+                    match &case.pattern {
+                        Pattern::Integer(i) => {
+                            if !used_ints.insert(i) {
+                                return Err(CompileError::MultipleOccurencesOfIntInMatch);
+                            }
+                        },
+                        Pattern::Constructor(_, _) => return Err(CompileError::InvalidPatternInMatchCase),
+                        Pattern::UTuple(tup) => if tup.0.len() != 1 { return Err(CompileError::InvalidPatternInMatchCase) },
+                    }
+                }
+
+                if !has_wildcard {
+                    return Err(CompileError::NonExhaustiveMatch)
+                }
+            },
+            ExpressionType::Type(Type::ADT(aid)) => {
+                let mut used_constructors = HashSet::new();
+                for case in &match_expression.cases {
+                    match &case.pattern {
+                        Pattern::Integer(_) => return Err(CompileError::InvalidPatternInMatchCase),
+                        Pattern::UTuple(tup) => if tup.0.len() != 1 { return Err(CompileError::InvalidPatternInMatchCase) },
+                        Pattern::Constructor(fid, vars) => {
+                            let cons = program.get_constructor(fid)?;
+                            if &cons.adt.id != aid {
+                                return Err(CompileError::InvalidPatternInMatchCase);
+                            }
+        
+                            if vars.0.len() != cons.constructor.arguments.0.len() {
+                                return Err(CompileError::WrongVariableCountInMatchCase(case))
+                            }
+        
+                            if !used_constructors.insert(fid) {
+                                return Err(CompileError::MultipleOccurencesOfConstructorInMatch);
+                            }
+                        }
+                    }
+                }
+
+                let adt = program.adts.get(aid).unwrap();
+                if !has_wildcard && used_constructors.len() < adt.constructors.len() {
+                    return Err(CompileError::NonExhaustiveMatch)
+                }
+            },
+        };
+
+        Ok(())
+    }
+
+    // Returns a list of variables used within all paths of execution
+    // TODO: Check for reuse pairs / allocations
+    fn recursively_validate_fip_expression(&self, program: &'a ScopedProgram) -> Result<HashSet<&VariableDefinition>, CompileError>
+    {
+        let mut used_vars = HashSet::new();
+
+        /*if let Expression::FunctionCall(fid, vars) = &self.expr {
+            if program.constructors.contains_key(fid) && vars.0.len() > 0 {
+                return Err(CompileError::FIPFunctionAllocatesMemory)
+            }
+        }*/
+
+        match &self.expr {
+            Expression::FunctionCall(_, _) | Expression::UTuple(_) => {
+                for child in self.children.scopes() {
+                    let child_used_vars = child.recursively_validate_fip_expression(program)?;
+                    if let Some(double_var) = used_vars.intersection(&child_used_vars).next() {
+                        return Err(CompileError::FIPFunctionHasMultipleUsedVar(double_var.id.clone()))
+                    }
+
+                    used_vars.extend(child_used_vars);
+                }
+            },
+            Expression::Integer(_) => (),
+            Expression::Variable(vid) => { used_vars.insert(self.scope.get(vid).unwrap()); },
+            Expression::Match(expr) => {
+                let ScopeChildren::Match(e1, case_scopes) = &self.children else { panic!() };
+
+                used_vars.extend(e1.recursively_validate_fip_expression(program)?);
+
+                let mut cases_used_vars = None;
+
+                for (case, child) in expr.cases.iter().zip(case_scopes) {
+                    let mut child_used_vars = child.recursively_validate_fip_expression(program)?;
+
+                    match &case.pattern {
+                        Pattern::Integer(_) => (),
+                        Pattern::Constructor(_, vars) | Pattern::UTuple(vars) => {
+                            for vid in &vars.0 {
+                                if !child_used_vars.remove(&**child.scope.get(vid).unwrap()) {
+                                    return Err(CompileError::FIPFunctionHasUnusedVar(vid.clone()))
+                                }
+                            }
+                        },
+                    }
+
+                    if let Some(double_used_var) = child_used_vars.intersection(&used_vars).next() {
+                        return Err(CompileError::FIPFunctionHasMultipleUsedVar(double_used_var.id.clone()))
+                    }
+
+                    if let Some(cases_used_vars) = &cases_used_vars {
+                        let mut diff = child_used_vars.symmetric_difference(&cases_used_vars);
+
+                        if let Some(unused_var) = diff.next() {
+                            return Err(CompileError::FIPFunctionHasUnusedVar(unused_var.id.clone()))
+                        }
+                    } else { 
+                        cases_used_vars = Some(child_used_vars);
+                    };
+                }
+
+                if let Some(cases_used_vars) = cases_used_vars { used_vars.extend(cases_used_vars); }
+            },
+        }
+
+        return Ok(used_vars)
     }
 
     fn get_var(&'a self, vid: &'a VID) -> Result<&'a Rc<VariableDefinition>, CompileError<'a>> {
@@ -352,87 +506,94 @@ fn get_new_internal_id() -> usize {
 // Does type inference on variables and expression, with minimum type checking
 fn scope_expression<'a, 'b>(
     expr: &'a Expression, 
-    scope: &Scope<'a>, 
-    new_vars: Vec<VariableDefinition>, 
+    scope: Scope,
     function_signatures: &HashMap<FID, FunctionSignature>,
     constructor_signatures: &HashMap<FID, &'b ConstructorSignature>,
 ) -> Result<ScopedExpressionNode<'a>, CompileError<'a>> 
 {
-    let mut scope = scope.clone();
-    for var in new_vars {
-        scope.insert(var.id.clone(), Rc::new(var));
-    }
-
     let (children, tp) = match expr {
         Expression::UTuple(tup) => {
-            let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, &scope, vec![], function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
+            let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, scope.clone(), function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
             let tp = ExpressionType::UTuple(UTuple(
                 children.scopes().iter().map(|s| s.tp.tp().ok_or_else(|| CompileError::UnexpectedUTuple).map(|t| t.clone())).collect::<Result<_, _>>()?
             ));
             (children, tp)
         },
         Expression::FunctionCall(fid, tup) => {
-            let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, &scope, vec![], function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
+            let children = ScopeChildren::Many(tup.0.iter().map(|expr| scope_expression(expr, scope.clone(), function_signatures, constructor_signatures)).collect::<Result<_, _>>()?);
             let return_type = &function_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid))?.result_type;
             let tp = if return_type.0.len() == 1 { ExpressionType::Type(return_type.0[0].clone()) } else { ExpressionType::UTuple(return_type.clone()) };
             (children, tp)
         },
         Expression::Integer(_) => (ScopeChildren::Zero, ExpressionType::Type(Type::Int)),
         Expression::Variable(var) => 
-            (
-                ScopeChildren::Zero, 
-                ExpressionType::Type(scope.get(var).ok_or_else(|| CompileError::UnknownVariable(var))?.tp.clone())
-            ),
-        Expression::LetEqualIn(vars, e1, e2) => {
-            let mut new_vars = vec![];
-            
-            let signature = match &**e1 {
-                Expression::FunctionCall(fid, _) => function_signatures.get(fid).ok_or(CompileError::UnknownFunction(fid))?,
-                _ => return Err(CompileError::LetHasNoFunctionCall(expr))
-            };
-
-            if vars.0.len() != signature.result_type.0.len() {
-                return Err(CompileError::WrongVariableCountInLetStatement(&expr))
-            }
-
-            for (vid, tp) in vars.0.iter().zip(signature.result_type.0.iter()) {
-                new_vars.push(VariableDefinition { id: vid.clone(), tp: tp.clone(), internal_id: get_new_internal_id() });
-            }
-
-            let e1 = scope_expression(e1, &scope, vec![], function_signatures, constructor_signatures)?;
-            let e2 = scope_expression(e2, &scope, new_vars, function_signatures, constructor_signatures)?;
-
-            let tp = e2.tp.clone();
-            let children = ScopeChildren::Two(Box::new(e1), Box::new(e2));
-
-
-            (children, tp)
-        },
+        (
+            ScopeChildren::Zero, 
+            ExpressionType::Type(scope.get(var).ok_or_else(|| CompileError::UnknownVariable(var))?.tp.clone())
+        ),
         Expression::Match(match_expr) => {
-            let children = ScopeChildren::Many(
-                match_expr.cases.iter().map(|case| {
-                    let cons_sig: &ConstructorSignature = constructor_signatures.get(&case.cons_id).ok_or(CompileError::UnknownConstructor(&case.cons_id))?;
-                    if cons_sig.0.len() != case.vars.0.len() {
-                        panic!("Wrong number of arguments in match statement of case {}", case.cons_id);
-                    }
+            let match_on_scope = scope_expression(&match_expr.expr, scope.clone(), function_signatures, constructor_signatures)?;
+            let match_on_type = match_on_scope.tp.clone();
 
-                    scope_expression(
-                        &case.body,
-                        &scope, 
-                        case.vars.0.iter().zip(cons_sig.0.iter()).map(|(new_vid, tp)| {
-                            VariableDefinition {
-                                id: new_vid.clone(),
-                                tp: tp.clone(),
-                                internal_id: get_new_internal_id()
-                            }
-                        }).collect(),
-                        function_signatures,
-                        constructor_signatures
-                    )
-                }).collect::<Result<_, _>>()?
+            let case_scopes: Vec<ScopedExpressionNode<'_>> = match_expr.cases.iter().map(|case| {
+                match &case.pattern {
+                    Pattern::Integer(_) => scope_expression(&case.body, scope.clone(), function_signatures, constructor_signatures),
+                    Pattern::UTuple(vars) => {
+                        let types = match &match_on_type {
+                            ExpressionType::UTuple(tup) => tup.clone(),
+                            ExpressionType::Type(tp) => UTuple(vec![tp.clone()]),
+                        };
+
+                        scope_expression(
+                            &case.body,
+                            extended_scope(
+                                &scope, 
+                                vars.0.iter().zip(types.0.iter())
+                                .map(|(new_vid, tp)| {
+                                    VariableDefinition {
+                                        id: new_vid.clone(),
+                                        tp: tp.clone(),
+                                        internal_id: get_new_internal_id()
+                                    }
+                                })
+                            ),
+                            function_signatures,
+                            constructor_signatures
+                        )
+                    },
+                    Pattern::Constructor(fid, vars) => {
+                        let cons_sig: &ConstructorSignature = constructor_signatures.get(fid).ok_or(CompileError::UnknownConstructor(fid))?;
+                        if cons_sig.0.len() != vars.0.len() {
+                            panic!("Wrong number of arguments in match statement of case {}", fid);
+                        }
+
+                        scope_expression(
+                            &case.body,
+                            extended_scope(
+                                &scope, 
+                                vars.0.iter().zip(cons_sig.0.iter())
+                                .map(|(new_vid, tp)| {
+                                    VariableDefinition {
+                                        id: new_vid.clone(),
+                                        tp: tp.clone(),
+                                        internal_id: get_new_internal_id()
+                                    }
+                                })
+                            ),
+                            function_signatures,
+                            constructor_signatures
+                        )
+                    },
+                }
+            }).collect::<Result<_, _>>()?;
+
+            let tp = get_scopes_same_type(case_scopes.iter()).ok_or_else(|| CompileError::MissmatchedTypes(expr))?;
+
+            let children = ScopeChildren::Match(
+                Box::new(match_on_scope),
+                case_scopes
             );
 
-            let tp = children.get_same_type().ok_or_else(|| CompileError::MissmatchedTypes(expr))?;
             (children, tp)
         }
     };
@@ -445,10 +606,10 @@ fn scope_expression<'a, 'b>(
     })
 }
 
-impl PartialEq for VariableDefinition {
-    fn eq(&self, other: &Self) -> bool {
-       self.internal_id == other.internal_id
-    }
+fn extended_scope(base: &Scope, new_vars: impl Iterator<Item = VariableDefinition>) -> Scope {
+    let mut new_scope = base.clone();
+    new_scope.extend(new_vars.map(|x| (x.id.clone(), Rc::new(x))));
+    new_scope
 }
 
 // ==== PRETTY PRINT CODE ====

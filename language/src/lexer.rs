@@ -81,12 +81,14 @@ pub enum Token {
     #[regex("<|>|<=|>=|==|!=", |lex| lex.slice().to_string())]
     Comparator(String),
 
-    #[regex("[0-9][0-9]*", |lex| lex.slice().parse())]
+    #[regex("[0-9]+", |lex| lex.slice().parse())]
     Integer(i64),
     // #[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| lex.slice().to_owned())]
     // String(String),
-    #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
-    Identifier(String),
+    #[regex("_*[A-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
+    CapitalIdentifier(String),
+    #[regex("_*[a-z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
+    NonCapitalIdentifier(String)
 }
 
 pub fn lexer(src: &str) -> Vec<Token> {
