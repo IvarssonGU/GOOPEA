@@ -1,6 +1,6 @@
 use crate::ir::*;
 use crate::simple_ast::Operator;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fmt;
 use std::iter::Peekable;
 
@@ -183,8 +183,8 @@ impl Interpreter {
             local_vars.insert(name.clone(), val);
         }
 
-        let mut statements = function.body.iter().peekable();
-        while let Some(shit) = statements.next() {
+        let mut statements: VecDeque<IStatement> = function.body.clone();
+        while let Some(shit) = statements.pop_front() {
             match shit {
                 IStatement::Decl(_) => (), // does nothing
                 IStatement::InitConstructor(name, width) => {
@@ -192,15 +192,22 @@ impl Interpreter {
                     local_vars.insert(name.clone(), pointer as i64);
                 },
                 IStatement::AssignField(name, index, operand) => {
-                    let pointer = local_vars.get(name).unwrap();
-                    self.heap[*pointer as usize][*index as usize] = self.eval_op(operand, &local_vars);
+                    let pointer = local_vars.get(&name).unwrap();
+                    self.heap[*pointer as usize][*index as usize] = self.eval_op(&operand, &local_vars);
                 },
                 IStatement::Assign(name, operand) => {
-                    local_vars.insert(name.clone(), self.eval_op(operand, &local_vars));
+                    local_vars.insert(name.clone(), self.eval_op(&operand, &local_vars));
                 }
-                IStatement::IfExpr(bruh) => for (op, code) in bruh {},
-                IStatement::Return(operand) => return self.eval_op(operand, &local_vars),
-                IStatement::Print(operand) => println!("{}", self.eval_op(operand, &local_vars)),
+                IStatement::IfExpr(bruh) => {
+                    for (op, code) in bruh {
+                        if self.eval_op(&op, &local_vars) == 1 {
+                            statements = code.append(statements);
+                            break;
+                        }
+                    }
+                },
+                IStatement::Return(operand) => return self.eval_op(&operand, &local_vars),
+                IStatement::Print(operand) => println!("{}", self.eval_op(&operand, &local_vars)),
             }
         }
 
@@ -211,7 +218,7 @@ impl Interpreter {
         match op {
             Operand::Identifier(name) => *local_variables
                 .get(name)
-                .expect(&format!("Cant find identifier {}", name)),
+                .expect(&format!("Identifier '{}' should be in scope but is not", name)),
             Operand::BinOp(operator, operand, operand1) => {
                 let left = self.eval_op(operand, local_variables);
                 let right = self.eval_op(operand1, local_variables);
@@ -255,3 +262,4 @@ pub fn interpreter_test() {
 
     println!("hello test");
 }
+
