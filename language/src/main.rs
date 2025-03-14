@@ -21,7 +21,10 @@ fn main() {
     println!("{base_program}");
 
     let scoped_program = ScopedProgram::new(base_program).unwrap();
+    println!("{scoped_program}");
+
     let typed_program = TypedProgram::new(scoped_program).unwrap();
+    println!("{typed_program}");
 }
 
 #[cfg(test)]

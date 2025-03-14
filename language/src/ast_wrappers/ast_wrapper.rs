@@ -1,5 +1,7 @@
 use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}, hash::Hash, iter, ops::Deref, rc::Rc, sync::atomic::AtomicUsize};
 
+use super::{scope_wrapper::Scope, type_wrapper::ExpressionType};
+
 pub type FID = String; // Function ID, (also including ADT constructors)
 pub type VID = String; // Variable ID
 pub type AID = String; // ADT ID
@@ -288,43 +290,144 @@ pub fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
     write!(f, "{}", "    ".repeat(indent))
 }
 
-impl<D> Display for WrappedProgram<D> {
+impl<D: DisplayData> Display for WrappedProgram<D> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        /*for (_, def) in &self.adts {
-            writeln!(f, "{def}")?;
-        }*/
+        for (aid, constructors) in &self.adts {
+            writeln!(f, "enum {aid} = ")?;
+            write_separated_list(f, constructors.iter(), ",\n", |f, fid| {
+                let args = &self.constructors[fid].args;
 
-        /*for (_, def) in &self.functions {
-            writeln!(f, "{def}")?;
-        }*/
+                write_indent(f, 1)?;
+                write!(f, "{fid}{args}")
+            })?;
 
-        Ok(())
-    }
-}
-
-/*impl Display for ADTDefinition {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "enum {} = \n", self.id)?;
-        write_indent(f, 1)?;
-
-        write!(f, "{}", self.constructors[0])?;
-        for cons in self.constructors.iter().skip(1) {
-            writeln!(f, ",")?;
-            write_indent(f, 1)?;
-            write!(f, "{cons}")?;
+            writeln!(f)?;
+            writeln!(f)?;
         }
 
-        write!(f, ";")?;
+        for (fid, func) in &self.functions {
+            writeln!(f, "{}\n{fid}{} =", func.signature, func.vars)?;
+            write_expression_node(f, &func.body, 1)?;
+            write!(f, ";")?;
+            writeln!(f)?;
+            writeln!(f)?;
+        }
 
         Ok(())
     }
 }
 
-impl Display for ConstructorDefinition {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{}{}", self.id, self.arguments)
+fn write_expression_node<D: DisplayData>(f: &mut Formatter<'_>, node: &ExpressionNode<D>, indent: usize) -> std::fmt::Result {
+    node.data.fmt(f, indent)?;
+
+    write_indent(f, indent)?;
+    match &node.expr {
+        Expression::UTuple(utuple) => {
+            write!(f, "(")?;
+
+            if utuple.0.len() > 0 {
+                write_separated_list(f, utuple.0.iter(), ",", |f, x| {
+                    writeln!(f)?;
+                    write_expression_node(f, x, indent+1)
+                })?;
+                writeln!(f)?;
+    
+                write_indent(f, indent)?;
+            }
+
+            write!(f, ")")?;
+
+            Ok(())
+        },
+        Expression::FunctionCall(fid, utuple) => {
+            write!(f, "{fid}(",)?;
+
+            if utuple.0.len() > 0 {
+                write_separated_list(f, utuple.0.iter(), ",", |f, x| {
+                    writeln!(f)?;
+                    write_expression_node(f, x, indent+1)
+                })?;
+                writeln!(f)?;
+    
+                write_indent(f, indent)?;
+            }
+
+            write!(f, ")")?;
+
+            Ok(())
+        },
+        Expression::Integer(x) => write!(f, "{x}"),
+        Expression::Variable(var) => write!(f, "{var}"),
+        Expression::Match(expression_node, items) => {
+            writeln!(f, "match")?;
+            write_expression_node(f, expression_node, indent + 1)?;
+
+            writeln!(f)?;
+            write_indent(f, indent)?;
+            writeln!(f, "{{")?;
+
+            write_separated_list(f, items.iter(), ",\n", |f, (pattern, body)| {
+                write_indent(f, indent + 1)?;
+                writeln!(f, "{pattern}:")?;
+                write_expression_node(f, body, indent + 2)
+            })?;
+
+            writeln!(f)?;
+            write_indent(f, indent)?;
+            write!(f, "}}")?;
+
+            Ok(())
+        },
     }
-}*/
+}
+
+trait DisplayData {
+    fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result;
+}
+
+impl DisplayData for () {
+    fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
+        Ok(())
+    }
+}
+
+impl DisplayData for Scope {
+    fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
+        write_indent(f, indent)?;
+        write!(f, "// scope: {{")?;
+        write_separated_list(f, self.iter(), ", ", |f, (_, val)| { write!(f, "{}|{}", val.internal_id, val.id) })?;
+        writeln!(f, "}}")
+    }
+}
+
+impl DisplayData for ExpressionType {
+    fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
+        write_indent(f, indent)?;
+        writeln!(f, "// type: {}", self)
+    }
+}
+
+impl Display for ExpressionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExpressionType::UTuple(utuple) => write!(f, "{utuple}"),
+            ExpressionType::Type(tp) => write!(f, "{tp}"),
+        }
+    }
+}
+
+impl<A: DisplayData, B: DisplayData> DisplayData for ChainedData<A, B> {
+    fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
+        self.prev.fmt(f, indent)?;
+        self.data.fmt(f, indent)
+    }
+}
+
+impl<D: DisplayData> Display for ExpressionNode<D> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write_expression_node(f, self, 0)
+    }
+}
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -337,7 +440,7 @@ impl Display for Type {
 
 impl Display for FunctionSignature {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.is_fip { write!(f, "fip")?; }
+        if self.is_fip { write!(f, "fip ")?; }
 
         write!(f, "{}:{}", self.argument_type, self.result_type)
     }
@@ -387,7 +490,7 @@ impl Display for Pattern {
         match self {
             Pattern::Integer(x) => write!(f, "{x}"),
             Pattern::Constructor(fid, vars) => {
-                write!(f, "{} ", fid)?;
+                write!(f, "{}", fid)?;
                 write_implicit_utuple(f, &vars.0, ", ", |f, vid| write!(f, "{vid}"))
             },
             Pattern::UTuple(utuple) => {
