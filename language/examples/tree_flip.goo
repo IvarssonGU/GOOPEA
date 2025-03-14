@@ -1,0 +1,19 @@
+enum Tree = Empty, Node(Tree, Int, Tree);
+
+(): Tree
+build = Node(Node(Node(Empty, 15, Empty), 10, Node(Empty, 52, Empty)), 5, Node(Node(Empty, 69, Empty), 23, Empty));
+
+Tree: Int
+sum tree = match tree {
+    Empty: 0,
+    Node(left, value, right): sum(left) + value + sum(right)
+};
+
+Tree: Tree
+flip tree = match tree {
+    Empty: Empty,
+    Node(left, value, right): Node(flip(right), value, flip(left))
+};
+
+(): Int
+main = sum(flip(build()));
