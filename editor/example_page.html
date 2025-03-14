@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./codemirror/codemirror.css">
+    <link rel="stylesheet" href="./static/css/example_page.css">
+	<link rel="stylesheet" href="./static/css/navbar.css">
+	<link rel="stylesheet" href="./static/css/diagram_slideshow.css">
+
+    <title>GOOPEA examples</title>
+</head>
+<body>
+    <div class="nav">
+		<a href="index.html" class="logo">GOOPEA playground</a>
+		<a href="index.html">Editor</a>
+		<a href="example_page.html" class="current-page">Examples</a>
+		<a href="documentation_page.html">Documentation</a>
+	</div>
+
+    <div class="container">
+        <table width="100%">
+            <tr>
+                <th>
+                    Example 1: reverse
+                    <button id="temp-button">run</button>
+                </th>
+                <th>Diagram</th>
+            </tr>
+            <tr>
+                <td id="example1-code-cell">
+                    <textarea id="example1-code">
+enum List = Nil, Cons(Int, List);
+
+fip (List, List): List
+ReverseHelper(list, acc) =
+        match list {
+            Nil: acc,
+            Cons(x, xs): ReverseHelper(xs, Cons(x, acc))
+        };
+
+fip List: List
+ReverseList list = ReverseHelper(list, Nil);
+
+fip (): ()
+Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
+</textarea>
+                </td>
+                <td rowspan="3" id="example1-diagrams-cell">
+                    <div class="example1-diagrams">
+                        <div class="slide">
+                            <div class="numbering">1/27</div>
+                            <img src="example-diagrams/example1/img_00.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">2/27</div>
+                            <img src="example-diagrams/example1/img_01.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">3/27</div>
+                            <img src="example-diagrams/example1/img_02.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">4/27</div>
+                            <img src="example-diagrams/example1/img_03.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">5/27</div>
+                            <img src="example-diagrams/example1/img_04.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">6/27</div>
+                            <img src="example-diagrams/example1/img_05.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">7/27</div>
+                            <img src="example-diagrams/example1/img_06.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">8/27</div>
+                            <img src="example-diagrams/example1/img_07.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">9/27</div>
+                            <img src="example-diagrams/example1/img_08.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">10/27</div>
+                            <img src="example-diagrams/example1/img_09.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">11/27</div>
+                            <img src="example-diagrams/example1/img_10.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">12/27</div>
+                            <img src="example-diagrams/example1/img_11.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">13/27</div>
+                            <img src="example-diagrams/example1/img_12.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">14/27</div>
+                            <img src="example-diagrams/example1/img_013.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">15/27</div>
+                            <img src="example-diagrams/example1/img_14.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">16/27</div>
+                            <img src="example-diagrams/example1/img_15.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">17/27</div>
+                            <img src="example-diagrams/example1/img_16.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">18/27</div>
+                            <img src="example-diagrams/example1/img_17.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">19/27</div>
+                            <img src="example-diagrams/example1/img_18.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">20/27</div>
+                            <img src="example-diagrams/example1/img_19.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">21/27</div>
+                            <img src="example-diagrams/example1/img_20.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">22/27</div>
+                            <img src="example-diagrams/example1/img_21.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">23/27</div>
+                            <img src="example-diagrams/example1/img_22.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">24/27</div>
+                            <img src="example-diagrams/example1/img_23.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">25/27</div>
+                            <img src="example-diagrams/example1/img_24.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">26/27</div>
+                            <img src="example-diagrams/example1/img_25.png" style="width:100%">
+                        </div>
+                        <div class="slide">
+                            <div class="numbering">27/27</div>
+                            <img src="example-diagrams/example1/img_26.png" style="width:100%">
+                        </div>
+
+                        <a class="prev-arrow" onclick="change_slide(-1)">&larr;</a>
+                        <a class="next-arrow" onclick="change_slide(1)">&rarr;</a>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th id="output-title-cell">Output</th>
+            </tr>
+            <tr>
+                <td id="example1-output-cell">
+                    <textarea id="example1-output" readonly="true">
+Cons(3, Cons(2, Cons(1, Nil)))
+</textarea>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <script src="./codemirror/codemirror.js"></script>
+	<script src="./codemirror/active_line.js"></script>
+    <script src="./codemirror/simple_mode.js"></script>
+	<script src="./static/js/GOOPEA_mode.js"></script>
+	<script src="./static/js/example_page.js"></script>
+</body>
+</html>

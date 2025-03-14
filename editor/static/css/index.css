@@ -1,0 +1,89 @@
+body {
+    text-align: center;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+button {
+    cursor: pointer;
+}
+
+.container {
+    width: 100%;
+    height: 80vh;
+    text-align: left;
+}
+
+#editor {
+    height: 100%;
+}
+
+#output {
+    /* width: 99%; */
+    height: 99%;
+    /* margin-top: -2px; */
+}
+
+.output-container {
+    height: 100%;
+    width: 100%;
+}
+
+#code-cell {
+    border: 1px solid gray;
+    border-radius: 2px;
+}
+
+table {
+    table-layout: fixed;
+}
+
+th {
+    padding-left: 15px;
+}
+
+/* table, th, td {
+    border:2px solid black;
+} */
+
+textarea {
+    outline: none;
+    resize: none;
+    width: 99%;
+    border: none;
+}
+
+#code-cell, #output-cell {
+    height:70vh;
+}
+
+#output-cell {
+    border: 1px solid gray;
+    border-radius: 2px;
+}
+
+#display {
+    width: 100%;
+    height:fit-content;
+    text-align: right;
+}
+
+#filler-div {
+    display:inline-block;
+}
+
+#runtime {
+    display:inline-block;
+    padding: 15px 15px 15px 15px;
+    border: 1px solid gray;
+    border-radius: 2px;
+}
+
+/* containing run and clear buttons */
+ #button-cell { 
+    text-align: right;
+    /* width:min-content; */
+}
+
+#run-button {
+    margin-right: 15px;
+}

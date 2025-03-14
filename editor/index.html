@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="./codemirror/codemirror.css">
+	<link rel="stylesheet" href="./static/css/index.css">
+	<link rel="stylesheet" href="./static/css/navbar.css">
+
+	<title>GOOPEA editor</title>
+</head>
+<body>
+	<div class="nav">
+		<a href="index.html" class="logo">GOOPEA playground</a>
+		<a href="index.html" class="current-page">Editor</a>
+		<a onclick="save_code(0)">Examples</a>
+		<a onclick="save_code(1)">Documentation</a>
+	</div>
+
+	<div class="container">
+		<table width="100%">
+			<tr>
+				<th>Code</th>
+				<th id="button-cell">
+					<button onclick="clear_button_clicked()" id="clear-button">Clear</button>
+					<button onclick="run_button_clicked()" id="run-button">Run</button>
+				</th>
+				<th>Output</th>
+			</tr>
+			<tr id="text-row">
+				<td colspan="2" id="code-cell">
+					<textarea id="code"></textarea>
+				</td>
+				<td colspan="2" id="output-cell">
+					<div class="output-container">
+						<textarea id="output" readonly="true" placeholder="your code will output here" height="100%"></textarea>
+					</div>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="4" id="display">
+					<div id="filler-div"></div>
+					<div id="runtime">
+						Runtime: N/A
+					</div>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<script src="./pkg/editor.js"></script>
+	<script src="./codemirror/codemirror.js"></script>
+	<script src="./codemirror/active_line.js"></script>
+	<script src="./codemirror/simple_mode.js"></script>
+	<script src="./codemirror/close_brackets.js"></script>
+	<script src="./codemirror/key_map.js"></script>
+	<script src="./codemirror/match_brackets.js"></script>
+	<script src="./codemirror/comment.js"></script>
+	<script src="./static/js/GOOPEA_mode.js"></script>
+	<script src="./static/js/index.js"></script>
+</body>
+
+</html>
