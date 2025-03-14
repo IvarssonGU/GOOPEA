@@ -21,10 +21,12 @@ fn main() {
 
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
     let base_program = BaseProgram::new(program).unwrap();
+    //println!("{base_program}");
+
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
 
-    //scoped_program.validate().unwrap();
+    dbg!(typed_program);
 }
 
 #[cfg(test)]

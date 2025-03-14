@@ -84,7 +84,7 @@ pub fn from_scoped(ast: &TypedProgram) -> Program {
 }
 
 fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
-    match &expr.data.prev.prev {
+    match &expr.expr {
         ast::Expression::FunctionCall(id) => {
             match id.as_str() {
                 "+" => Expression::Operation(Operator::Add, Box::from(from_expression(expr.children.all_children()[0], ast)), Box::from(from_expression(expr.children.all_children()[1], ast))),

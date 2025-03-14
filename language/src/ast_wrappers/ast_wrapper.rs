@@ -20,6 +20,7 @@ pub struct WrappedFunction<D> {
 #[derive(Debug)]
 pub struct ExprWrapper<D> {
     pub children: ExprChildren<D>,
+    pub expr: Expression,
     pub data: D
 }
 
@@ -54,8 +55,8 @@ impl<D> ExprChildren<D> {
 }
 
 impl<D> ExprWrapper<D> {
-    pub fn new(data: D, children: ExprChildren<D>) -> Self {
-        ExprWrapper { data, children }
+    pub fn new(expr: Expression, data: D, children: ExprChildren<D>) -> Self {
+        ExprWrapper { data, children, expr }
     }
 }
 
@@ -287,116 +288,116 @@ impl<D, P> Deref for ChainedData<D, P> {
     }
 }*/
 
+
 // ==== PRETTY PRINT CODE ====
 
-/*pub fn write_scope<T>(
-    f: &mut std::fmt::Formatter<'_>, 
-    scope: &HashMap<String, T>, 
+pub fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
+    write!(f, "{}", "    ".repeat(indent))
+}
+
+impl<D: Display> Display for WrappedProgram<D> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for (_, def) in &self.adts {
+            writeln!(f, "{def}")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for ADTDefinition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "enum {} = \n", self.id)?;
+        write_indent(f, 1)?;
+
+        write!(f, "{}", self.constructors[0])?;
+        for cons in self.constructors.iter().skip(1) {
+            writeln!(f, ",")?;
+            write_indent(f, 1)?;
+            write!(f, "{cons}")?;
+        }
+
+        write!(f, ";")?;
+
+        Ok(())
+    }
+}
+
+impl Display for ConstructorDefinition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{} {}", self.id, self.arguments)
+    }
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Int => write!(f, "Int"),
+            Type::ADT(id) => write!(f, "{}", id)
+        }
+    }
+}
+
+impl Display for FunctionSignature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.is_fip { write!(f, "fip")?; }
+
+        write!(f, "{}:{}", self.argument_type, self.result_type)
+    }
+}
+
+impl<T : Display> Display for UTuple<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write_implicit_utuple(f, &self.0, ", ", |f, t| write!(f, "{t}"))
+    }
+}
+
+pub fn write_implicit_utuple<T>(
+    f: &mut Formatter, 
+    items: &Vec<T>,
+    separator: &str,
     write: impl Fn(&mut Formatter, &T) -> std::fmt::Result
+) -> std::fmt::Result
+{
+    if items.len() == 0 { Ok(()) }
+    else if items.len() == 1 { 
+        write(f, &items[0]) 
+    } else {
+        write!(f, "(")?;
+        write_separated_list(f, items.iter(), separator, write)?;
+        write!(f, ")")
+    }
+}
+
+
+pub fn write_separated_list<T>(
+    f: &mut Formatter, 
+    iter: impl Iterator<Item = T>, 
+    separator: &str,
+    write: impl Fn(&mut Formatter, T) -> std::fmt::Result
 ) -> std::fmt::Result 
 {
-    write!(f, "{{")?;
+    let mut iter = iter.peekable();
+    while let Some(item) = iter.next() {
+        write(f, item)?;
 
-    write_separated_list(f, scope.iter(), ", ", |f, (_, val)| { write(f, val) })?;
-
-    write!(f, "}}")
-}
-
-impl Display for ExpressionType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match &self {
-            ExpressionType::UTuple(utuple) => write_implicit_utuple(f, &utuple.0, ", ", |f, x| write!(f, "{x}")),
-            ExpressionType::Type(tp) => write!(f, "{tp}"),
-        }
-    }
-}
-
-impl Display for ScopedProgram<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "// === Scoped Program ===")?;
-
-        write!(f, "// ADTs: ")?;
-        write_scope(f, &self.adts, |f, x| write!(f, "{}", x.id))?;
-        writeln!(f)?;
-
-        write!(f, "// Constructors: ")?;
-        write_scope(f, &self.constructors, |f, x| write!(f, "{}/{}", x.adt.id, x.constructor.id))?;
-        writeln!(f)?;
-
-        write!(f, "// Functions: ")?;
-        write_scope(f, &self.functions, |f, x| write!(f, "{}[{}]", x.def.id, x.def.signature))?;
-        writeln!(f)?;
-
-        writeln!(f)?;
-        writeln!(f, "// === ADT Definitions ===")?;
-        for (_, adt) in &self.adts {
-            writeln!(f, "{}\n", adt)?;
-        }
-
-        writeln!(f, "// === Scoped Functions ===")?;
-        for (_, func) in &self.functions {
-            writeln!(f, "{}\n", func)?;
-        }
-
-
-        Ok(())
-    }
-}
-
-impl<'a> Display for WrappedFunction<'a, (ExpressionType, Scope), Expression> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.def.signature)?;
-        write!(f, "{} ", self.def.id)?;
-        write_implicit_utuple(f, &self.def.variables.0, ", ", |f, x| write!(f, "{x}"))?;
-        writeln!(f, " = ")?;
-
-        write_scoped_expression_node(f, &self.body,1)?;
-
-        Ok(())
-    }
-}
-
-fn write_scoped_expression_node<'a>(f: &mut Formatter<'_>, node: &'a ScopeWrapper<'a>, indent: usize) -> std::fmt::Result {
-    write_indent(f, indent)?;
-    write!(f, "// type = {}, scope = ", node.data.0)?;
-    write_scope(f, &node.data.1, |f, x| write!(f, "{}|{}[{}]", x.id, x.internal_id, x.tp))?;
-    writeln!(f)?;
-
-    match &node.expr {
-        /*Expression::UTuple(_) => {
-            write_implicit_utuple(f, &node.children.scopes(), ",\n", move |f, x| {
-                write_indent(f, indent)?;
-                write_scoped_expression_node(f, x, previous_scope, indent+1)
-            })?;
-
-            writeln!(f)?;
-        },*/
-        //Expression::FunctionCall(_, utuple) => todo!(),
-        //Expression::Integer(_) => todo!(),
-        //Expression::Variable(_) => todo!(),
-        //Expression::Match(match_expression) => todo!(),
-        //Expression::Operation(operator, expression, expression1) => todo!(),
-        //Expression::LetEqualIn(utuple, expression, expression1) => todo!(),
-        _ => {
-            for child in node.children.all_children() {
-                write_scoped_expression_node(f, child, indent+1)?;
-            }
-        }
+        if iter.peek().is_some() { write!(f, "{separator}")?; }
     }
 
     Ok(())
 }
 
-fn scopes_are_equal(s1: &Scope, s2: &Scope) -> bool {
-    for (id, def) in s1 {
-        let Some(other_def) = s2.get(id) else { return false; };
-        if def != other_def { return false; }
+impl Display for Pattern {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pattern::Integer(x) => write!(f, "{x}"),
+            Pattern::Constructor(fid, vars) => {
+                write!(f, "{} ", fid)?;
+                write_implicit_utuple(f, &vars.0, ", ", |f, vid| write!(f, "{vid}"))
+            },
+            Pattern::UTuple(utuple) => {
+                write_implicit_utuple(f, &utuple.0, ", ", |f, vid| { write!(f, "{vid}") })
+            },
+        }
     }
-
-    for (id, def) in s2 {
-        let Some(other_def) = s1.get(id) else { return false; };
-        if def != other_def { return false; }
-    }
-
-    true
-}*/
+}

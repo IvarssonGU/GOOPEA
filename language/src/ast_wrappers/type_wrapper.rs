@@ -85,7 +85,7 @@ pub fn type_expression(
     function_signatures: &HashMap<FID, FunctionSignature>
 ) -> Result<TypeWrapper, CompileError> 
 {
-    let (children, tp) = match &expr.data.prev {
+    let (children, tp) = match &expr.expr {
         Expression::UTuple => {
             let ExprChildren::Many(scoped_children) = expr.children else { panic!() };
             let typed_children = ExprChildren::Many(scoped_children.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?);
@@ -165,6 +165,7 @@ pub fn type_expression(
 
     Ok(ExprWrapper {
         children,
+        expr: expr.expr,
         data: ChainedData { data: tp, prev: expr.data }
     })
 }

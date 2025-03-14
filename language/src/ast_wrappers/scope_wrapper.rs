@@ -2,9 +2,9 @@ use std::{collections::HashMap, hash::Hash, rc::Rc, sync::atomic::AtomicUsize};
 
 use crate::{ast::{Definition, Expression, Pattern, Program, Type, UTuple, FID, VID}, error::CompileError};
 
-use super::{ast_wrapper::{ChainedData, ConstructorReference, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram}, base_wrapper::{BaseProgram, BaseWrapper, BaseWrapperData}, type_wrapper::ExpressionType};
+use super::{ast_wrapper::{ChainedData, ConstructorReference, ExprChildren, ExprWrapper, WrappedFunction, WrappedProgram}, base_wrapper::{BaseProgram, BaseWrapper}, type_wrapper::ExpressionType};
 
-pub type ScopeWrapperData = ChainedData<Scope, BaseWrapperData>;
+pub type ScopeWrapperData = Scope;
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
 pub type ScopeWrapper = ExprWrapper<ScopeWrapperData>;
 
@@ -44,7 +44,7 @@ pub fn scope_expression<'a>(
     scope: Scope
 ) -> Result<ScopeWrapper, CompileError> 
 {
-    let children = match &expr.data {
+    let children = match &expr.expr {
         Expression::UTuple | Expression::FunctionCall(_) => {
             let ExprChildren::Many(children) = expr.children else { panic!() };
             ExprChildren::Many(children.into_iter().map(|expr| scope_expression(expr, scope.clone())).collect::<Result<_, _>>()?)
@@ -84,7 +84,8 @@ pub fn scope_expression<'a>(
 
     Ok(ExprWrapper {
         children,
-        data: ChainedData { data: scope, prev: expr.data }
+        expr: expr.expr,
+        data: scope
     })
 }
 

@@ -110,7 +110,7 @@ Expression: BaseWrapper = {
 
     #[precedence(level="1")]
     <id: "cap_id"> <arg: Expression> => {
-        match arg.data {
+        match arg.expr {
             Expression::UTuple => {
                 let ExprChildren::Many(children) = arg.children else { panic!() };
                 BaseWrapper::function_call(id, UTuple(children))
