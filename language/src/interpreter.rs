@@ -6,14 +6,14 @@ use std::iter::Peekable;
 
 fn extract_ifs<'a, T: Iterator<Item = &'a Statement>>(
     statements: &mut Peekable<T>,
-) -> Vec<(Operand, Vec<IStatement>)> {
+) -> Vec<(IOperand, Vec<IStatement>)> {
     let mut chain = Vec::new();
 
     loop {
         let condition = match statements.next().unwrap() {
             Statement::If(operand) | Statement::ElseIf(operand) => {
                 let body = extract_body(statements);
-                (operand.clone(), body)
+                (IOperand::from_op(operand), body)
             }
             _ => panic!("yolo"),
         };
@@ -38,36 +38,49 @@ fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
     while let Some(statement) = statements.peek() {
         let x = match statement {
             Statement::If(_) => IStatement::IfExpr(extract_ifs(statements)),
-            Statement::ElseIf(_) => todo!(),
+            Statement::ElseIf(_) => panic!("this should not happen"),
+            Statement::Else => todo!(),
             Statement::EndIf => {
-                statements.next();
                 break;
             }
-            Statement::Decl(s) => {
-                statements.next();
-                IStatement::Decl(s.clone())
+            Statement::Decl(id) => IStatement::Decl(id.clone()),
+            Statement::InitConstructor(id, i) => IStatement::InitConstructor(id.clone(), *i),
+            Statement::Return(operand) => IStatement::Return(IOperand::from_op(operand)),
+            Statement::Print(operand) => IStatement::Print(IOperand::from_op(operand)),
+            Statement::Inc(operand) => IStatement::Inc(IOperand::from_op(operand)),
+            Statement::Dec(operand) => IStatement::Dec(IOperand::from_op(operand)),
+            Statement::Assign(_, id, operand) => {
+                IStatement::Assign(id.clone(), IOperand::from_op(operand))
             }
-            Statement::InitConstructor(s, i) => {
-                statements.next();
-                IStatement::InitConstructor(s.clone(), *i)
+            Statement::AssignToField(id, i, operand) => {
+                IStatement::AssignToField(id.clone(), *i, IOperand::from_op(operand))
             }
-            Statement::AssignField(s, i, o) => {
-                statements.next();
-                IStatement::AssignField(s.clone(), *i, o.clone())
+            Statement::AssignFromField(id, i, operand) => {
+                IStatement::AssignFromField(id.clone(), *i, IOperand::from_op(operand))
             }
-            Statement::Assign(_, s, operand) => {
-                statements.next();
-                IStatement::Assign(s.clone(), operand.clone())
+            Statement::AssignBinaryOperation(id, operator, operand, operand1) => {
+                IStatement::AssignBinaryOperation(
+                    id.clone(),
+                    operator.clone(),
+                    IOperand::from_op(operand),
+                    IOperand::from_op(operand1),
+                )
             }
-            Statement::Return(o) => {
-                statements.next();
-                IStatement::Return(o.clone())
+            Statement::AssignConditional(id, b, operand, i) => {
+                IStatement::AssignConditional(id.clone(), *b, IOperand::from_op(operand), *i)
             }
-            Statement::Print(o) => {
-                statements.next();
-                IStatement::Print(o.clone())
+            Statement::AssignFunctionCall(id, f, operands) => {
+                // first add a function call that puts the returned value in a register
+                istatements.push(IStatement::FunctionCall(
+                    f.clone(),
+                    operands.iter().map(IOperand::from_op).collect(),
+                ));
+                // then assign the value to the identifier
+                IStatement::AssignReturnvalue(id.clone())
             }
         };
+        // consume if not if
+        statements.next_if(|x| !matches!(x, Statement::If(_)));
         istatements.push(x);
     }
 
@@ -91,6 +104,200 @@ impl IDef {
             body: body,
         }
     }
+}
+
+#[allow(unused)]
+#[derive(Debug, Clone)]
+pub enum IStatement {
+    Decl(String),
+    IfExpr(Vec<(IOperand, Vec<IStatement>)>),
+    InitConstructor(String, i64),
+    Return(IOperand),
+    Print(IOperand),
+    Inc(IOperand),
+    Dec(IOperand),
+    Assign(String, IOperand),
+    AssignToField(String, i64, IOperand),
+    AssignFromField(String, i64, IOperand),
+    AssignBinaryOperation(String, Operator, IOperand, IOperand),
+    AssignConditional(String, bool, IOperand, i64),
+    FunctionCall(String, Vec<IOperand>),
+    AssignReturnvalue(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum IOperand {
+    Ident(String),
+    Int(i64),
+    // Atom(i64),
+    // Pointer(usize),
+}
+impl IOperand {
+    fn from_op(operand: &Operand) -> Self {
+        match operand {
+            Operand::Ident(id) => Self::Ident(id.clone()),
+            Operand::Int(i) => Self::Int(i >> 1),
+            Operand::NonShifted(i) => Self::Int(*i),
+        }
+    }
+}
+
+pub struct Interpreter {
+    functions: HashMap<String, IDef>,
+    heap: Vec<Vec<i64>>,
+    statements: VecDeque<IStatement>,
+    statement_stack: Vec<VecDeque<IStatement>>,
+    local_variables: HashMap<String, i64>,
+    variable_stack: Vec<HashMap<String, i64>>,
+    return_value: IOperand,
+}
+
+impl Interpreter {
+    pub fn new() -> Self {
+        Interpreter {
+            functions: HashMap::new(),
+            heap: Vec::new(),
+            statements: VecDeque::new(),
+            statement_stack: Vec::new(),
+            local_variables: HashMap::new(),
+            variable_stack: Vec::new(),
+            return_value: IOperand::Int(0),
+        }
+    }
+
+    pub fn with_fn(mut self, function: IDef) -> Self {
+        self.functions.insert(function.id.clone(), function);
+        self
+    }
+
+    fn malloc(&mut self, width: usize) -> usize {
+        self.heap.push(vec![0; width]);
+        self.heap.len() - 1
+    }
+
+    pub fn step(&mut self) -> Result<(), ()> {
+        let s = self.statements.pop_front();
+        if let Some(statement) = s {
+            match statement {
+                IStatement::Decl(_) => todo!(), // does nothing
+                IStatement::IfExpr(items) => {
+                    for (operand, statements) in items {
+                        if self.eval_op(&operand, &self.local_variables) == 1 {
+                            // beautiful code🦀
+                            // inside_if ++ old_code
+                            let mut new_list = statements.clone();
+                            new_list.extend(self.statements.clone().into_iter());
+                            self.statements = new_list.into();
+                            break;
+                        }
+                    }
+                }
+                IStatement::InitConstructor(_, _) => todo!(),
+                IStatement::Return(ioperand) => {
+                    self.return_value = ioperand;
+                    self.statements = self.statement_stack.pop().expect("this should not happen");
+                    self.local_variables =
+                        self.variable_stack.pop().expect("this should not happen");
+                }
+                IStatement::Print(ioperand) => println!("> {:?}", ioperand),
+                IStatement::Inc(ioperand) => todo!(),
+                IStatement::Dec(ioperand) => todo!(),
+                IStatement::Assign(id, ioperand) => {
+                    self.local_variables
+                        .insert(id, self.eval_op(&ioperand, &self.local_variables));
+                }
+                IStatement::AssignToField(id, i, ioperand) => {
+                    let ptr = *self
+                        .local_variables
+                        .get(&id)
+                        .expect("expected variable to be in scope");
+                    let val = self.eval_op(&ioperand, &self.local_variables);
+                    self.heap[ptr as usize][i as usize] = val;
+                }
+                IStatement::AssignFromField(id, i, ioperand) => {
+                    let ptr = self.eval_op(&ioperand, &self.local_variables);
+                    let val = self.heap[ptr as usize][i as usize];
+                    self.local_variables.insert(id, val);
+                }
+                IStatement::AssignBinaryOperation(id, operator, ioperand, ioperand1) => {
+                    let lhs = self.eval_op(&ioperand, &self.local_variables);
+                    let rhs = self.eval_op(&ioperand1, &self.local_variables);
+                    let val = match operator {
+                        Operator::Equal => (lhs == rhs) as i64,
+                        Operator::NotEqual => (lhs != rhs) as i64,
+                        Operator::Less => (lhs < rhs) as i64,
+                        Operator::LessOrEq => (lhs <= rhs) as i64,
+                        Operator::Greater => (lhs > rhs) as i64,
+                        Operator::GreaterOrEqual => (lhs >= rhs) as i64,
+                        Operator::Add => lhs + rhs,
+                        Operator::Sub => lhs - rhs,
+                        Operator::Mul => lhs * rhs,
+                        Operator::Div => lhs / rhs,
+                    };
+                    self.local_variables.insert(id, val);
+                }
+                IStatement::AssignConditional(_, _, ioperand, _) => todo!(),
+                IStatement::FunctionCall(fid, ioperands) => {
+                    self.enter_fn(
+                        &fid,
+                        ioperands
+                            .iter()
+                            .map(|x| self.eval_op(x, &self.local_variables))
+                            .collect(),
+                    );
+                }
+                IStatement::AssignReturnvalue(id) => {
+                    self.local_variables.insert(id, self.eval_op(&self.return_value, &self.local_variables));
+                }
+            }
+
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn enter_fn(&mut self, name: &str, passed_args: Vec<i64>) {
+        let f = self.functions.get(name).expect(&format!(
+            "Function '{}' should be in functions but is not",
+            name
+        ));
+        // std::mem::take could make it faster
+        self.statement_stack.push(self.statements.clone());
+        self.variable_stack.push(self.local_variables.clone());
+
+        self.statements = f.body.clone().into();
+        // beautiful code🦀
+        self.local_variables.clear();
+        self.local_variables
+            .extend(f.args.clone().into_iter().zip(passed_args));
+
+        ()
+    }
+
+    pub fn run_fn(&mut self, name: &str, passed_args: Vec<i64>) {
+        while let Ok(_) = self.step() {}
+    }
+
+    fn eval_op(&self, op: &IOperand, local_variables: &HashMap<String, i64>) -> i64 {
+        match op {
+            IOperand::Ident(id) => *local_variables
+                .get(id)
+                .expect("Expected variable to be in scope"),
+            IOperand::Int(i) => *i,
+        }
+    }
+}
+
+pub fn interpreter_test() {
+    let shit = Def {
+        id: "test_function".to_string(),
+        args: Vec::new(),
+        body: vec![],
+        type_len: None,
+    };
+
+    println!("hello test");
 }
 
 impl fmt::Display for IDef {
@@ -138,128 +345,3 @@ impl fmt::Display for IDef {
         Ok(())
     }
 }
-
-#[derive(Debug, Clone)]
-pub enum IStatement {
-    Decl(String),
-    IfExpr(Vec<(Operand, Vec<IStatement>)>),
-    InitConstructor(String, i64),
-    AssignField(String, i64, Operand),
-    Assign(String, Operand),
-    Return(Operand),
-    Print(Operand),
-}
-
-pub struct Interpreter {
-    functions: HashMap<String, IDef>,
-    heap: Vec<Vec<i64>>
-}
-
-impl Interpreter {
-    pub fn new() -> Self {
-        Interpreter {
-            functions: HashMap::new(),
-            heap: Vec::new()
-        }
-    }
-
-    pub fn with_fn(mut self, function: IDef) -> Self {
-        self.functions.insert(function.id.clone(), function);
-        self
-    }
-
-    fn malloc(&mut self, width: usize) -> usize {
-        self.heap.push(vec![0; width]);
-        self.heap.len() - 1
-    }
-
-    pub fn run_fn(&mut self, name: &str, passed_args: Vec<i64>) -> i64 {
-        // clone to not borrow self
-        let function = self.functions.get(name).unwrap().clone();
-
-        // fill local vars with passed arguments
-        let mut local_vars: HashMap<String, i64> = HashMap::new();
-        for (name, val) in function.args.iter().zip(passed_args) {
-            local_vars.insert(name.clone(), val);
-        }
-
-        let mut statements: VecDeque<IStatement> = function.body.clone();
-        while let Some(shit) = statements.pop_front() {
-            match shit {
-                IStatement::Decl(_) => (), // does nothing
-                IStatement::InitConstructor(name, width) => {
-                    let pointer = self.malloc(*width as usize);
-                    local_vars.insert(name.clone(), pointer as i64);
-                },
-                IStatement::AssignField(name, index, operand) => {
-                    let pointer = local_vars.get(&name).unwrap();
-                    self.heap[*pointer as usize][*index as usize] = self.eval_op(&operand, &local_vars);
-                },
-                IStatement::Assign(name, operand) => {
-                    local_vars.insert(name.clone(), self.eval_op(&operand, &local_vars));
-                }
-                IStatement::IfExpr(bruh) => {
-                    for (op, code) in bruh {
-                        if self.eval_op(&op, &local_vars) == 1 {
-                            statements = code.append(statements);
-                            break;
-                        }
-                    }
-                },
-                IStatement::Return(operand) => return self.eval_op(&operand, &local_vars),
-                IStatement::Print(operand) => println!("{}", self.eval_op(&operand, &local_vars)),
-            }
-        }
-
-        0
-    }
-
-    fn eval_op(&mut self, op: &Operand, local_variables: &HashMap<String, i64>) -> i64 {
-        match op {
-            Operand::Identifier(name) => *local_variables
-                .get(name)
-                .expect(&format!("Identifier '{}' should be in scope but is not", name)),
-            Operand::BinOp(operator, operand, operand1) => {
-                let left = self.eval_op(operand, local_variables);
-                let right = self.eval_op(operand1, local_variables);
-                match operator {
-                    Operator::Equal => (left == right) as i64,
-                    Operator::NotEqual => (left != right) as i64,
-                    Operator::Less => (left < right) as i64,
-                    Operator::LessOrEq => (left <= right) as i64,
-                    Operator::Greater => (left > right) as i64,
-                    Operator::GreaterOrEqual => (left >= right) as i64,
-                    Operator::Add => left + right,
-                    Operator::Sub => left - right,
-                    Operator::Mul => left * right,
-                    Operator::Div => left / right,
-                }
-            }
-            Operand::Integer(i) => *i,
-            Operand::Application(name, operands) => {
-                let arguments: Vec<i64> = operands
-                    .iter()
-                    .map(|op| self.eval_op(op, local_variables))
-                    .collect();
-
-                self.run_fn(&name, arguments)
-            }
-            Operand::DerefField(_, _) => todo!(),
-            Operand::Condition(_, _, __, _) => todo!(),
-            Operand::AccessField(_, _) => todo!(),
-            Operand::UTuple(operands) => todo!(),
-        }
-    }
-}
-
-pub fn interpreter_test() {
-    let shit = Def {
-        id: "test_function".to_string(),
-        args: Vec::new(),
-        body: vec![],
-        type_len: None,
-    };
-
-    println!("hello test");
-}
-

@@ -13,6 +13,7 @@ mod scoped_ast;
 mod ast;
 mod lexer;
 mod error;
+mod interpreter;
 lalrpop_mod!(pub grammar);
 use simple_ast::*;
 fn main() {
