@@ -2,10 +2,11 @@ let toggle_headers = document.getElementsByClassName("toggle-header");
 let toggle_contents = document.getElementsByClassName("toggle-content");
 
 window.onload = function() {
-    for (var x = 0; x < toggle_headers.length; x++) {
-        toggle_contents[x].style.display = 'none';
+    for (var i = 0; i < toggle_headers.length; i++) {
+        toggle_contents[i].style.display = 'block'; //change back to none later
+        toggle_headers[i].classList.toggle("open"); //remove later
 
-        toggle_headers[x].addEventListener("click", function() {
+        toggle_headers[i].addEventListener("click", function() {
             this.classList.toggle("open");
 
             let content = this.nextElementSibling;
@@ -20,3 +21,20 @@ document.addEventListener("keydown", (event) => {
         event.preventDefault();
     }
 });
+
+function expand_all() {
+    for (var i = 0; i < toggle_headers.length; i++) {
+        if (!toggle_headers[i].classList.contains("open")) {
+            toggle_headers[i].classList.toggle("open");
+            toggle_contents[i].style.display = 'block';
+        }
+    }
+}
+function collapse_all() {
+    for (var i = 0; i < toggle_headers.length; i++) {
+        if (toggle_headers[i].classList.contains("open")) {
+            toggle_headers[i].classList.toggle("open");
+            toggle_contents[i].style.display = 'none';
+        }
+    }
+}

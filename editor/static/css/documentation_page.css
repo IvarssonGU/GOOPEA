@@ -5,7 +5,8 @@ body {
 #container-table {
     width: 90%;
     margin: auto;
-    padding-top: 1%;
+    /* padding-top: 1%; */
+    padding-bottom: 3%;
 }
 
 /* table, th, td {
@@ -14,6 +15,10 @@ body {
 
 .toggle-content {
     padding-left: 5%;
+    /* padding-bottom: 15px; */
+}
+.description {
+    padding-left: 2%;
 }
 
 .toggle-header {
@@ -22,9 +27,11 @@ body {
     outline: none;
     border: none;
     vertical-align: middle;
-    font-size: larger;
+    font-size: 20px;
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
+    margin-top: 15px;
+    /* margin-top: 5px; */
 }
 
 .toggle-header::before{
@@ -38,5 +45,27 @@ body {
 .open::before{
     color: black;
     content: '\2796\fe0e'; /*minus*/
-    float:left;
+    /* float:left; */
+}
+
+.subsection {
+    font-size: 18px;
+    margin-top: 15px;
+}
+
+/* #button-row {
+    border: 2px solid black;
+    margin-left: 5%;
+} */
+
+.expansion-button {
+    margin-right: 5px;
+    margin-top: 5px;
+}
+.expansion-button:first-of-type {
+    margin-left: 5%;
+}
+
+p {
+    margin-bottom: 5px;
 }

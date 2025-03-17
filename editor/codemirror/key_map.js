@@ -6,7 +6,7 @@
 //      on a couple that were "most important"
 
 var key_binds = {
-    "Shift-Alt-Up": function(cm) { //swap line up
+    "Alt-Up": function(cm) { //swap line up
         if (cm.isReadOnly()) return CodeMirror.Pass
         var ranges = cm.listSelections(), linesToMove = [], at = cm.firstLine() - 1, newSels = [];
         for (var i = 0; i < ranges.length; i++) {
@@ -32,7 +32,7 @@ var key_binds = {
         cm.scrollIntoView();
         });
     },
-    "Shift-Alt-Down": function(cm) { //swap line down
+    "Alt-Down": function(cm) { //swap line down
         if (cm.isReadOnly()) return CodeMirror.Pass
         var ranges = cm.listSelections(), linesToMove = [], at = cm.lastLine() + 1;
         for (var i = ranges.length - 1; i >= 0; i--) {
@@ -55,7 +55,7 @@ var key_binds = {
             cm.scrollIntoView();
         });
     },
-    "Alt-Down": function(cm) { //copy line down
+    "Shift-Alt-Down": function(cm) { //copy line down
         cm.operation(function() {
             var rangeCount = cm.listSelections().length;
             for (var i = 0; i < rangeCount; i++) {
