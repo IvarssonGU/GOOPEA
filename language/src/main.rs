@@ -4,6 +4,7 @@ use std::{fs, path::Path};
 
 use lalrpop_util::lalrpop_mod;
 use ast::{ast::{ChainedData, Type}, base::BaseProgram, scoped::ScopedProgram, typed::TypedProgram};
+use simple_ast::{add_refcounts, from_scoped};
 
 mod code;
 mod ir;
@@ -25,6 +26,11 @@ fn main() {
 
     let typed_program = TypedProgram::new(scoped_program).unwrap();
     println!("{typed_program}");
+
+    let simple_program = from_scoped(&typed_program);
+    let with_ref_count = add_refcounts(&simple_program);
+    let code = code::Compiler::new().compile(&with_ref_count);
+    println!("{}", ir::output(&code).join("\n"));
 }
 
 #[cfg(test)]
