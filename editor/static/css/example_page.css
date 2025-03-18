@@ -24,7 +24,7 @@ table {
     table-layout: fixed;
 }
 
-#example1-diagrams-cell {
+#example-diagrams-cell {
     border: 1px solid gray;
     border-radius: 2px;
 }
@@ -33,17 +33,13 @@ table {
     border:2px solid black;
 } */
 
-#example1-code {
-    width: 98%;
-    height: 100%;
-}
-#example1-code-cell {
+.example-code-cell {
     border: 1px solid gray;
     border-radius: 2px;
     vertical-align: top;
     height: 100%;
 }
-#example1-output-cell {
+.example-output-cell {
     border: 1px solid gray;
     border-radius: 2px;
     vertical-align: top;
@@ -53,6 +49,10 @@ table {
     height:auto;
 }
 
-#temp-button {
+.temp-button {
     visibility: hidden;
+}
+
+select {
+    font-family: 'Courier New', Courier, monospace;
 }

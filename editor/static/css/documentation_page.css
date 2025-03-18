@@ -2,8 +2,12 @@ body {
     font-family: 'Courier New', Courier, monospace;
 }
 
+p.multiline {
+    line-height: 1.5;
+}
+
 #container-table {
-    width: 90%;
+    width: 70%;
     margin: auto;
     /* padding-top: 1%; */
     padding-bottom: 3%;
@@ -58,11 +62,11 @@ body {
     margin-left: 5%;
 } */
 
-.expansion-button {
+.control-button {
     margin-right: 5px;
     margin-top: 5px;
 }
-.expansion-button:first-of-type {
+.control-button:first-of-type {
     margin-left: 5%;
 }
 

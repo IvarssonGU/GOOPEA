@@ -17,19 +17,19 @@
 	
 	<table id="container-table">
 		<tr>
-			<button onclick="expand_all()" class="styled-button expansion-button">Expand all</button>
-			<button onclick="collapse_all()" class="styled-button expansion-button">Collapse all</button>
+			<button onclick="expand_all()" class="styled-button control-button">Expand all</button>
+			<button onclick="collapse_all()" class="styled-button control-button">Collapse all</button>
 		</tr>
 		<tr>
 			<td>
 				<button class="toggle-header">Introduction</button>
 				<div class="toggle-content">
-					<p><b>kandidatarbete?</b> blah blah blah</p>
-					<p></p>
-					<p><b>Functional Programming</b> has its roots in the lambda-calculus and model computations by function composition, 
-						as opposed to traditional languages that model it by a sequence of instructions to execute. It can therefore often 
-						be very convenient and elegant to model for example recursive relationships using these types of languages.</p>
-					<p><b>Functional In-Place</b>: a way to improve performance by reusing memory instead of the (de)allocations done by 
+					<p class="multiline"><b>Kandidatarbete</b>: This was created by group DATX11 DIT561-VT25-50. This is the playground aspect a Bachelor's thesis 
+						on the advantage of having FIP functionality in a functional language</p>
+					<p class="multiline"><b>Functional Programming Languages</b> have their roots in the lambda-calculus and model computations by function 
+						composition, as opposed to traditional languages that model it by a sequence of instructions to execute. They can therefore often 
+						be very convenient and elegant to model, for example, recursive relationships.</p>
+					<p class="multiline"><b>Functional In-Place</b>: a way to improve performance by reusing memory instead of the (de)allocations done by 
 						typical functional programming languages. Since computers are naturally stateful objects, unlike stateless functional 
 						code, the translation from functional code to machine code will often be slower than its imperative counterpart. The 
 						level of abstraction also sometimes makes it hard or impossible to implement certain classes of optimizations that 
@@ -60,7 +60,6 @@
 				<div class="toggle-content">
 					<p>See Examples page for context</p>
 
-					<!-- <button class="toggle-header subsection">Function parameters and return types</button> -->
 					<button class="toggle-header subsection">A function's type declaration</button>
 					<div class="toggle-content">
 						<p><b>fip (parameters): (returns)</b></p>
@@ -68,27 +67,33 @@
 						<p class="description">The optional 'fip' keyword declares whether or not the function is written to use fip functionality or not</p>
 						<p class="description">Both the parameter and returns are tuples of datatypes or enums, separate them with commas: (x, y, z)</p>
 						<p class="description">If a function takes no parameters or doesn't return anything, use an empty tuple "()"</p>
-						<p class="description">If a function takes takes or returns only one variable, you can write just write that datatype, e.g. "Tree", "Int"</p>
+						<p class="description">If a function takes or returns only one variable, you can just write that datatype/enum, e.g. "Tree", "Int"</p>
+						<p class="description">See the examples "Reverse" and "Multiple Return Values" for how this looks</p>
 						<!-- <p class="description">If a function does not take a parameter, use an empty tuple ():_</p>
 						<p class="description">If a function does not return anything (i.e. void), use _:()</p> -->
 						<p></p>
 					</div>
 					<button class="toggle-header subsection">Function declaration</button>
 					<div class="toggle-content">
-						<p><b>bold stuff</b>: description</p>
+						<p class="multiline">The function declaration goes on the line under the type declaration. The name of the function is first, and does not start
+							with a capital letter. The names of the parameters whose types were declared earlier are then given. The "Reverse" example shows
+							how functions are declared with 0, 1, and 2+ parameters.
+						</p>
 					</div>
 					
 					<button class="toggle-header subsection">Keywords</button>
 					<div class="toggle-content">
-						<p><b>bold stuff</b>: description</p>
+						<p class="multiline">Keywords are words that are reserved (can't be used for anything else) because they are special in the eye of the compiler (have a
+							predefined purpose for the structure and syntax of the program and language). They are also case-sensitive.
+						</p>
 
 						<button class="toggle-header subsection" style="color: #708">match</button>
 						<div class="toggle-content">
-							<p><b>bold stuff</b>: description</p>
+							<p>Pattern matching!! </p>
 						</div>
 						<button class="toggle-header subsection" style="color: #708">enum</button>
 						<div class="toggle-content">
-							<p><b>bold stuff</b>: description</p>
+							<p>Creates a user-defined datatype</p>
 						</div>
 					</div>
 				</div>

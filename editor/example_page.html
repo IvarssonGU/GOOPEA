@@ -21,31 +21,26 @@
         <table width="100%">
             <tr>
                 <th>
-                    Example 1: reverse
-                    <button id="temp-button" class="styled-button">run</button>
+                    <label for="examples">View:</label>
+                    <select  onchange="example_dropdown_changed()" name="examples" id="examples" class="styled-button">
+                        <option value="reverse">Reverse</option>
+                        <option value="treeflip">Treeflip</option>
+                        <option value="arithmetic">Arithmetic</option>
+                        <option value="complex-match">Complex match</option>
+                        <option value="mrv">Multiple Return Values</option>
+                        <option value="type-error">Type error</option>
+                        <option value="utuple">Utuple</option>
+                        <option value="zipper-tree">Zipper tree</option>
+                    </select>
+                    <button class="styled-button temp-button">run</button>
                 </th>
                 <th>Diagram</th>
             </tr>
             <tr>
-                <td id="example1-code-cell">
-                    <textarea id="example1-code">
-enum List = Nil, Cons(Int, List);
-
-fip (List, List): List
-ReverseHelper(list, acc) =
-        match list {
-            Nil: acc,
-            Cons(x, xs): ReverseHelper(xs, Cons(x, acc))
-        };
-
-fip List: List
-ReverseList list = ReverseHelper(list, Nil);
-
-fip (): ()
-Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
-</textarea>
+                <td class="example-code-cell">
+                    <textarea id="code-field"></textarea>
                 </td>
-                <td rowspan="3" id="example1-diagrams-cell">
+                <td rowspan="3" id="example-diagrams-cell">
                     <div class="example1-diagrams">
                         <div class="slide">
                             <div class="numbering">1/27</div>
@@ -165,13 +160,12 @@ Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
                 <th id="output-title-cell">Output</th>
             </tr>
             <tr>
-                <td id="example1-output-cell">
-                    <textarea id="example1-output" readonly="true">
-Cons(3, Cons(2, Cons(1, Nil)))
-</textarea>
+                <td class="example-output-cell">
+                    <textarea id="output-field" readonly="true"></textarea>
                 </td>
             </tr>
         </table>
+
     </div>
 
     <script src="./codemirror/codemirror.js"></script>
