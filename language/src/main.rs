@@ -3,14 +3,14 @@
 use std::{fs, path::Path};
 
 use lalrpop_util::lalrpop_mod;
-use ast_wrappers::{base_wrapper::BaseProgram, scope_wrapper::ScopedProgram, type_wrapper::TypedProgram};
+use ast::{ast::{ChainedData, Type}, base::BaseProgram, scoped::ScopedProgram, typed::TypedProgram};
 
 mod code;
 mod ir;
 mod simple_ast;
 mod lexer;
 mod error;
-pub mod ast_wrappers;
+pub mod ast;
 
 lalrpop_mod!(pub grammar);
 

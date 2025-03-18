@@ -1,7 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
-use crate::ast_wrappers::ast_wrapper;
-use crate::ast_wrappers::scope_wrapper::ScopedProgram;
-use crate::ast_wrappers::type_wrapper::{TypeWrapper, TypedProgram};
+use crate::ast::{ast, typed::{TypeWrapper, TypedProgram}};
 
 pub type Program = Vec<FunctionDefinition>;
 
@@ -84,7 +82,7 @@ pub fn from_scoped(ast: &TypedProgram) -> Program {
 
 fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
     match &expr.expr {
-        ast_wrapper::Expression::FunctionCall(id, args) => {
+        ast::Expression::FunctionCall(id, args) => {
             match id.as_str() {
                 "+" => Expression::Operation(Operator::Add, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
                 "-" => Expression::Operation(Operator::Sub, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
@@ -96,17 +94,17 @@ fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
                 }
             }
         }
-        ast_wrapper::Expression::Integer(i) => Expression::Integer(*i),
-        ast_wrapper::Expression::Variable(id) => Expression::Identifier(id.clone()),
-        ast_wrapper::Expression::Match(match_expr, cases) => {
+        ast::Expression::Integer(i) => Expression::Integer(*i),
+        ast::Expression::Variable(id) => Expression::Identifier(id.clone()),
+        ast::Expression::Match(match_expr, cases) => {
             Expression::Match(
                 Box::from(from_expression(&match_expr, ast)), 
                 cases.iter().map(|(pattern, child)| MatchCase {
                     pattern: {
                         match pattern {
-                            ast_wrapper::Pattern::Integer(_) => todo!(),
-                            ast_wrapper::Pattern::UTuple(utuple) => todo!(),
-                            ast_wrapper::Pattern::Constructor(fid, vars) => {
+                            ast::Pattern::Integer(_) => todo!(),
+                            ast::Pattern::UTuple(utuple) => todo!(),
+                            ast::Pattern::Constructor(fid, vars) => {
                                 if vars.0.len() == 0 {
                                     Pattern::Atom(ast.constructors.get(fid).unwrap().sibling_index as i64)
                                 }
@@ -121,6 +119,6 @@ fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
                     body: from_expression(child, ast)
             }).collect())
         },
-        ast_wrapper::Expression::UTuple(args) => Expression::UTuple(args.0.iter().map(|expr| from_expression(expr, ast)).collect()),
+        ast::Expression::UTuple(args) => Expression::UTuple(args.0.iter().map(|expr| from_expression(expr, ast)).collect()),
     }
 }

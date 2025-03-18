@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display};
 
-use crate::ast_wrappers::ast_wrapper::{Type, UTuple, FID, VID};
+use crate::ast::ast::{Type, UTuple, AID, FID, VID};
 
 pub type CompileResult = Result<(), CompileError>;
 
@@ -8,9 +8,10 @@ pub type CompileResult = Result<(), CompileError>;
 #[allow(dead_code)]
 pub enum CompileError {
     UnknownFunction,
-    UnknownVariable,
+    UnknownVariable(VID),
     UnknownConstructor,
-    MultipleDefinitions,
+    MultipleFunctionDefinitions(FID),
+    MultipleADTDefinitions(AID),
     InconsistentVariableCountInFunctionDefinition,
     WrongVariableCountInLetStatement,
     WrongVariableCountInMatchCase,
