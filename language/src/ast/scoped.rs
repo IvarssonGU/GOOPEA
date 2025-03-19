@@ -2,12 +2,12 @@ use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{Expression, ExpressionNode, Pattern, UTuple, Function, Program, VID}, base::{BaseProgram, BaseNode}};
+use super::{ast::{SimplifiedExpression, ExpressionNode, Function, Pattern, Program, SyntaxExpression, UTuple, VID}, base::{BaseNode, BaseProgram}};
 
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
-pub type ScopedNode = ExpressionNode<Scope>;
+pub type ScopedNode = ExpressionNode<Scope, SimplifiedExpression<Scope>>;
 
-pub type ScopedProgram = Program<Scope>;
+pub type ScopedProgram = Program<Scope, SimplifiedExpression<Scope>>;
 
 #[derive(Clone, Debug, Eq)]
 pub struct VariableDefinition {
@@ -47,7 +47,7 @@ impl ScopedProgram {
                 }
             ).collect::<Scope>();
 
-            let scoped_expression = scope_expression(func.body, base_scope, &counter)?;
+            let scoped_expression = scope_expression(func.body.map(), base_scope, &counter)?;
 
             functions.insert(
                 fid, 
@@ -68,7 +68,7 @@ impl ScopedProgram {
     fn validate_variable_occurences(&self) -> CompileResult {
         self.validate_expressions_by(
             |node| {
-                let Expression::Variable(vid) = &node.expr else { return Ok(()) };
+                let SimplifiedExpression::Variable(vid) = &node.expr else { return Ok(()) };
                 if !node.data.contains_key(vid) { return Err(CompileError::UnknownVariable(vid.clone())) }
 
                 Ok(())
@@ -83,21 +83,21 @@ impl ScopedProgram {
 // Checks that each case in match has correct number of arguments for the constructor
 // Does type inference on variables and expression, with minimum type checking
 pub fn scope_expression<'a>(
-    expr: BaseNode, 
+    expr: ExpressionNode<(), SimplifiedExpression<()>>, 
     scope: Scope,
     counter: &RefCell<usize>
 ) -> Result<ScopedNode, CompileError> 
 {
     let expr = match expr.expr {
-        Expression::UTuple(children) => {
-            Expression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter)).collect::<Result<_, _>>()?))
+        SimplifiedExpression::UTuple(children) => {
+            SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter)).collect::<Result<_, _>>()?))
         },
-        Expression::FunctionCall(fid, children) => {
-            Expression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter)).collect::<Result<_, _>>()?))
+        SimplifiedExpression::FunctionCall(fid, children) => {
+            SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter)).collect::<Result<_, _>>()?))
         },
-        Expression::Integer(x) => Expression::Integer(x),
-        Expression::Variable(vid) => Expression::Variable(vid),
-        Expression::Match(match_expr, cases) => {
+        SimplifiedExpression::Integer(x) => SimplifiedExpression::Integer(x),
+        SimplifiedExpression::Variable(vid) => SimplifiedExpression::Variable(vid),
+        SimplifiedExpression::Match(match_expr, cases) => {
             let scoped_match_child = scope_expression(*match_expr, scope.clone(), counter)?;
 
             let case_scopes = cases.into_iter().map(|(pattern, child)| {
@@ -121,7 +121,7 @@ pub fn scope_expression<'a>(
                 }.map(move |new_expr| (pattern, new_expr))
             }).collect::<Result<Vec<_>, _>>()?;
 
-            Expression::Match(
+            SimplifiedExpression::Match(
                 Box::new(scoped_match_child),
                 case_scopes
             )

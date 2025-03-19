@@ -2,15 +2,15 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{error::{CompileError, CompileResult}, grammar, lexer::Lexer};
 
-use super::ast::{Constructor, Expression, ExpressionNode, Function, Pattern, Program, Type, UTuple, AID, FID, VID};
+use super::ast::{Constructor, ExpressionNode, Function, Pattern, Program, SyntaxExpression, Type, UTuple, AID, FID, VID};
 
-pub type BaseNode = ExpressionNode<()>;
-pub type BaseProgram = Program<()>;
+pub type BaseNode = ExpressionNode<(), SyntaxExpression<()>>;
+pub type BaseProgram = Program<(), SyntaxExpression<()>>;
 
 #[derive(Debug)]
 pub enum Definition {
     ADT(AID, Vec<(FID, UTuple<Type>)>),
-    Function(FID, Function<()>)
+    Function(FID, Function<(), SyntaxExpression<()>>)
 }
 
 impl BaseProgram {
@@ -79,12 +79,12 @@ impl BaseProgram {
 }
 
 impl BaseNode {
-    pub fn integer(x: i64) -> Self { Self::new((),Expression::Integer(x)) }
+    pub fn integer(x: i64) -> Self { Self::new((),SyntaxExpression::Integer(x)) }
 
-    pub fn variable(vid: VID) -> Self { Self::new((), Expression::Variable(vid)) }
+    pub fn variable(vid: VID) -> Self { Self::new((), SyntaxExpression::Variable(vid)) }
 
     pub fn function_call(fid: FID, args: UTuple<Self>) -> Self {
-        Self::new((), Expression::FunctionCall(fid, args))
+        Self::new((), SyntaxExpression::FunctionCall(fid, args))
     }
 
     pub fn operation(operation: String, l: Self, r: Self) -> Self {
@@ -92,11 +92,15 @@ impl BaseNode {
     }
 
     pub fn utuple(args: UTuple<Self>) -> Self {
-        Self::new((), Expression::UTuple(args))
+        Self::new((), SyntaxExpression::UTuple(args))
     }
 
     pub fn mtch(match_on: Self, cases: Vec<(Pattern, Self)>) -> Self {
-        Self::new((), Expression::Match(Box::new(match_on), cases))
+        Self::new((), SyntaxExpression::Match(Box::new(match_on), cases))
+    }
+
+    pub fn let_equal_in(pattern: Pattern, e1: Self, e2: Self) -> Self {
+        Self::new((), SyntaxExpression::LetEqualIn(pattern, Box::new(e1), Box::new(e2)))
     }
 }
 

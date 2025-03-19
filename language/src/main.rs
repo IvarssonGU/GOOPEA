@@ -16,7 +16,7 @@ pub mod ast;
 lalrpop_mod!(pub grammar);
 
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/reverse.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/multiple_return_values.goo")).unwrap();
 
     let base_program = BaseProgram::new(&code).unwrap();
     println!("{base_program}");

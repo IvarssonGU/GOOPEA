@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{ChainedData, Expression, ExpressionNode, Function, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, VariableDefinition}};
+use super::{ast::{ChainedData, SimplifiedExpression, ExpressionNode, Function, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, VariableDefinition}};
 
 pub type TypeWrapperData = ChainedData<ExpressionType, Scope>;
 
-pub type TypeWrapper = ExpressionNode<TypeWrapperData>;
-pub type TypedProgram = Program<TypeWrapperData>;
+pub type TypeWrapper = ExpressionNode<TypeWrapperData, SimplifiedExpression<TypeWrapperData>>;
+pub type TypedProgram = Program<TypeWrapperData, SimplifiedExpression<TypeWrapperData>>;
 
 fn get_children_same_type<'a>(mut iter: impl Iterator<Item = &'a TypeWrapper>) -> Option<ExpressionType> {
     let tp = iter.next()?.data.data.clone();
@@ -138,7 +138,7 @@ impl TypedProgram {
     }
 
     fn validate_function_call(&self, node: &TypeWrapper, all_signatures: &HashMap<FID, FunctionSignature>) -> CompileResult {
-        let Expression::FunctionCall(fid, args) = &node.expr else { return Ok(()) };
+        let SimplifiedExpression::FunctionCall(fid, args) = &node.expr else { return Ok(()) };
 
         let expected_arg_type = &all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction)?.argument_type;
 
@@ -155,7 +155,7 @@ impl TypedProgram {
     }
     
     fn validate_match_pattern(&self, node: &TypeWrapper) -> CompileResult {
-        let Expression::Match(match_on, cases) = &node.expr else { return Ok(()) };
+        let SimplifiedExpression::Match(match_on, cases) = &node.expr else { return Ok(()) };
 
         get_children_same_type(cases.iter().map(|t| &t.1)).ok_or_else(|| CompileError::MissmatchedTypes)?;
     
@@ -259,7 +259,7 @@ impl TypedProgram {
         }*/
 
         match &node.expr {
-            Expression::FunctionCall(_, _) | Expression::UTuple(_) => {
+            SimplifiedExpression::FunctionCall(_, _) | SimplifiedExpression::UTuple(_) => {
                 for child in node.children() {
                     let child_used_vars = self.recursively_validate_fip_expression(child)?;
                     if let Some(double_var) = used_vars.intersection(&child_used_vars).next() {
@@ -269,9 +269,9 @@ impl TypedProgram {
                     used_vars.extend(child_used_vars);
                 }
             },
-            Expression::Integer(_) => (),
-            Expression::Variable(vid) => { used_vars.insert(node.data.next.get(vid).unwrap()); },
-            Expression::Match(match_on, cases) => {
+            SimplifiedExpression::Integer(_) => (),
+            SimplifiedExpression::Variable(vid) => { used_vars.insert(node.data.next.get(vid).unwrap()); },
+            SimplifiedExpression::Match(match_on, cases) => {
                 used_vars.extend(self.recursively_validate_fip_expression(&match_on)?);
 
                 let mut cases_used_vars = None;
@@ -325,28 +325,28 @@ pub fn type_expression(
 ) -> Result<TypeWrapper, CompileError> 
 {
     let (new_expr, tp) = match expr.expr {
-        Expression::UTuple(args) => {
+        SimplifiedExpression::UTuple(args) => {
             let typed_args: Vec<_> = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?;
             
             let tp = ExpressionType::UTuple(UTuple(
                 typed_args.iter().map(|s| s.data.tp().ok_or_else(|| CompileError::UnexpectedUTuple).map(|t| t.clone())).collect::<Result<_, _>>()?
             ));
-            (Expression::UTuple(UTuple(typed_args)), tp)
+            (SimplifiedExpression::UTuple(UTuple(typed_args)), tp)
         },
-        Expression::FunctionCall(fid, args) => {
+        SimplifiedExpression::FunctionCall(fid, args) => {
             let typed_args = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?;
             
             let return_type = &function_signatures.get(&fid).ok_or_else(|| CompileError::UnknownFunction)?.result_type;
             let tp = if return_type.0.len() == 1 { ExpressionType::Type(return_type.0[0].clone()) } else { ExpressionType::UTuple(return_type.clone()) };
-            (Expression::FunctionCall(fid, UTuple(typed_args)), tp)
+            (SimplifiedExpression::FunctionCall(fid, UTuple(typed_args)), tp)
         },
-        Expression::Integer(x) => (Expression::Integer(x), ExpressionType::Type(Type::Int)),
-        Expression::Variable(vid) => {
+        SimplifiedExpression::Integer(x) => (SimplifiedExpression::Integer(x), ExpressionType::Type(Type::Int)),
+        SimplifiedExpression::Variable(vid) => {
             let tp = ExpressionType::Type(var_types.get(&expr.data.get(&vid).unwrap().internal_id).ok_or_else(|| CompileError::UnknownVariable(vid.clone()))?.clone());
 
-            (Expression::Variable(vid), tp)
+            (SimplifiedExpression::Variable(vid), tp)
         },
-        Expression::Match(match_expr, cases) => {
+        SimplifiedExpression::Match(match_expr, cases) => {
             let match_child_typed = type_expression(*match_expr, var_types.clone(), function_signatures)?;
 
             let new_cases: Vec<(Pattern, TypeWrapper)> = cases.into_iter().map(|(pattern, child)| {
@@ -389,7 +389,7 @@ pub fn type_expression(
 
             let tp = get_children_same_type(new_cases.iter().map(|(_, e)| e)).ok_or_else(|| CompileError::MissmatchedTypes)?;
 
-            let new_expr = Expression::Match(
+            let new_expr = SimplifiedExpression::Match(
                 Box::new(match_child_typed),
                 new_cases
             );

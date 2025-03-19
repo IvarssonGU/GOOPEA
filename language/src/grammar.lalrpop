@@ -102,7 +102,7 @@ Expression: BaseNode = {
     #[precedence(level="1")]
     <id: "cap_id"> <arg: Expression> => {
         match arg.expr {
-            Expression::UTuple(args) => {
+            SyntaxExpression::UTuple(args) => {
                 BaseNode::function_call(id, args)
             },
             _ => BaseNode::function_call(id, UTuple(vec![arg]))
@@ -144,8 +144,8 @@ Expression: BaseNode = {
         BaseNode::mtch(expr, cases)
     },
 
-    "let" <vars: ImplicitUTuple<"noncap_id">> "=" <e1: Expression> "in" <e2: Expression> => {
-        BaseNode::mtch(e1, vec![(Pattern::UTuple(vars), e2)])
+    "let" <pattern: Pattern> "=" <e1: Expression> "in" <e2: Expression> => {
+        BaseNode::let_equal_in(pattern, e1, e2)
     }
 }
 
