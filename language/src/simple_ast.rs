@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
-use crate::ast::{ast, typed::{TypeWrapper, TypedProgram}};
+use crate::ast::{ast, scoped, typed::{TypeWrapper, TypedProgram}};
 
 pub type Program = Vec<FunctionDefinition>;
 
@@ -81,7 +81,7 @@ pub fn from_scoped(ast: &TypedProgram) -> Program {
 
 fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
     match &expr.expr {
-        ast::SimplifiedExpression::FunctionCall(id, args) => {
+        scoped::SimplifiedExpression::FunctionCall(id, args) => {
             match id.as_str() {
                 "+" => Expression::Operation(Operator::Add, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
                 "-" => Expression::Operation(Operator::Sub, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
@@ -93,8 +93,8 @@ fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
                 }
             }
         }
-        ast::SimplifiedExpression::Integer(i) => Expression::Integer(*i),
-        ast::SimplifiedExpression::Variable(id) => match ast.constructors.get(id)  {
+        scoped::SimplifiedExpression::Integer(i) => Expression::Integer(*i),
+        scoped::SimplifiedExpression::Variable(id) => match ast.constructors.get(id)  {
             Some(cons) if cons.args.0.len() == 0 => Expression::Constructor(cons.sibling_index as i64, Vec::new()),
             _ => match id.as_str() {
                 "true" => Expression::Constructor(1, Vec::new()),
@@ -104,7 +104,7 @@ fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
                 _ => Expression::Ident(id.clone())
             }   
         },
-        ast::SimplifiedExpression::Match(match_expr, cases) => {
+        scoped::SimplifiedExpression::Match(match_expr, cases) => {
             Expression::Match(
                 Box::from(from_expression(&match_expr, ast)), 
                 cases.iter().map(|(pattern, child)| (
@@ -126,7 +126,7 @@ fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
                 )
             ).collect())
         },
-        ast::SimplifiedExpression::UTuple(exps) => Expression::UTuple(exps.0.iter().map(|expr| from_expression(expr, ast)).collect()),
+        scoped::SimplifiedExpression::UTuple(exps) => Expression::UTuple(exps.0.iter().map(|expr| from_expression(expr, ast)).collect()),
         //ast::Expression::LetEqualIn(ids, left, right) => Expression::Let(ids.0.clone(), Box::from(from_expression(&left, ast)), Box::from(from_expression(&right, ast))),
     }
 }

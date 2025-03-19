@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{SimplifiedExpression, ExpressionNode, Function, Pattern, Program, SyntaxExpression, UTuple, VID}, base::{BaseNode, BaseProgram}};
+use super::{ast::{map_expr_box, ExpressionNode, FullExpression, Function, Pattern, Program, UTuple, FID, VID}, base::{BaseNode, BaseProgram, SyntaxExpression}};
 
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
 pub type ScopedNode = ExpressionNode<Scope, SimplifiedExpression<Scope>>;
@@ -132,4 +132,41 @@ pub fn scope_expression<'a>(
         expr,
         data: scope
     })
+}
+
+#[derive(Debug)]
+pub enum SimplifiedExpression<D> {
+    UTuple(UTuple<ExpressionNode<D, Self>>),
+    FunctionCall(FID, UTuple<ExpressionNode<D, Self>>),
+    Integer(i64),
+    Variable(VID),
+    Match(Box<ExpressionNode<D, Self>>, Vec<(Pattern, ExpressionNode<D, Self>)>),
+}
+
+impl<'a, D> From<&'a SimplifiedExpression<D>> for FullExpression<'a, D, SimplifiedExpression<D>> {
+    fn from(value: &'a SimplifiedExpression<D>) -> Self {
+        match value {
+            SimplifiedExpression::UTuple(x) => FullExpression::UTuple(x),
+            SimplifiedExpression::FunctionCall(x, y) => FullExpression::FunctionCall(x, y),
+            SimplifiedExpression::Integer(x) => FullExpression::Integer(x),
+            SimplifiedExpression::Variable(x) => FullExpression::Variable(x),
+            SimplifiedExpression::Match(x, y) => FullExpression::Match(x, y),
+        }
+    }
+}
+
+impl<D> From<SyntaxExpression<D>> for SimplifiedExpression<D> {
+    fn from(value: SyntaxExpression<D>) -> Self {
+        match value {
+            SyntaxExpression::UTuple(x) => SimplifiedExpression::UTuple(x.map()),
+            SyntaxExpression::FunctionCall(x, y) => SimplifiedExpression::FunctionCall(x, y.map()),
+            SyntaxExpression::Integer(x) => SimplifiedExpression::Integer(x),
+            SyntaxExpression::Variable(x) => SimplifiedExpression::Variable(x),
+            SyntaxExpression::Match(x, y) => 
+                SimplifiedExpression::Match(map_expr_box(x), y.into_iter().map(|(a, b)| (a, b.map())).collect()),
+            SyntaxExpression::LetEqualIn(pattern, e1, e2) => {
+                SimplifiedExpression::Match(Box::new(e1.map()), vec![(pattern, e2.map())])
+            }
+        }
+    }
 }

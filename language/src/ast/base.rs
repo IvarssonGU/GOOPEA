@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{error::{CompileError, CompileResult}, grammar, lexer::Lexer};
 
-use super::ast::{Constructor, ExpressionNode, Function, Pattern, Program, SyntaxExpression, Type, UTuple, AID, FID, VID};
+use super::ast::{Constructor, ExpressionNode, FullExpression, Function, Pattern, Program, Type, UTuple, AID, FID, VID};
 
 pub type BaseNode = ExpressionNode<(), SyntaxExpression<()>>;
 pub type BaseProgram = Program<(), SyntaxExpression<()>>;
@@ -123,5 +123,28 @@ impl UTuple<Type> {
     fn validate_in(&self, program: &BaseProgram) -> CompileResult {
         for tp in &self.0 { tp.validate_in(program)?; }
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub enum SyntaxExpression<D> {
+    UTuple(UTuple<ExpressionNode<D, Self>>),
+    FunctionCall(FID, UTuple<ExpressionNode<D, Self>>),
+    Integer(i64),
+    Variable(VID),
+    Match(Box<ExpressionNode<D, Self>>, Vec<(Pattern, ExpressionNode<D, Self>)>),
+    LetEqualIn(Pattern, Box<ExpressionNode<D, Self>>, Box<ExpressionNode<D, Self>>),
+}
+
+impl<'a, D> From<&'a SyntaxExpression<D>> for FullExpression<'a, D, SyntaxExpression<D>> {
+    fn from(value: &'a SyntaxExpression<D>) -> Self {
+        match value {
+            SyntaxExpression::UTuple(x) => FullExpression::UTuple(x),
+            SyntaxExpression::FunctionCall(x, y) => FullExpression::FunctionCall(x, y),
+            SyntaxExpression::Integer(x) => FullExpression::Integer(x),
+            SyntaxExpression::Variable(x) => FullExpression::Variable(x),
+            SyntaxExpression::Match(x, y) => FullExpression::Match(x, y),
+            SyntaxExpression::LetEqualIn(x, y, z) => FullExpression::LetEqualIn(x, y, z)
+        }
     }
 }

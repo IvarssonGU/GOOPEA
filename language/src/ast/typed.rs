@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{ChainedData, SimplifiedExpression, ExpressionNode, Function, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, VariableDefinition}};
+use super::{ast::{ChainedData, ExpressionNode, Function, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
 
 pub type TypeWrapperData = ChainedData<ExpressionType, Scope>;
 

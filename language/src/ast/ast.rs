@@ -52,38 +52,6 @@ pub struct ExpressionNode<D, E> {
 }
 
 #[derive(Debug)]
-pub enum SimplifiedExpression<D> {
-    UTuple(UTuple<ExpressionNode<D, Self>>),
-    FunctionCall(FID, UTuple<ExpressionNode<D, Self>>),
-    Integer(i64),
-    Variable(VID),
-    Match(Box<ExpressionNode<D, Self>>, Vec<(Pattern, ExpressionNode<D, Self>)>),
-}
-
-#[derive(Debug)]
-pub enum SyntaxExpression<D> {
-    UTuple(UTuple<ExpressionNode<D, Self>>),
-    FunctionCall(FID, UTuple<ExpressionNode<D, Self>>),
-    Integer(i64),
-    Variable(VID),
-    Match(Box<ExpressionNode<D, Self>>, Vec<(Pattern, ExpressionNode<D, Self>)>),
-    LetEqualIn(Pattern, Box<ExpressionNode<D, Self>>, Box<ExpressionNode<D, Self>>),
-}
-
-impl<'a, D> From<&'a SyntaxExpression<D>> for FullExpression<'a, D, SyntaxExpression<D>> {
-    fn from(value: &'a SyntaxExpression<D>) -> Self {
-        match value {
-            SyntaxExpression::UTuple(x) => FullExpression::UTuple(x),
-            SyntaxExpression::FunctionCall(x, y) => FullExpression::FunctionCall(x, y),
-            SyntaxExpression::Integer(x) => FullExpression::Integer(x),
-            SyntaxExpression::Variable(x) => FullExpression::Variable(x),
-            SyntaxExpression::Match(x, y) => FullExpression::Match(x, y),
-            SyntaxExpression::LetEqualIn(x, y, z) => FullExpression::LetEqualIn(x, y, z)
-        }
-    }
-}
-
-#[derive(Debug)]
 pub enum FullExpression<'a, D, E> {
     UTuple(&'a UTuple<ExpressionNode<D, E>>),
     FunctionCall(&'a FID, &'a UTuple<ExpressionNode<D, E>>),
@@ -92,34 +60,6 @@ pub enum FullExpression<'a, D, E> {
     Variable(&'a VID),
     Match(&'a Box<ExpressionNode<D, E>>, &'a Vec<(Pattern, ExpressionNode<D, E>)>),
     LetEqualIn(&'a Pattern, &'a Box<ExpressionNode<D, E>>, &'a Box<ExpressionNode<D, E>>),
-}
-
-impl<'a, D> From<&'a SimplifiedExpression<D>> for FullExpression<'a, D, SimplifiedExpression<D>> {
-    fn from(value: &'a SimplifiedExpression<D>) -> Self {
-        match value {
-            SimplifiedExpression::UTuple(x) => FullExpression::UTuple(x),
-            SimplifiedExpression::FunctionCall(x, y) => FullExpression::FunctionCall(x, y),
-            SimplifiedExpression::Integer(x) => FullExpression::Integer(x),
-            SimplifiedExpression::Variable(x) => FullExpression::Variable(x),
-            SimplifiedExpression::Match(x, y) => FullExpression::Match(x, y),
-        }
-    }
-}
-
-impl<D> From<SyntaxExpression<D>> for SimplifiedExpression<D> {
-    fn from(value: SyntaxExpression<D>) -> Self {
-        match value {
-            SyntaxExpression::UTuple(x) => SimplifiedExpression::UTuple(x.map()),
-            SyntaxExpression::FunctionCall(x, y) => SimplifiedExpression::FunctionCall(x, y.map()),
-            SyntaxExpression::Integer(x) => SimplifiedExpression::Integer(x),
-            SyntaxExpression::Variable(x) => SimplifiedExpression::Variable(x),
-            SyntaxExpression::Match(x, y) => 
-                SimplifiedExpression::Match(map_expr_box(x), y.into_iter().map(|(a, b)| (a, b.map())).collect()),
-            SyntaxExpression::LetEqualIn(pattern, e1, e2) => {
-                SimplifiedExpression::Match(Box::new(e1.map()), vec![(pattern, e2.map())])
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -192,11 +132,11 @@ impl<D, E> UTuple<ExpressionNode<D, E>> {
     }
 }
 
-fn map_expr_vec<D, E, E2: From<E>>(vec: Vec<ExpressionNode<D, E>>) -> Vec<ExpressionNode<D, E2>> {
+pub fn map_expr_vec<D, E, E2: From<E>>(vec: Vec<ExpressionNode<D, E>>) -> Vec<ExpressionNode<D, E2>> {
     vec.into_iter().map(|x| x.map()).collect::<Vec<_>>()
 }
 
-fn map_expr_box<D, E, E2: From<E>>(x: Box<ExpressionNode<D, E>>) -> Box<ExpressionNode<D, E2>> {
+pub fn map_expr_box<D, E, E2: From<E>>(x: Box<ExpressionNode<D, E>>) -> Box<ExpressionNode<D, E2>> {
     Box::new(x.map())
 }
 
