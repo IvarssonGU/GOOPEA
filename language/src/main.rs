@@ -25,7 +25,7 @@ fn main() {
     let simple_program = from_scoped(&scoped_program);
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
-    println!("{}", ir::output(&code).join("\n"));
+    println!("{}", ir::output(&code, true).join("\n"));
 }
 
 #[cfg(test)]

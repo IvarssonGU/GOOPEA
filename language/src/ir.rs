@@ -36,21 +36,24 @@ pub enum Statement {
     Return(Operand),
     Print(Operand),
     Inc(Operand),
-    Dec(Operand), 
+    Dec(Operand),
     Assign(Type, String, Operand),
     AssignToField(String, i64, Operand),
     AssignFromField(String, i64, Operand),
     AssignBinaryOperation(String, Operator, Operand, Operand),
     AssignConditional(String, bool, Operand, i64),
     AssignFunctionCall(String, String, Vec<Operand>),
+    AddToMemoryAllocated(i64)
 }
 
-pub fn output(prog: &Prog) -> Vec<String> {
+pub fn output(prog: &Prog, emit_memory_info: bool) -> Vec<String> {
     let mut lines = Vec::new();
     lines.push("#include <stdio.h>".to_string());
     lines.push("#include <stdlib.h>".to_string());
     lines.push(String::new());
     lines.push("typedef __int64_t Value;".to_string());
+    lines.push(String::new());
+    lines.push("Value memory_allcated = 0;".to_string());
     lines.push(String::new());
     for amount in &prog.1 {
         lines.push(format!("typedef struct Value{0} Value{0};", amount));
@@ -59,8 +62,8 @@ pub fn output(prog: &Prog) -> Vec<String> {
             lines.push(format!("\tValue elem{};", i));
         }
         lines.push(format!("}};"));
+        lines.push(String::new());
     }
-    lines.push(String::new());
     for def in &prog.0 {
         lines.push(output_function_decls(def));
     }
@@ -82,8 +85,8 @@ pub fn output(prog: &Prog) -> Vec<String> {
     lines.push("\t\t\tfor (int i = 3; i < ptr[1] + 3; i++) {".to_string());
     lines.push("\t\t\t\tdec(ptr[i]);".to_string());
     lines.push("\t\t\t}".to_string());
+    lines.push("\t\t\tmemory_allcated -= (Value) ptr[1] + 3;".to_string());
     lines.push("\t\t\tfree(ref);".to_string());
-    lines.push("\t\t\tprintf(\"Tag: %lld, Len: %lld, RefCount: %lld\\n\", ptr[0], ptr[1], ptr[2]);".to_string());
     lines.push("\t\t}".to_string());
     lines.push("\t\telse {".to_string());
     lines.push("\t\t\tptr[2]--;".to_string());
@@ -218,10 +221,13 @@ fn statement_to_string(stmt: &Statement) -> String {
         Statement::AssignConditional(id, b, op, tag) => {
             let result = operand_to_string(op);
             if *b {
-                format!("Value {} = !(1 & {}) && {} == ((void** {})[0];", id, result, tag, result)
+                format!("Value {} = !(1 & {}) && {} == ((void**) {})[0];", id, result, tag, result)
             } else {
                 format!("Value {} = {} == {};", id, tag, result)
             }
+        }
+        Statement::AddToMemoryAllocated(amount) => {
+            format!("memory_allcated += {};", amount)
         }
     }
 }
@@ -231,41 +237,5 @@ fn operand_to_string(op: &Operand) -> String {
         Operand::Ident(id) => id.clone(),
         Operand::Int(i) => (i << 1 | 1).to_string(),
         Operand::NonShifted(i) => i.to_string()
-        /* Operand::Application(id, ops) => {
-            let result = ops
-                .iter()
-                .map(|op| operand_to_string(op))
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("{}({})", id, result)
-        }
-        Operand::BinOp(operator, op1, op2) => {
-            let left = operand_to_string(op1);
-            let right = operand_to_string(op2);
-            match operator {
-                Operator::Add => format!("{} + {} - 1", left, right),
-                Operator::Sub => format!("{} - {} | 1", left, right),
-                Operator::Mul => format!("(({} - 1) * ({} >> 1) | 1)", left, right),
-                Operator::Div => format!("({} / ({} - 1)) << 1 | 1", left, right),
-                op => format!("({} {} {}) << 1 | 1", left, op,  right)
-            }
-        }
-        Operand::DerefField(id, index) => format!("((void**) {})[{}]", id, index),
-        
-        Operand::Condition(b, pointer_var, left, right) => {
-            let not = if *b {""} else {"!"};
-            format!("({}({} & 1)) && ({} == {})", not, pointer_var, operand_to_string(left), operand_to_string(right))
-        },
-        Operand::UTuple(operands) => {
-            let result = operands
-                .iter()
-                .map(|op| operand_to_string(op))
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("(Value{}){{{}}}", operands.len(), result)
-        },
-        Operand::AccessField(var, index) => format!("{}.elem{}", var, index),
-        Operand::Inc(op) => format!("inc({})", operand_to_string(op)),
-        Operand::Dec(op) => format!("dec({})", operand_to_string(op)), */
     }
 }

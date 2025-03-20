@@ -1,0 +1,7 @@
+enum List = Nil, Cons(Int, List);
+
+(List, List): List
+RevH(xs, acc) = match xs {
+    Nil: acc,
+    Cons(x,xx): RevH(xx, Cons(x, acc))
+};

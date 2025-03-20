@@ -1,3 +1,4 @@
+use core::panic;
 use std::fmt::{Display, Formatter, Result};
 use std::sync::atomic::AtomicUsize;
 use crate::scoped_ast;
@@ -19,16 +20,16 @@ pub enum Expression {
     Ident(String),
     Integer(i64),  
     Match(Box<Expression>, Vec<(Pattern, Expression)>),
-    Operation(Operator, Box<Expression>, Box<Expression>),
     Constructor(i64, Vec<Expression>),
+    Operation(Operator, Box<Expression>, Box<Expression>),
     LetApp(Vec<String>, Box<Expression>, Box<Expression>),
     Let(String, Box<Expression>, Box<Expression>),
     UTuple(Vec<Expression>),
-    Inc(Option<String>, Box<Expression>),
-    Dec(Option<String>, Box<Expression>),
+    Inc(String, Box<Expression>),
+    Dec(String, Box<Expression>)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Operator {
     Equal,
     NotEqual,
@@ -41,6 +42,13 @@ pub enum Operator {
     Mul,
     Div
 }
+
+#[derive(Debug, Clone)]
+pub enum RefCount {
+    Inc,
+    None,
+}
+
 
 type Pattern = (i64, Vec<Binder>);
 
@@ -97,7 +105,7 @@ fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> E
         }
         ast::Expression::Integer(i) => Expression::Integer(*i),
         ast::Expression::Variable(id) => match ast.get_constructor(id)  {
-            Ok(cons) if cons.constructor.arguments.0.len() == 0 => Expression::Constructor(cons.internal_id as i64, Vec::new()),
+            Ok(cons) if cons.constructor.arguments.0.is_empty() => Expression::Constructor(cons.internal_id as i64, Vec::new()),
             _ => match id.as_str() {
                 "true" => Expression::Constructor(1, Vec::new()),
                 "false" => Expression::Constructor(0, Vec::new()),
@@ -114,7 +122,7 @@ fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> E
                         ast::Pattern::Integer(_) => todo!(),
                         ast::Pattern::UTuple(utuple) => todo!(),
                         ast::Pattern::Constructor(fid, vars) => {
-                            if vars.0.len() == 0 {
+                            if vars.0.is_empty() {
                                 (ast.get_constructor(fid).unwrap().internal_id as i64, vec![])
                             }
                             else {
@@ -138,7 +146,10 @@ pub fn add_refcounts(prog: &Program) -> Program {
             return_type_len: fun.return_type_len,
             id: fun.id.clone(),
             args: fun.args.clone(),
-            body: fun.args.clone().iter().fold(add_refcounts_expr(&fun.body), |acc, arg| Expression::Dec(Some(arg.clone()), Box::from(acc))),
+            body: {
+                let orig_body_exp = fun.args.clone().iter().fold(add_refcounts_expr(&fun.body), |acc, arg| Expression::Dec(arg.clone(), Box::from(acc)));
+                scuff_decs(&orig_body_exp)
+            }
         });
     }
     new_prog
@@ -146,58 +157,199 @@ pub fn add_refcounts(prog: &Program) -> Program {
 
 fn add_refcounts_expr(exp: &Expression) -> Expression {
     match exp {
-        Expression::Ident(id) => Expression::Ident(id.clone()),
+        Expression::Ident(id) => Expression::Inc(id.clone(), Box::from(Expression::Ident(id.clone()))),
         Expression::Integer(i) => Expression::Integer(*i),
         Expression::App(id, exps) => {
-            let arguments = exps.iter().map(|exp| Expression::Inc(None, Box::from(add_refcounts_expr(exp)))).collect();
+            let arguments = exps.iter().map(add_refcounts_expr).collect();
             Expression::App(id.clone(), arguments)
         },
         Expression::Constructor(tag, exps) => {
-            let arguments = exps.iter().map(|exp| Expression::Inc(None, Box::from(add_refcounts_expr(exp)))).collect();
-            Expression::Constructor(tag.clone(), arguments)
+            let arguments = exps.iter().map(add_refcounts_expr).collect();
+            Expression::Constructor(*tag, arguments)
         },
-        Expression::Let(id, exp1, exp2) => {
-            Expression::Let(
-                id.clone(), 
-                Box::from(add_refcounts_expr(exp1)), 
-                Box::from(
-                    Expression::Inc(
-                        Some(id.clone()),
-                        Box::from(Expression::Dec(
-                            Some(id.clone()), 
-                            Box::from(add_refcounts_expr(exp2))
-                        ))
-                    )
-                )
-            )
-        },
-        Expression::Match(exp, cases) => Expression::Match(
-            Box::from(add_refcounts_expr(exp)), 
-            {
-                let mut new_cases = Vec::new();
-                for ((tag, binders), exp) in cases {
-                    let new_exp = binders.iter().fold(add_refcounts_expr(exp), |acc, binder| {
-                        match binder {
-                            Binder::Variable(id) => Expression::Inc(
-                                    Some(id.clone()),
-                                    Box::from(Expression::Dec(
-                                        Some(id.clone()), 
-                                        Box::from(acc)
-                                    ))
-                                ),
-                            _ => acc
+        Expression::Match(exp, cases) => match &**exp {
+                Expression::Ident(id) => Expression::Match(
+                    Box::from(Expression::Ident(id.clone())),
+                    {
+                        let mut new_cases = Vec::new();
+                        for ((tag, binders), exp) in cases {
+                            let new_exp = binders.iter().fold(add_refcounts_expr(exp), |acc, binder| {
+                                match binder {
+                                    Binder::Variable(id) => Expression::Inc(
+                                        id.clone(),
+                                        Box::from(Expression::Dec(id.clone(), Box::from(acc)))
+                                    ),
+                                    _ => acc
+                                }
+                            });
+                            new_cases.push(((*tag, binders.clone()), new_exp));
                         }
-                    });
-                    new_cases.push(((tag.clone(), binders.clone()), new_exp));
-                }
-                new_cases
-            }
-        ),
+                        new_cases
+                    }),
+                _ => panic!("currently we can only have idents here!!")
+        },
         Expression::Operation(op, left, right) => Expression::Operation(
-                op.clone(), 
+                *op, 
                 Box::from(add_refcounts_expr(left)), 
                 Box::from(add_refcounts_expr(right))
         ),
-        _ => panic!("case should not be possible")   
+        _ => panic!("not implemented")   
     } 
+}
+
+fn scuff_decs(exp: &Expression) -> Expression {
+    match exp {
+        Expression::Operation(op,left, right) => {
+            Expression::Operation(
+                *op,
+                Box::from(scuff_decs(left)),
+                Box::from(scuff_decs(right))
+            )
+        },
+        Expression::App(id, exps) => {
+            Expression::App(id.clone(), exps.iter().map(scuff_decs).collect())
+        },
+        Expression::Constructor(tag, exps) => {
+            Expression::Constructor(*tag, exps.iter().map(scuff_decs).collect())
+        },
+        Expression::Ident(id) => Expression::Ident(id.clone()),
+        Expression::Integer(i) => Expression::Integer(*i),
+        Expression::Inc(inc_id, next_exp) => {
+            Expression::Inc(inc_id.clone(), Box::from(scuff_decs(next_exp)))
+        },
+        Expression::Dec(dec_id, exp) => {
+            scuff_dec(&Expression::Dec(dec_id.clone(), Box::from(scuff_decs(exp))))
+        },
+        Expression::Match(match_exp, cases) => {
+            Expression::Match(
+                Box::from(scuff_decs(match_exp)),
+                cases.iter().map(|(pat, exp)| (pat.clone(), scuff_decs(exp))).collect()
+            )
+        }
+        _ => panic!("not implemented")
+    }
+}
+
+fn scuff_dec(dec_exp: &Expression) -> Expression {
+    let Expression::Dec(dec_id, match_exp) = dec_exp else {
+        panic!("Encountered non-dec expression")
+    };
+    if !search(dec_id, match_exp) {
+        return dec_exp.clone();
+    }
+    match &**match_exp {
+        Expression::Ident(_) => panic!("should not be possible!"),
+        Expression::Integer(_) => panic!("should not be possible!"),
+        Expression::App(fid, exps) => {
+            let mut new_exps = exps.clone();
+            for i in (0..new_exps.len()).rev() {
+                if search(dec_id, &exps[i]) {
+                    new_exps[i] = scuff_dec(&Expression::Dec(dec_id.clone(), Box::from(exps[i].clone())));
+                    break;
+                }
+            }
+            Expression::App(fid.clone(), new_exps)
+        },
+        Expression::Constructor(tag, exps) => {
+            let mut new_exps = exps.clone();
+            for i in (0..new_exps.len()).rev() {
+                if search(dec_id, &new_exps[i]) {
+                    new_exps[i] = scuff_dec(&Expression::Dec(dec_id.clone(), Box::from(exps[i].clone())));
+                    break;
+                }
+            }
+            Expression::Constructor(*tag, new_exps)
+        },
+        Expression::Operation(op, left, right) => if search(dec_id, right) {
+                Expression::Operation(
+                        *op,
+                        left.clone(),
+                        Box::from(scuff_dec(&Expression::Dec(dec_id.clone(), right.clone())))
+                )
+            }
+            else {
+                Expression::Operation(
+                    *op,
+                    Box::from(scuff_dec(&Expression::Dec(dec_id.clone(), left.clone()))),
+                    right.clone()
+                )
+            },
+        Expression::Inc(inc_id, next_exp) => {
+                if inc_search(dec_id, next_exp) {
+                    Expression::Inc(
+                        inc_id.clone(),
+                        Box::from(scuff_dec(&Expression::Dec(dec_id.clone(), next_exp.clone())))
+                    )
+                }
+                else {
+                    *next_exp.clone()
+                }
+        },
+        Expression::Match(match_exp, cases) => {
+            let mut new_cases = Vec::new();
+            for (pat, exp) in cases {
+                if search(dec_id, exp) {
+                    new_cases.push((pat.clone(), scuff_dec(&Expression::Dec(dec_id.clone(), Box::from(exp.clone())))));
+                }
+                else {
+                    new_cases.push((pat.clone(), fun(&Expression::Dec(dec_id.clone(), Box::from(exp.clone())))));
+                }
+            }
+            Expression::Match(match_exp.clone(), new_cases)
+        },
+        Expression::Dec(id, exp) => Expression::Dec(
+            id.clone(), 
+            Box::from(scuff_dec(&Expression::Dec(dec_id.clone(), exp.clone())))
+        ),
+        _ => panic!("not implemented")
+    }
+}
+
+fn fun(dec_exp: &Expression) -> Expression {
+    match dec_exp {
+        Expression::Dec(dec_id, match_exp) => 
+            match &**match_exp {
+                Expression::Inc(inc_id, next_exp) => {
+                    Expression::Inc(inc_id.clone(), Box::from(fun(&Expression::Dec(dec_id.clone(), next_exp.clone()))))
+                }
+                _ => dec_exp.clone()
+            },
+        _ => panic!("not implemented")
+    }
+}
+
+fn search(id: &str, e: &Expression) -> bool {
+    match e {
+        Expression::Ident(var_id) => id == var_id,
+        Expression::Integer(_) => false,
+        Expression::App(_, exps) => exps.iter().any(|exp| search(id, exp)),
+        Expression::Constructor(_, exps) => exps.iter().any(|exp| search(id, exp)),
+        Expression::Operation(_, left, right)  => search(id, left) || search(id, right),
+        Expression::Inc(inc_id, exp) => {
+             id == inc_id.as_str() || search(id, exp)
+        }
+        Expression::Dec(_, exp) => search(id, exp),
+        Expression::Match(exp, cases ) => {
+            search(id, exp) || cases.iter().any(|(_, e)| search(id, e))
+        }
+        _ => false
+    }
+}
+
+fn inc_search(id: &str, e: &Expression) -> bool {
+    match e {
+        Expression::Ident(_) => false,
+        Expression::Integer(_) => false,
+        Expression::App(_, exps) => exps.iter().any(|exp| inc_search(id, exp)),
+        Expression::Constructor(_, exps) => exps.iter().any(|exp| inc_search(id, exp)),
+        Expression::Operation(_, left, right)  => search(id, left) || inc_search(id, right),
+        Expression::Inc(inc_id, exp) => {
+             id == inc_id.as_str() || inc_search(id, exp)
+        }
+        Expression::Dec(_, exp) => inc_search(id, exp),
+        Expression::Match(exp, cases ) => {
+            inc_search(id, exp) || cases.iter().any(|(_, e)| inc_search(id, e))
+        }
+        _ => false
+    }
 }

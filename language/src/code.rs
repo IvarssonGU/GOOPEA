@@ -33,9 +33,10 @@ impl Compiler {
     fn compile_def(&mut self, def: &FunctionDefinition) -> Def {
         let result = self.compile_exp(&def.body);
         let mut statements = self.generated_statements.clone();
-        if &def.id == "main" {
+        if &def.id == "Main" {
             statements.push(Statement::Print(result));
-        } else {
+        } 
+        else {
             statements.push(Statement::Return(result));
         }
         self.generated_statements.clear();
@@ -85,9 +86,11 @@ impl Compiler {
                 let var = self.next_var();
                 if len == 3 {
                     Operand::Int(*tag)
-                } else {
+                } 
+                else {
                     self.generated_statements
                         .push(Statement::InitConstructor(var.clone(), len as i64));
+                    self.generated_statements.push(Statement::AddToMemoryAllocated(len as i64));
                     self.generated_statements.push(Statement::AssignToField(
                         var.clone(),
                         0,
@@ -101,7 +104,7 @@ impl Compiler {
                     self.generated_statements.push(Statement::AssignToField(
                         var.clone(),
                         2,
-                        Operand::NonShifted(0),
+                        Operand::NonShifted(1),
                     ));
                     for i in 3..len {
                         self.generated_statements.push(Statement::AssignToField(
@@ -127,7 +130,7 @@ impl Compiler {
                     ));
                     Operand::Ident(bool_var)
                 }).collect::<Vec<Operand>>();
-                for (i, ((tag, binds), exp)) in cases.iter().enumerate() {
+                for (i, ((_, binds), exp)) in cases.iter().enumerate() {
                     if i == cases.len() - 1 {
                         self.generated_statements.push(Statement::Else);
                     }
@@ -168,32 +171,13 @@ impl Compiler {
                 }
                 Operand::Ident(var)
             },
-            Expression::Inc(option, exp) => {
-                match option {
-                    Some(id) => {
-                        self.generated_statements.push(Statement::Inc(Operand::Ident(id.clone())));
-                        self.compile_exp(exp)
-                    },
-                    None => {
-                        let result = self.compile_exp(exp);
-                        self.generated_statements.push(Statement::Inc(result.clone()));
-                        result
-                    }
-                }
+            Expression::Inc(id, exp) => {
+                self.generated_statements.push(Statement::Inc(Operand::Ident(id.clone())));
+                self.compile_exp(exp)
             },
-            Expression::Dec(option, exp) => {
-                match option {
-                    Some(id) => {
-                        let result = self.compile_exp(exp);
-                        self.generated_statements.push(Statement::Dec(Operand::Ident(id.clone())));
-                        result
-                    }
-                    None => {
-                        let result = self.compile_exp(exp);
-                        self.generated_statements.push(Statement::Dec(result.clone()));
-                        result
-                    }
-                }
+            Expression::Dec(id, exp) => {
+                self.generated_statements.push(Statement::Dec(Operand::Ident(id.clone())));
+                self.compile_exp(exp)
             },
             Expression::Let(id, bind_exp, exp) => {
                 let result_bind = self.compile_exp(bind_exp);
