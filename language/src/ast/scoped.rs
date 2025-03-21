@@ -37,6 +37,8 @@ impl ScopedProgram {
     // Creates a new program with scope information
     // Performs minimum required validation, such as no top level symbol collisions
     pub fn new(program: BaseProgram) -> Result<ScopedProgram, CompileError> {
+        let program = program.map();
+
         let counter = RefCell::new(0);
 
         let mut functions = HashMap::new();
@@ -47,7 +49,7 @@ impl ScopedProgram {
                 }
             ).collect::<Scope>();
 
-            let scoped_expression = scope_expression(func.body.map(), base_scope, &counter)?;
+            let scoped_expression = scope_expression(func.body, base_scope, &counter)?;
 
             functions.insert(
                 fid, 
@@ -166,6 +168,9 @@ impl<D> From<SyntaxExpression<D>> for SimplifiedExpression<D> {
                 SimplifiedExpression::Match(map_expr_box(x), y.into_iter().map(|(a, b)| (a, b.map())).collect()),
             SyntaxExpression::LetEqualIn(pattern, e1, e2) => {
                 SimplifiedExpression::Match(Box::new(e1.map()), vec![(pattern, e2.map())])
+            },
+            SyntaxExpression::Operation(e1, op, e2) => {
+                SimplifiedExpression::FunctionCall(op.to_string(), UTuple(vec![e1.map(), e2.map()]))
             }
         }
     }

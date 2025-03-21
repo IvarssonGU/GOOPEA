@@ -51,6 +51,20 @@ pub struct ExpressionNode<D, E> {
     pub data: D
 }
 
+#[derive(Debug, Clone)]
+pub enum Operator {
+    Equal,
+    NotEqual,
+    Less,
+    LessOrEq,
+    Greater,
+    GreaterOrEqual,
+    Add,
+    Sub,
+    Mul,
+    Div
+}
+
 #[derive(Debug)]
 pub enum FullExpression<'a, D, E> {
     UTuple(&'a UTuple<ExpressionNode<D, E>>),
@@ -60,6 +74,7 @@ pub enum FullExpression<'a, D, E> {
     Variable(&'a VID),
     Match(&'a Box<ExpressionNode<D, E>>, &'a Vec<(Pattern, ExpressionNode<D, E>)>),
     LetEqualIn(&'a Pattern, &'a Box<ExpressionNode<D, E>>, &'a Box<ExpressionNode<D, E>>),
+    Operation(&'a Box<ExpressionNode<D, E>>, &'a Operator, &'a Box<ExpressionNode<D, E>>)
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +132,24 @@ impl<D, E> Program<D, E>
     }
 }
 
+impl<D, E> Program<D, E> {
+    pub fn map<E2: From<E>>(self) -> Program<D, E2> {
+        Program { 
+            adts: self.adts, 
+            constructors: self.constructors, 
+            functions: self.functions.into_iter().map(
+                |(fid, func)| {
+                    (fid, Function {
+                        signature: func.signature,
+                        vars: func.vars,
+                        body: func.body.map()
+                    })
+                }
+            ).collect::<HashMap<_, _>>() 
+        }
+    }
+}
+
 impl<D, E> ExpressionNode<D, E> {
     pub fn map<E2: From<E>>(self) -> ExpressionNode<D, E2> {
         ExpressionNode { 
@@ -151,7 +184,8 @@ impl<D, E> ExpressionNode<D, E>
             FullExpression::Integer(_) | FullExpression::Variable(_) => Box::new(iter::empty()),
             FullExpression::Match(expression_node, items) 
                 => Box::new(iter::once(expression_node.as_ref()).chain(items.iter().map(|tup| &tup.1))),
-            FullExpression::LetEqualIn(_, e1, e2) => Box::new(iter::once(e1.as_ref()).chain(iter::once(e2.as_ref())))
+            FullExpression::LetEqualIn(_, e1, e2) |
+            FullExpression::Operation(e1, _, e2) => Box::new(iter::once(e1.as_ref()).chain(iter::once(e2.as_ref()))),
         }
     }
 
@@ -206,9 +240,9 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
 {
     node.data.fmt(f, indent)?;
 
-    write_indent(f, indent)?;
     match (&node.expr).into() {
         FullExpression::UTuple(utuple) => {
+            write_indent(f, indent)?;
             write!(f, "(")?;
 
             if utuple.0.len() > 0 {
@@ -217,7 +251,7 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
                     write_expression_node(f, x, indent+1)
                 })?;
                 writeln!(f)?;
-    
+
                 write_indent(f, indent)?;
             }
 
@@ -227,6 +261,8 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
         },
         FullExpression::FunctionCall(fid, utuple) |
         FullExpression::Constructor(fid, utuple) => {
+            write_indent(f, indent)?;
+
             write!(f, "{fid}(",)?;
 
             if utuple.0.len() > 0 {
@@ -235,7 +271,7 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
                     write_expression_node(f, x, indent+1)
                 })?;
                 writeln!(f)?;
-    
+
                 write_indent(f, indent)?;
             }
 
@@ -243,9 +279,16 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
 
             Ok(())
         },
-        FullExpression::Integer(x) => write!(f, "{x}"),
-        FullExpression::Variable(var) => write!(f, "{var}"),
+        FullExpression::Integer(x) => { 
+            write_indent(f, indent)?;
+            write!(f, "{x}") 
+        },
+        FullExpression::Variable(var) => {
+            write_indent(f, indent)?;
+            write!(f, "{var}")
+        },
         FullExpression::Match(expression_node, items) => {
+            write_indent(f, indent)?;
             writeln!(f, "match")?;
             write_expression_node(f, expression_node, indent + 1)?;
 
@@ -266,6 +309,7 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
             Ok(())
         },
         FullExpression::LetEqualIn(pattern, e1, e2) => {
+            write_indent(f, indent)?;
             writeln!(f, "let {pattern} = ")?;
             write_expression_node(f, e1, indent + 1)?;
 
@@ -276,6 +320,17 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
 
             Ok(())
         }
+        FullExpression::Operation(e1, op, e2) => {
+            write_expression_node(f, e1, indent + 1)?;
+
+            writeln!(f)?;
+            write_indent(f, indent)?;
+            writeln!(f, "{op}")?;
+
+            write_expression_node(f, e2, indent + 1)?;
+
+            Ok(())
+        },
     }
 }
 
@@ -396,6 +451,50 @@ impl Display for Pattern {
             Pattern::UTuple(utuple) => {
                 write_implicit_utuple(f, &utuple.0, ", ", |f, vid| { write!(f, "{vid}") })
             },
+        }
+    }
+}
+
+impl Display for Operator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let str: &'static str = self.into();
+        write!(f, "{str}")
+    }
+}
+
+impl TryFrom<&str> for Operator {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(match value {
+            "==" => Operator::Equal,
+            "!=" => Operator::NotEqual,
+            "<=" => Operator::LessOrEq,
+            ">=" => Operator::GreaterOrEqual,
+            "<" => Operator::Less,
+            ">" => Operator::Greater,
+            "+" => Operator::Add,
+            "-" => Operator::Sub,
+            "*" => Operator::Mul,
+            "/" => Operator::Div,
+            _ => return Err(())
+        })
+    }
+}
+
+impl From<&Operator> for &'static str {
+    fn from(value: &Operator) -> Self {
+        match value {
+            Operator::Equal => "==",
+            Operator::NotEqual => "!=",
+            Operator::LessOrEq => "<=",
+            Operator::GreaterOrEqual => ">=",
+            Operator::Less => "<",
+            Operator::Greater => ">",
+            Operator::Add => "+",
+            Operator::Sub => "-",
+            Operator::Mul => "*",
+            Operator::Div => "/",
         }
     }
 }

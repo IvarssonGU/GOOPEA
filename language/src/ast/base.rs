@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{error::{CompileError, CompileResult}, grammar, lexer::Lexer};
 
-use super::ast::{Constructor, ExpressionNode, FullExpression, Function, Pattern, Program, Type, UTuple, AID, FID, VID};
+use super::ast::{Constructor, ExpressionNode, FullExpression, Function, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
 
 pub type BaseNode = ExpressionNode<(), SyntaxExpression<()>>;
 pub type BaseProgram = Program<(), SyntaxExpression<()>>;
@@ -87,8 +87,8 @@ impl BaseNode {
         Self::new((), SyntaxExpression::FunctionCall(fid, args))
     }
 
-    pub fn operation(operation: String, l: Self, r: Self) -> Self {
-        Self::function_call(operation, UTuple(vec![l, r]))
+    pub fn operation(op: Operator, l: Self, r: Self) -> Self {
+        Self::new((), SyntaxExpression::Operation(Box::new(l), op, Box::new(r)))
     }
 
     pub fn utuple(args: UTuple<Self>) -> Self {
@@ -134,6 +134,7 @@ pub enum SyntaxExpression<D> {
     Variable(VID),
     Match(Box<ExpressionNode<D, Self>>, Vec<(Pattern, ExpressionNode<D, Self>)>),
     LetEqualIn(Pattern, Box<ExpressionNode<D, Self>>, Box<ExpressionNode<D, Self>>),
+    Operation(Box<ExpressionNode<D, Self>>, Operator, Box<ExpressionNode<D, Self>>)
 }
 
 impl<'a, D> From<&'a SyntaxExpression<D>> for FullExpression<'a, D, SyntaxExpression<D>> {
@@ -144,7 +145,8 @@ impl<'a, D> From<&'a SyntaxExpression<D>> for FullExpression<'a, D, SyntaxExpres
             SyntaxExpression::Integer(x) => FullExpression::Integer(x),
             SyntaxExpression::Variable(x) => FullExpression::Variable(x),
             SyntaxExpression::Match(x, y) => FullExpression::Match(x, y),
-            SyntaxExpression::LetEqualIn(x, y, z) => FullExpression::LetEqualIn(x, y, z)
+            SyntaxExpression::LetEqualIn(x, y, z) => FullExpression::LetEqualIn(x, y, z),
+            SyntaxExpression::Operation(x, y, z) => FullExpression::Operation(x, y, z)
         }
     }
 }

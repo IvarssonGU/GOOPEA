@@ -114,15 +114,15 @@ Expression: BaseNode = {
         if op == "+" {
             e
         } else {
-            BaseNode::operation(op, BaseNode::integer(0), e)
+            BaseNode::operation(op.as_str().try_into().unwrap(), BaseNode::integer(0), e)
         }
     },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <e1: Expression> <op: "*/"> <e2: Expression> => BaseNode::operation(op, e1, e2),
+    <e1: Expression> <op: "*/"> <e2: Expression> => BaseNode::operation(op.as_str().try_into().unwrap(), e1, e2),
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <e1: Expression> <op: "+-"> <e2: Expression> => BaseNode::operation(op, e1, e2),
+    <e1: Expression> <op: "+-"> <e2: Expression> => BaseNode::operation(op.as_str().try_into().unwrap(), e1, e2),
 
     /*#[precedence(level="5")] #[assoc(side="left")]
     <e1: Expression> <op: "cmp"> <e2: Expression> => {
