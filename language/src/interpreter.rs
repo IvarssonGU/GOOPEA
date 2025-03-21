@@ -1,8 +1,12 @@
-use crate::ir::*;
-use crate::simple_ast::Operator;
+use crate::lexer::Lexer;
+use crate::scoped_ast::ScopedProgram;
+use crate::simple_ast::{Operator, add_refcounts, from_scoped};
+use crate::{code, grammar, ir::*};
 use std::collections::{HashMap, VecDeque};
-use std::fmt;
+use std::fmt::Debug;
 use std::iter::Peekable;
+use std::path::Path;
+use std::{fmt, fs};
 
 fn extract_ifs<'a, T: Iterator<Item = &'a Statement>>(
     statements: &mut Peekable<T>,
@@ -15,13 +19,17 @@ fn extract_ifs<'a, T: Iterator<Item = &'a Statement>>(
                 let body = extract_body(statements);
                 (IOperand::from_op(operand), body)
             }
+            Statement::Else => {
+                let body = extract_body(statements);
+                (IOperand::Int(1), body)
+            }
             _ => panic!("yolo"),
         };
 
         chain.push(condition);
 
         match statements.peek() {
-            Some(Statement::ElseIf(_)) => {}
+            Some(Statement::ElseIf(_)) | Some(Statement::Else) => {}
             _ => {
                 break;
             }
@@ -41,6 +49,7 @@ fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
             Statement::ElseIf(_) => panic!("this should not happen"),
             Statement::Else => todo!(),
             Statement::EndIf => {
+                statements.next();
                 break;
             }
             Statement::Decl(id) => IStatement::Decl(id.clone()),
@@ -80,7 +89,7 @@ fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
             }
         };
         // consume if not if
-        statements.next_if(|x| !matches!(x, Statement::If(_)));
+        statements.next_if(|x| !matches!(x, Statement::If(_) | Statement::EndIf));
         istatements.push(x);
     }
 
@@ -96,7 +105,17 @@ pub struct IDef {
 
 impl IDef {
     pub fn from_def(def: &Def) -> Self {
-        let mut iter = def.body.iter().peekable();
+        let mut iter = def
+            .body
+            .iter()
+            .filter(|&s| {
+                if matches!(s, Statement::Inc(Operand::Int(_)) | Statement::Inc(Operand::NonShifted(_))) {
+                    false
+                } else {
+                    true
+                }
+            })
+            .peekable();
         let body = extract_body(&mut iter);
         IDef {
             id: def.id.clone(),
@@ -136,7 +155,7 @@ impl IOperand {
     fn from_op(operand: &Operand) -> Self {
         match operand {
             Operand::Ident(id) => Self::Ident(id.clone()),
-            Operand::Int(i) => Self::Int(i >> 1),
+            Operand::Int(i) => Self::Int(*i),
             Operand::NonShifted(i) => Self::Int(*i),
         }
     }
@@ -145,6 +164,7 @@ impl IOperand {
 pub struct Interpreter {
     functions: HashMap<String, IDef>,
     heap: Vec<Vec<i64>>,
+    current_function: String,
     statements: VecDeque<IStatement>,
     statement_stack: Vec<VecDeque<IStatement>>,
     local_variables: HashMap<String, i64>,
@@ -157,6 +177,7 @@ impl Interpreter {
         Interpreter {
             functions: HashMap::new(),
             heap: Vec::new(),
+            current_function: "".to_string(),
             statements: VecDeque::new(),
             statement_stack: Vec::new(),
             local_variables: HashMap::new(),
@@ -192,7 +213,10 @@ impl Interpreter {
                         }
                     }
                 }
-                IStatement::InitConstructor(_, _) => todo!(),
+                IStatement::InitConstructor(id, w) => {
+                    let ptr = self.malloc(w as usize);
+                    self.local_variables.insert(id.clone(), ptr as i64);
+                }
                 IStatement::Return(ioperand) => {
                     self.return_value = ioperand;
                     self.statements = self.statement_stack.pop().expect("this should not happen");
@@ -200,8 +224,22 @@ impl Interpreter {
                         self.variable_stack.pop().expect("this should not happen");
                 }
                 IStatement::Print(ioperand) => println!("> {:?}", ioperand),
-                IStatement::Inc(ioperand) => todo!(),
-                IStatement::Dec(ioperand) => todo!(),
+                IStatement::Inc(ioperand) => {
+                    if let IOperand::Ident(o) = ioperand {
+                        let ptr = self.eval_op(&IOperand::Ident(o), &self.local_variables);
+                        self.heap[ptr as usize][2] += 1;
+                    }
+                }
+                IStatement::Dec(ioperand) => {
+                    let ptr = self.eval_op(&ioperand, &self.local_variables);
+                    let block = &mut self.heap[ptr as usize];
+                    block[2] -= 1;
+                    if block[2] == 0 {
+                        for shit in &block[3..] {
+                            // if shit == pointer
+                        }
+                    }
+                }
                 IStatement::Assign(id, ioperand) => {
                     self.local_variables
                         .insert(id, self.eval_op(&ioperand, &self.local_variables));
@@ -247,7 +285,8 @@ impl Interpreter {
                     );
                 }
                 IStatement::AssignReturnvalue(id) => {
-                    self.local_variables.insert(id, self.eval_op(&self.return_value, &self.local_variables));
+                    self.local_variables
+                        .insert(id, self.eval_op(&self.return_value, &self.local_variables));
                 }
             }
 
@@ -262,6 +301,7 @@ impl Interpreter {
             "Function '{}' should be in functions but is not",
             name
         ));
+        self.current_function = f.id.clone();
         // std::mem::take could make it faster
         self.statement_stack.push(self.statements.clone());
         self.variable_stack.push(self.local_variables.clone());
@@ -289,15 +329,64 @@ impl Interpreter {
     }
 }
 
-pub fn interpreter_test() {
-    let shit = Def {
-        id: "test_function".to_string(),
-        args: Vec::new(),
-        body: vec![],
-        type_len: None,
-    };
+impl Debug for Interpreter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Interpreter Debug Print!")?;
 
-    println!("hello test");
+        writeln!(f, "Heap:")?;
+        for m in self.heap.clone() {
+            writeln!(f, "  {:?}", m)?;
+        }
+        writeln!(f, "Local Variables:")?;
+        for (k, v) in self.local_variables.clone().iter() {
+            writeln!(f, "  {} = {:?}", k, v)?;
+        }
+        writeln!(f, "Inside Function '{}'", self.current_function)?;
+        writeln!(f, "Current Statements:")?;
+        for s in self.statements.clone() {
+            writeln!(f, "  {:?}", s)?;
+        }
+
+        writeln!(f, "Statement stack:")?;
+        let sizes: Vec<_> = self.statement_stack.iter().map(|d| d.len()).collect();
+        writeln!(f, "{:?}", sizes)?;
+
+        Ok(())
+    }
+}
+
+pub fn interpreter_test() {
+    let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
+
+    let program = grammar::ProgramParser::new()
+        .parse(Lexer::new(&code))
+        .unwrap();
+
+    let scoped_program = ScopedProgram::new(&program).unwrap();
+    scoped_program.validate().unwrap();
+    let simple_program = from_scoped(&scoped_program);
+    let with_ref_count = add_refcounts(&simple_program);
+    let code = code::Compiler::new().compile(&with_ref_count);
+
+    let mut interpreter = Interpreter::new();
+    for def in code.0.clone() {
+        println!("{:?}", def.id);
+        for s in def.body.clone() {
+            println!("{:?}", s);
+        }
+        interpreter = interpreter.with_fn(IDef::from_def(&def));
+    }
+
+    interpreter.enter_fn("Main", Vec::new());
+    interpreter.step();
+
+    println!("{:?}", interpreter);
+
+    for _ in 0..47 {
+        interpreter.step();
+    }
+
+    println!("{:?}", interpreter);
 }
 
 impl fmt::Display for IDef {
