@@ -81,7 +81,7 @@ pub struct Interpreter {
     statement_stack: Vec<VecDeque<IStatement>>,
     local_variables: HashMap<String, Data>,
     variable_stack: Vec<HashMap<String, Data>>,
-    return_value: Data,
+    return_value: Option<Data>,
 }
 
 impl Interpreter {
@@ -94,7 +94,7 @@ impl Interpreter {
             statement_stack: Vec::new(),
             local_variables: HashMap::new(),
             variable_stack: Vec::new(),
-            return_value: Data::Value(0),
+            return_value: None,
         }
     }
 
@@ -163,7 +163,7 @@ impl Interpreter {
                     self.local_variables.insert(id.clone(), ptr);
                 }
                 IStatement::Return(ioperand) => {
-                    self.return_value = self.op_to_data(&ioperand);
+                    self.return_value = Some(self.op_to_data(&ioperand));
                     self.statements = self.statement_stack.pop().expect("this should not happen");
                     self.local_variables =
                         self.variable_stack.pop().expect("this should not happen");
@@ -233,7 +233,6 @@ impl Interpreter {
                 */
                 IStatement::AssignConditional(id, b, iop, i) => {
                     let i = i >> 1; // bruh
-                    println!("{} {} {:?} {}", id, b, iop, i);
                     let val = if b {
                         let name = iop.unwrap_id();
                         let shit = self.get_local_var(&name);
@@ -247,7 +246,8 @@ impl Interpreter {
                     self.enter_fn(&fid, ioperands.iter().map(|x| self.op_to_data(x)).collect());
                 }
                 IStatement::AssignReturnvalue(id) => {
-                    self.local_variables.insert(id, self.return_value);
+                    self.local_variables.insert(id, self.return_value.unwrap());
+                    self.return_value = None;
                 }
             }
 
@@ -299,18 +299,28 @@ impl Debug for Interpreter {
         for (i, m) in self.heap.clone().iter().enumerate() {
             writeln!(f, "{:>bruh$}  {:?}", i, m)?;
         }
+        writeln!(f, "")?;
+
         writeln!(f, "Local Variables:")?;
         for (k, v) in self.local_variables.clone().iter() {
             writeln!(f, "  {} = {:?}", k, v)?;
         }
-        writeln!(
-            f,
-            "Inside Function '{}'",
-            self.function_names_stack.last().unwrap()
-        )?;
-        writeln!(f, "Current Statements:")?;
-        for s in self.statements.clone() {
-            writeln!(f, "  {}", s)?;
+        writeln!(f, "")?;
+        writeln!(f, "Return value: {:?}\n", self.return_value)?;
+
+        if !self.function_names_stack.is_empty() {
+            writeln!(
+                f,
+                "Inside Function '{}'",
+                self.function_names_stack
+                    .last()
+                    .unwrap()
+            )?;
+            writeln!(f, "Current Statements:")?;
+            for s in self.statements.clone() {
+                writeln!(f, "  {}", s)?;
+            }
+            writeln!(f, "")?;
         }
 
         writeln!(f, "Statement stack:")?;
@@ -330,7 +340,7 @@ impl Debug for Data {
     }
 }
 
-pub fn interpreter_test() {
+pub fn interpreter_test_time() {
     let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
 
     let program = grammar::ProgramParser::new()
@@ -349,13 +359,45 @@ pub fn interpreter_test() {
 
     let mut interpreter = Interpreter::new();
     for def in code.0.clone() {
-        println!("{:?}", def.id);
-        for s in def.body.clone() {
-            println!("{:?}", s);
-        }
         interpreter = interpreter.with_fn(IDef::from_def(&def));
+        println!("{}\n", IDef::from_def(&def));
     }
     interpreter = interpreter.with_entry_point("Main");
+
+    println!("Starting!");
+    let now = std::time::Instant::now();
+
+    while let Ok(_) = interpreter.step() {}
+
+    let elapsed = now.elapsed().as_micros();
+    println!("Done! ({} us)", elapsed);
+}
+
+pub fn interpreter_test_tree_flip() {
+    let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
+
+    let program = grammar::ProgramParser::new()
+        .parse(Lexer::new(&code))
+        .unwrap();
+
+    let scoped_program = ScopedProgram::new(&program).unwrap();
+    scoped_program.validate().unwrap();
+    let simple_program = from_scoped(&scoped_program);
+    let with_ref_count = add_refcounts(&simple_program);
+    let code = code::Compiler::new().compile(&with_ref_count);
+
+    ir::output(&code)
+        .iter()
+        .for_each(|line| println!("{}", line));
+
+    let mut interpreter = Interpreter::new();
+    for def in code.0.clone() {
+        interpreter = interpreter.with_fn(IDef::from_def(&def));
+        println!("{}\n", IDef::from_def(&def));
+    }
+    interpreter = interpreter.with_entry_point("Main");
+
+    interpreter._yolo();
 
     interpreter.step().unwrap();
 
@@ -365,19 +407,22 @@ pub fn interpreter_test() {
         interpreter.step().unwrap();
     }
     // end of build
-    println!("{:?}", interpreter);
+    println!("build end\n{:?}", interpreter);
 
-    for _ in 0..237 {
+    for _ in 0..224 {
         interpreter.step().unwrap();
     }
     // end of flip
-    println!("{:?}", interpreter);
+    println!("flip end\n{:?}", interpreter);
 
-    for _ in 0..188 {
+    for _ in 0..175 {
         interpreter.step().unwrap();
     }
     // end of sum
-    println!("{:?}", interpreter);
+    println!("sum end\n{:?}", interpreter);
+
+    interpreter.step();
+    println!("main end\n{:?}", interpreter);
 }
 
 impl fmt::Display for IDef {

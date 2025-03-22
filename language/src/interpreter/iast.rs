@@ -91,6 +91,7 @@ impl IDef {
                     true
                 }
             })
+            .filter(|&s| !matches!(s, Statement::Decl(_)))
             .peekable();
         let body = extract_body(&mut iter);
         IDef {

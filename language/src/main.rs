@@ -14,9 +14,13 @@ mod ast;
 mod lexer;
 mod error;
 mod interpreter;
+use interpreter::*;
 lalrpop_mod!(pub grammar);
 use simple_ast::*;
 fn main() {
+    interpreter_test_time();
+    return;
+
     let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
 
     let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
