@@ -1,0 +1,14 @@
+enum List = Nil, Cons(List, Int);
+enum Maybe = None, Some Int;
+
+List: (List, Maybe)
+Next list = match list {
+        Nil: (Nil, None),
+        Cons(xs, x): (xs, Some x)
+    };
+
+List: (List, Maybe, Maybe)
+Next_twice list = 
+    let (list, x1) = Next list in 
+        let (list, x2) = Next list in 
+            (list, x1, x2);

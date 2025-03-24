@@ -1,0 +1,36 @@
+// this is a test file
+enum Tree = 
+    Bin(Tree, Tree),
+    Tip Int;
+
+    //
+enum TZipper = 
+    Top,                 
+    BinL(TZipper, Tree),
+    BinR(Tree, TZipper);
+
+//
+// multiline
+// comment
+//
+
+fip (Tree, TZipper): Tree
+Down(t, ctx) =
+    match t {
+        Bin(l, r):
+            Down(l, BinL(ctx, r)), //Down comment
+        Tip x: App(Tip(x + 1), ctx)
+    };
+
+fip (Tree, TZipper): Tree
+App(t, ctx) =
+    match ctx {
+        Top: t,
+        BinR(l, up):
+            App(Bin(l, t), up),
+        BinL(up, r):
+            Down(r, BinR(t, up))
+    };
+
+fip Tree: Tree
+TMap t = Down(t, Top);
