@@ -1,7 +1,7 @@
 enum Tree = Empty, Node(Tree, Int, Tree);
 
 (): Tree
-Build = 
+build = 
     Node(
         Node(
             Node(
@@ -29,16 +29,16 @@ Build =
     );
 
 Tree: Int
-Sum tree = match tree {
+sum tree = match tree {
     Empty: 0,
-    Node(left, value, right): Sum(left) + value + Sum(right)
+    Node(left, value, right): sum(left) + value + sum(right)
 };
 
 Tree: Tree
-Flip tree = match tree {
+flip tree = match tree {
     Empty: Empty,
-    Node(left, value, right): Node(Flip(right), value, Flip(left))
+    Node(left, value, right): Node(flip(right), value, flip(left))
 };
 
 (): Int
-Main = Sum(Flip(Build()));
+main = sum(flip(build()));

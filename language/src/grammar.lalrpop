@@ -61,7 +61,7 @@ Definition: Definition = {
         Definition::ADT(id, constructors)
     },
 
-    <signature: FunctionSignature> <id: "cap_id"> <vars: OptionalImplicitUTuple<"noncap_id">> "=" <body: Expression> ";" => {
+    <signature: FunctionSignature> <id: "noncap_id"> <vars: OptionalImplicitUTuple<"noncap_id">> "=" <body: Expression> ";" => {
         Definition::Function(id, Function { signature, vars, body })
     }
 }
@@ -84,11 +84,16 @@ FunctionSignature: FunctionSignature = {
     }
 }
 
+#[inline]
+CallableID: String = {
+    "cap_id", "noncap_id"
+}
+
 ExpressionReset = <Expression>;
 Expression: BaseNode = {
     #[precedence(level="0")]
-    "noncap_id" => BaseNode::variable(<>),
     "cap_id" => BaseNode::function_call(<>, UTuple(vec![])),
+    "noncap_id" => BaseNode::variable(<>),
     "int" => BaseNode::integer(<>),
     <mut tup: UTuple<ExpressionReset>> => {
         if tup.0.len() == 1 {
@@ -100,7 +105,7 @@ Expression: BaseNode = {
 
 
     #[precedence(level="1")]
-    <id: "cap_id"> <arg: Expression> => {
+    <id: CallableID> <arg: Expression> => {
         match arg.expr {
             SyntaxExpression::UTuple(args) => {
                 BaseNode::function_call(id, args)
