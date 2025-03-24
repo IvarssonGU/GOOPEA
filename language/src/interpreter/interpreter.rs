@@ -1,5 +1,7 @@
+use crate::ast::base::BaseProgram;
+use crate::ast::scoped::ScopedProgram;
+use crate::ast::typed::TypedProgram;
 use crate::lexer::Lexer;
-use crate::scoped_ast::ScopedProgram;
 use crate::simple_ast::{Operator, add_refcounts, from_scoped};
 use crate::{code, grammar, ir};
 use std::collections::{HashMap, VecDeque};
@@ -343,13 +345,11 @@ impl Debug for Data {
 pub fn interpreter_test_time() {
     let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
 
-    let program = grammar::ProgramParser::new()
-        .parse(Lexer::new(&code))
-        .unwrap();
+    let base_program = BaseProgram::new(&code).unwrap();
+    let scoped_program = ScopedProgram::new(base_program).unwrap();
+    let typed_program = TypedProgram::new(scoped_program).unwrap();
 
-    let scoped_program = ScopedProgram::new(&program).unwrap();
-    scoped_program.validate().unwrap();
-    let simple_program = from_scoped(&scoped_program);
+    let simple_program = from_scoped(&typed_program);
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
 
@@ -380,9 +380,11 @@ pub fn interpreter_test_tree_flip() {
         .parse(Lexer::new(&code))
         .unwrap();
 
-    let scoped_program = ScopedProgram::new(&program).unwrap();
-    scoped_program.validate().unwrap();
-    let simple_program = from_scoped(&scoped_program);
+    let base_program = BaseProgram::new(&code).unwrap();
+    let scoped_program = ScopedProgram::new(base_program).unwrap();
+    let typed_program = TypedProgram::new(scoped_program).unwrap();
+
+    let simple_program = from_scoped(&typed_program);
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
 

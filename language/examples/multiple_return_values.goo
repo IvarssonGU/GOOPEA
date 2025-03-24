@@ -2,13 +2,13 @@ enum List = Nil, Cons(List, Int);
 enum Maybe = None, Some Int;
 
 List: (List, Maybe)
-next list = match list {
+Next list = match list {
         Nil: (Nil, None),
         Cons(xs, x): (xs, Some x)
     };
 
 List: (List, Maybe, Maybe)
-next_twice list = 
-    let (list, x1) = next list in 
-        let (list, x2) = next list in 
+Next_twice list = 
+    let (list, x1) = Next list in 
+        let (list, x2) = Next list in 
             (list, x1, x2);

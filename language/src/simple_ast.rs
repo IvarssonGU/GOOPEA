@@ -1,7 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
-use std::sync::atomic::AtomicUsize;
-use crate::scoped_ast;
-use crate::ast;
+use crate::ast::{ast, scoped, typed::{TypeWrapper, TypedProgram}};
 
 pub type Program = Vec<FunctionDefinition>;
 
@@ -67,37 +65,37 @@ impl Display for Operator {
     }
 }
 
-pub fn from_scoped(ast: &scoped_ast::ScopedProgram) -> Program {
+pub fn from_scoped(ast: &TypedProgram) -> Program {
     let mut program = Vec::new();
     
-    for (id, scoped_fun) in &ast.functions {
+    for (id, func) in &ast.functions {
         program.push(FunctionDefinition {
-            return_type_len: scoped_fun.def.signature.result_type.0.len() as u8,
+            return_type_len: func.signature.result_type.0.len() as u8,
             id: id.clone(),
-            args: scoped_fun.def.variables.0.clone(),
-            body: from_expression(&scoped_fun.body.expr, ast),
+            args: func.vars.0.clone(),
+            body: from_expression(&func.body, ast),
         });
     }
     program
 }
 
-fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> Expression {
-    match expr {
-        ast::Expression::FunctionCall(id, args) => {
+fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
+    match &expr.expr {
+        scoped::SimplifiedExpression::FunctionCall(id, args) => {
             match id.as_str() {
                 "+" => Expression::Operation(Operator::Add, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
                 "-" => Expression::Operation(Operator::Sub, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
                 "*" => Expression::Operation(Operator::Mul, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
                 "/" => Expression::Operation(Operator::Div, Box::from(from_expression(&args.0[0], ast)), Box::from(from_expression(&args.0[1], ast))),
-                _ => match ast.get_constructor(id) {
-                    Ok(cons) => Expression::Constructor(cons.internal_id as i64, args.0.iter().map(|arg| from_expression(arg, ast)).collect()),
+                _ => match ast.constructors.get(id) {
+                    Some(cons) => Expression::Constructor(cons.sibling_index as i64, args.0.iter().map(|arg| from_expression(arg, ast)).collect()),
                     _ => Expression::App(id.clone(), args.0.iter().map(|arg| from_expression(arg, ast)).collect())
                 }
             }
         }
-        ast::Expression::Integer(i) => Expression::Integer(*i),
-        ast::Expression::Variable(id) => match ast.get_constructor(id)  {
-            Ok(cons) if cons.constructor.arguments.0.len() == 0 => Expression::Constructor(cons.internal_id as i64, Vec::new()),
+        scoped::SimplifiedExpression::Integer(i) => Expression::Integer(*i),
+        scoped::SimplifiedExpression::Variable(id) => match ast.constructors.get(id)  {
+            Some(cons) if cons.args.0.len() == 0 => Expression::Constructor(cons.sibling_index as i64, Vec::new()),
             _ => match id.as_str() {
                 "true" => Expression::Constructor(1, Vec::new()),
                 "false" => Expression::Constructor(0, Vec::new()),
@@ -106,27 +104,29 @@ fn from_expression(expr: &ast::Expression, ast: &scoped_ast::ScopedProgram) -> E
                 _ => Expression::Ident(id.clone())
             }   
         },
-        ast::Expression::Match(match_exp) => Expression::Match(
-            Box::from(from_expression(&match_exp.expr, ast)), 
-            match_exp.cases.iter().map(|case| (
-                {
-                    match &case.pattern {
-                        ast::Pattern::Integer(_) => todo!(),
-                        ast::Pattern::UTuple(utuple) => todo!(),
-                        ast::Pattern::Constructor(fid, vars) => {
-                            if vars.0.len() == 0 {
-                                (ast.get_constructor(fid).unwrap().internal_id as i64, vec![])
-                            }
-                            else {
-                                (ast.get_constructor(fid).unwrap().internal_id as i64, vars.0.iter().map(|var| Binder::Variable(var.clone())).collect())
-                            }
-                        },
-                    }
-                },
-                from_expression(&case.body, ast)
-            )
-            ).collect()),
-        ast::Expression::UTuple(exps) => Expression::UTuple(exps.0.iter().map(|expr| from_expression(expr, ast)).collect()),
+        scoped::SimplifiedExpression::Match(match_expr, cases) => {
+            Expression::Match(
+                Box::from(from_expression(&match_expr, ast)), 
+                cases.iter().map(|(pattern, child)| (
+                    {
+                        match pattern {
+                            ast::Pattern::Integer(_) => todo!(),
+                            ast::Pattern::UTuple(utuple) => todo!(),
+                            ast::Pattern::Constructor(fid, vars) => {
+                                if vars.0.len() == 0 {
+                                    (ast.constructors.get(fid).unwrap().sibling_index as i64, vec![])
+                                }
+                                else {
+                                    (ast.constructors.get(fid).unwrap().sibling_index as i64, vars.0.iter().map(|var| Binder::Variable(var.clone())).collect())
+                                }
+                            },
+                        }
+                    },
+                    from_expression(child, ast)
+                )
+            ).collect())
+        },
+        scoped::SimplifiedExpression::UTuple(exps) => Expression::UTuple(exps.0.iter().map(|expr| from_expression(expr, ast)).collect()),
         //ast::Expression::LetEqualIn(ids, left, right) => Expression::Let(ids.0.clone(), Box::from(from_expression(&left, ast)), Box::from(from_expression(&right, ast))),
     }
 }
