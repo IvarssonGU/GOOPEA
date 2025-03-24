@@ -15,6 +15,17 @@ pub mod ast;
 
 lalrpop_mod!(pub grammar);
 
+pub fn run(code: String) -> String {
+    let base_program = BaseProgram::new(&code).unwrap();
+    let scoped_program = ScopedProgram::new(base_program).unwrap();
+    let typed_program = TypedProgram::new(scoped_program).unwrap();
+    let simple_program = from_scoped(&typed_program);
+    let with_ref_count = add_refcounts(&simple_program);
+    let code = code::Compiler::new().compile(&with_ref_count);
+
+    ir::output(&code).join("\n")
+}
+
 fn main() {
     let code = fs::read_to_string(Path::new("examples/arithmetic.goo")).unwrap();
 
