@@ -2,14 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{ChainedData, ExpressionNode, Function, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
+use super::{ast::{ChainedData, ExpressionNode, FunctionData, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
 
-pub type TypeWrapperData = ChainedData<ExpressionType, Scope>;
+pub type TypedData = ChainedData<ExpressionType, Scope>;
 
-pub type TypeWrapper = ExpressionNode<TypeWrapperData, SimplifiedExpression<TypeWrapperData>>;
-pub type TypedProgram = Program<TypeWrapperData, SimplifiedExpression<TypeWrapperData>>;
+pub type TypedNode = ExpressionNode<TypedData, SimplifiedExpression<TypedData>>;
+pub type TypedProgram = Program<TypedData, SimplifiedExpression<TypedData>>;
 
-fn get_children_same_type<'a>(mut iter: impl Iterator<Item = &'a TypeWrapper>) -> Option<ExpressionType> {
+fn get_children_same_type<'a>(mut iter: impl Iterator<Item = &'a TypedNode>) -> Option<ExpressionType> {
     let tp = iter.next()?.data.data.clone();
 
     for x in iter {
@@ -67,11 +67,11 @@ impl TypedProgram {
             );
         }
 
-        for (fid, func) in &program.functions {
+        for (fid, func) in &program.function_datas {
             all_function_signatures.insert(fid.clone(), func.signature.clone());
         }
 
-        let functions = program.functions.into_iter().map(|(fid, func)| {
+        let function_bodies = program.function_bodies.into_iter().zip(program.function_datas.values()).map(|((fid, body), func)| {
             let func_vars = &func.vars.0;
             let func_types = &func.signature.argument_type.0;
 
@@ -81,20 +81,14 @@ impl TypedProgram {
 
             let base_var_types = func_vars.iter().zip(func_types.iter()).map(
                 |(vid, tp)| {
-                    (func.body.data.get(vid).unwrap().internal_id, tp.clone())
+                    (body.data.get(vid).unwrap().internal_id, tp.clone())
                 }
             ).collect::<HashMap<_, _>>();
 
-            type_expression(func.body, base_var_types, &all_function_signatures).map(|body|
-                (fid.clone(), Function {
-                    body,
-                    signature: func.signature,
-                    vars: func.vars
-                })
-            )
+            type_expression(body, base_var_types, &all_function_signatures).map(|body| (fid, body) )
         }).collect::<Result<HashMap<_, _>, _>>()?;
 
-        let program = TypedProgram { adts: program.adts, constructors: program.constructors, functions };
+        let program = TypedProgram { adts: program.adts, constructors: program.constructors, function_datas: program.function_datas, function_bodies };
         program.validate_expressions_by(|node| program.validate_function_call(node, &all_function_signatures))?;
         program.validate_expressions_by(|node| program.validate_match_pattern(node))?;
         program.validate_return_types()?;
@@ -104,8 +98,8 @@ impl TypedProgram {
     }
 
     fn validate_return_types(&self) -> CompileResult {
-        for (_, func) in &self.functions {
-            let return_type = match &func.body.data.data {
+        for (_, func, body) in self.function_iter() {
+            let return_type = match &body.data.data {
                 ExpressionType::UTuple(utuple) => utuple.clone(),
                 ExpressionType::Type(tp) => UTuple(vec![tp.clone()]),
             };
@@ -119,13 +113,13 @@ impl TypedProgram {
     }
 
     fn validate_fip(&self) -> CompileResult {
-        for (_, func) in &self.functions {
+        for (_, func, body) in self.function_iter() {
             if func.signature.is_fip {
-                let used_vars = self.recursively_validate_fip_expression(&func.body)?;
+                let used_vars = self.recursively_validate_fip_expression(body)?;
                 // Used can't contain any other variables than those defined for the function
                 // since all variables are guaranteed to have a definition. All variables declared in expressions will already have been checked.
 
-                let func_vars = func.body.data.next.values().map(|x| &**x).collect::<HashSet<_>>();
+                let func_vars = body.data.next.values().map(|x| &**x).collect::<HashSet<_>>();
                 let mut unused_vars = func_vars.difference(&used_vars);
 
                 if let Some(unused_var) = unused_vars.next() {
@@ -137,7 +131,7 @@ impl TypedProgram {
         Ok(())
     }
 
-    fn validate_function_call(&self, node: &TypeWrapper, all_signatures: &HashMap<FID, FunctionSignature>) -> CompileResult {
+    fn validate_function_call(&self, node: &TypedNode, all_signatures: &HashMap<FID, FunctionSignature>) -> CompileResult {
         let SimplifiedExpression::FunctionCall(fid, args) = &node.expr else { return Ok(()) };
 
         let expected_arg_type = &all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction)?.argument_type;
@@ -154,7 +148,7 @@ impl TypedProgram {
         Ok(())
     }
     
-    fn validate_match_pattern(&self, node: &TypeWrapper) -> CompileResult {
+    fn validate_match_pattern(&self, node: &TypedNode) -> CompileResult {
         let SimplifiedExpression::Match(match_on, cases) = &node.expr else { return Ok(()) };
 
         get_children_same_type(cases.iter().map(|t| &t.1)).ok_or_else(|| CompileError::MissmatchedTypes)?;
@@ -248,7 +242,7 @@ impl TypedProgram {
 
     // Returns a list of variables used within all paths of execution
     // TODO: Check for reuse pairs / allocations
-    fn recursively_validate_fip_expression<'a, 'b: 'a>(&'a self, node: &'b TypeWrapper) -> Result<HashSet<&'b VariableDefinition>, CompileError>
+    fn recursively_validate_fip_expression<'a, 'b: 'a>(&'a self, node: &'b TypedNode) -> Result<HashSet<&'b VariableDefinition>, CompileError>
     {
         let mut used_vars = HashSet::new();
 
@@ -322,7 +316,7 @@ pub fn type_expression(
     expr: ScopedNode,
     var_types: HashMap<usize, Type>,
     function_signatures: &HashMap<FID, FunctionSignature>
-) -> Result<TypeWrapper, CompileError> 
+) -> Result<TypedNode, CompileError> 
 {
     let (new_expr, tp) = match expr.expr {
         SimplifiedExpression::UTuple(args) => {
@@ -349,7 +343,7 @@ pub fn type_expression(
         SimplifiedExpression::Match(match_expr, cases) => {
             let match_child_typed = type_expression(*match_expr, var_types.clone(), function_signatures)?;
 
-            let new_cases: Vec<(Pattern, TypeWrapper)> = cases.into_iter().map(|(pattern, child)| {
+            let new_cases: Vec<(Pattern, TypedNode)> = cases.into_iter().map(|(pattern, child)| {
                 match &pattern {
                     Pattern::Integer(_) => type_expression(child, var_types.clone(), function_signatures),
                     Pattern::UTuple(vars) => {

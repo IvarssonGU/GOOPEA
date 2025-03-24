@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{map_expr_box, ExpressionNode, FullExpression, Function, Pattern, Program, UTuple, FID, VID}, base::{BaseNode, BaseProgram, SyntaxExpression}};
+use super::{ast::{map_expr_box, ExpressionNode, FullExpression, FunctionData, Pattern, Program, UTuple, FID, VID}, base::{BaseNode, BaseProgram, SyntaxExpression}};
 
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
 pub type ScopedNode = ExpressionNode<Scope, SimplifiedExpression<Scope>>;
@@ -42,29 +42,22 @@ impl ScopedProgram {
         let counter = RefCell::new(0);
 
         let atom_constructors = program.constructors.iter().filter_map(|(fid, cons)| (cons.args.0.len() == 0).then_some(fid.clone())).collect();
-        let zero_argument_functions = program.functions.iter().filter_map(|(fid, sig)| (sig.vars.0.len() == 0).then_some(fid.clone())).collect();
+        let zero_argument_functions = program.function_datas.iter().filter_map(|(fid, sig)| (sig.vars.0.len() == 0).then_some(fid.clone())).collect();
 
-        let mut functions = HashMap::new();
-        for (fid, func) in program.functions {
+        let mut function_bodies = HashMap::new();
+        for ((fid, body), func) in program.function_bodies.into_iter().zip(program.function_datas.values()) {
             let base_scope = func.vars.0.iter().map(
                 |vid| {
                     (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), internal_id: counter.replace_with(|&mut x| x + 1) }))
                 }
             ).collect::<Scope>();
 
-            let scoped_expression = scope_expression(func.body, base_scope, &counter, &atom_constructors, &zero_argument_functions)?;
+            let scoped_expression = scope_expression(body, base_scope, &counter, &atom_constructors, &zero_argument_functions)?;
 
-            functions.insert(
-                fid, 
-                Function { 
-                    signature: func.signature,
-                    vars: func.vars,
-                    body: scoped_expression
-                }
-            );
+            function_bodies.insert(fid, scoped_expression);
         }
 
-        let program =  ScopedProgram { adts: program.adts, constructors: program.constructors, functions };
+        let program =  ScopedProgram { adts: program.adts, constructors: program.constructors, function_datas: program.function_datas, function_bodies };
         program.validate_variable_occurences()?;
 
         Ok(program)

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{error::{CompileError, CompileResult}, grammar, lexer::Lexer};
 
-use super::ast::{Constructor, ExpressionNode, FullExpression, Function, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
+use super::ast::{Constructor, ExpressionNode, FullExpression, FunctionData, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
 
 pub type BaseNode = ExpressionNode<(), SyntaxExpression<()>>;
 pub type BaseProgram = Program<(), SyntaxExpression<()>>;
@@ -10,7 +10,7 @@ pub type BaseProgram = Program<(), SyntaxExpression<()>>;
 #[derive(Debug)]
 pub enum Definition {
     ADT(AID, Vec<(FID, UTuple<Type>)>),
-    Function(FID, Function<(), SyntaxExpression<()>>)
+    Function(FID, (FunctionData, BaseNode))
 }
 
 impl BaseProgram {
@@ -21,7 +21,8 @@ impl BaseProgram {
 
         let mut adts = HashMap::new();
         let mut all_constructors = HashMap::new();
-        let mut functions = HashMap::new();
+        let mut function_datas = HashMap::new();
+        let mut function_bodies = HashMap::new();
         for def in program {
             match def {
                 Definition::ADT(aid, constructors) => {
@@ -31,13 +32,14 @@ impl BaseProgram {
                         all_constructors.insert(fid, Constructor { sibling_index, adt: aid.clone(), args });
                     }
                 },
-                Definition::Function(fid, def) => {    
-                    functions.insert(fid, def);
+                Definition::Function(fid, (data, body)) => {    
+                    function_datas.insert(fid.clone(), data);
+                    function_bodies.insert(fid, body);
                 }
             }
         }
 
-        let program = BaseProgram { adts, constructors: all_constructors, functions };
+        let program = BaseProgram { adts, constructors: all_constructors, function_datas, function_bodies };
         program.validate_top_level_ids()?;
         program.validate_all_types()?;
 
@@ -47,7 +49,7 @@ impl BaseProgram {
     // Checks that there are no top level id conflicts
     fn validate_top_level_ids(&self) -> CompileResult {
         let mut top_level_fids = HashSet::new();
-        for fid in self.functions.keys().chain(self.constructors.keys()) {
+        for fid in self.function_datas.keys().chain(self.constructors.keys()) {
             if !top_level_fids.insert(fid.clone()) {
                 return Err(CompileError::MultipleFunctionDefinitions(fid.clone()))
             }
@@ -69,7 +71,7 @@ impl BaseProgram {
             cons.args.validate_in(self)?;
         }
 
-        for (_, func) in &self.functions {
+        for (_, func) in &self.function_datas {
             func.signature.argument_type.validate_in(self)?;
             func.signature.result_type.validate_in(self)?;
         }

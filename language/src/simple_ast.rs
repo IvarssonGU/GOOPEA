@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
-use crate::ast::{ast, scoped, typed::{TypeWrapper, TypedProgram}};
+use crate::ast::{ast, scoped, typed::{TypedNode, TypedProgram}};
 
 pub type Program = Vec<FunctionDefinition>;
 
@@ -68,18 +68,18 @@ impl Display for Operator {
 pub fn from_scoped(ast: &TypedProgram) -> Program {
     let mut program = Vec::new();
     
-    for (id, func) in &ast.functions {
+    for (id, func, body) in ast.function_iter() {
         program.push(FunctionDefinition {
             return_type_len: func.signature.result_type.0.len() as u8,
             id: id.clone(),
             args: func.vars.0.clone(),
-            body: from_expression(&func.body, ast),
+            body: from_expression(body, ast),
         });
     }
     program
 }
 
-fn from_expression(expr: &TypeWrapper, ast: &TypedProgram) -> Expression {
+fn from_expression(expr: &TypedNode, ast: &TypedProgram) -> Expression {
     match &expr.expr {
         scoped::SimplifiedExpression::FunctionCall(id, args) => {
             match id.as_str() {

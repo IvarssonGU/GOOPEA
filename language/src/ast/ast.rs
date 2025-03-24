@@ -21,7 +21,14 @@ pub struct UTuple<T>(pub Vec<T>);
 pub struct Program<D, E> {
     pub adts: HashMap<AID, Vec<FID>>,
     pub constructors: HashMap<FID, Constructor>,
-    pub functions: HashMap<FID, Function<D, E>>,
+    pub function_datas: HashMap<FID, FunctionData>,
+    pub function_bodies: HashMap<FID, ExpressionNode<D, E>>
+}
+
+pub struct ProgramData<'a> {
+    pub adts: &'a HashMap<AID, Vec<FID>>,
+    pub constructors: &'a HashMap<FID, Constructor>,
+    pub function_datas: &'a HashMap<FID, FunctionData>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,10 +39,9 @@ pub struct Constructor {
 }
 
 #[derive(Debug)]
-pub struct Function<D, E> {
+pub struct FunctionData {
     pub vars: UTuple<VID>,
     pub signature: FunctionSignature,
-    pub body: ExpressionNode<D, E>,
 }
 
 #[derive(Debug, Clone)]
@@ -124,11 +130,23 @@ impl<D, E> Program<D, E>
     where for<'a> &'a E: Into<FullExpression<'a, D, E>>
 {
     pub fn validate_expressions_by(&self, validate: impl Fn(&ExpressionNode<D, E>) -> CompileResult) -> CompileResult {
-        for func in self.functions.values() {
-            func.body.validate_recursively_by(&validate)?;
+        for body in self.function_bodies.values() {
+            body.validate_recursively_by(&validate)?;
         }
 
         Ok(())
+    }
+
+    pub fn function_iter(&self) -> impl Iterator<Item = (&FID, &FunctionData, &ExpressionNode<D, E>)> {
+        self.function_datas.iter().zip(self.function_bodies.values()).map(|((fid, data), body)| (fid, data, body))
+    }
+
+    pub fn data(&self) -> ProgramData<'_> {
+        ProgramData {
+            adts: &self.adts,
+            constructors: &self.constructors,
+            function_datas: &self.function_datas
+        }
     }
 }
 
@@ -136,16 +154,9 @@ impl<D, E> Program<D, E> {
     pub fn map<E2: From<E>>(self) -> Program<D, E2> {
         Program { 
             adts: self.adts, 
-            constructors: self.constructors, 
-            functions: self.functions.into_iter().map(
-                |(fid, func)| {
-                    (fid, Function {
-                        signature: func.signature,
-                        vars: func.vars,
-                        body: func.body.map()
-                    })
-                }
-            ).collect::<HashMap<_, _>>() 
+            constructors: self.constructors,
+            function_datas: self.function_datas,
+            function_bodies: self.function_bodies.into_iter().map(|(fid, body)| (fid, body.map())).collect()
         }
     }
 }
@@ -223,9 +234,9 @@ impl<D: DisplayData, E> Display for Program<D, E>
             writeln!(f)?;
         }
 
-        for (fid, func) in &self.functions {
+        for (fid, func, body) in self.function_iter() {
             writeln!(f, "{}\n{fid}{} =", func.signature, func.vars)?;
-            write_expression_node(f, &func.body, 1)?;
+            write_expression_node(f, body, 1)?;
             write!(f, ";")?;
             writeln!(f)?;
             writeln!(f)?;

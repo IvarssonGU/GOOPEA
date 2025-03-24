@@ -62,7 +62,7 @@ Definition: Definition = {
     },
 
     <signature: FunctionSignature> <id: "noncap_id"> <vars: OptionalImplicitUTuple<"noncap_id">> "=" <body: Expression> ";" => {
-        Definition::Function(id, Function { signature, vars, body })
+        Definition::Function(id, (FunctionData { signature, vars }, body))
     }
 }
 
