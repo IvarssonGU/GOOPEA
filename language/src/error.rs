@@ -1,24 +1,25 @@
 use std::{error::Error, fmt::Display};
 
-use crate::ast::{Expression, FunctionDefinition, MatchCase, Type, UTuple, AID, FID, VID};
+use crate::ast::ast::{Type, UTuple, AID, FID, VID};
 
-pub type CompileResult<'a> = Result<(), CompileError<'a>>;
+pub type CompileResult = Result<(), CompileError>;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub enum CompileError<'a> {
-    UnknownFunction(&'a VID),
-    UnknownVariable(&'a FID),
-    UnknownConstructor(&'a FID),
-    MultipleDefinitions(&'a str),
-    InconsistentVariableCountInFunctionDefinition(&'a FunctionDefinition),
-    WrongVariableCountInLetStatement(&'a Expression),
-    WrongVariableCountInMatchCase(&'a MatchCase),
-    WrongVariableCountInFunctionCall(&'a Expression),
-    UnknownADTInType(&'a AID),
-    LetHasNoFunctionCall(&'a Expression),
+pub enum CompileError {
+    UnknownFunction,
+    UnknownVariable(VID),
+    UnknownConstructor,
+    MultipleFunctionDefinitions(FID),
+    MultipleADTDefinitions(AID),
+    InconsistentVariableCountInFunctionDefinition,
+    WrongVariableCountInLetStatement,
+    WrongVariableCountInMatchCase,
+    WrongVariableCountInFunctionCall,
+    UnknownADTInType,
+    LetHasNoFunctionCall,
 
-    MissmatchedTypes(&'a Expression),
+    MissmatchedTypes,
     UnexpectedUTuple,
     WrongArgumentType(FID, UTuple<Type>, UTuple<Type>),
     InvalidOperationTypes,
@@ -38,13 +39,13 @@ pub enum CompileError<'a> {
     FIPFunctionAllocatesMemory
 }
 
-impl<'a> Display for CompileError<'a> {
+impl<'a> Display for CompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "TODO: Better compile errors")
     }
 }
 
-impl<'b> Error for CompileError<'b> {
+impl Error for CompileError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
     }
