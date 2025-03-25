@@ -15,22 +15,22 @@ enum TZipper =
 //
 
 fip (Tree, TZipper): Tree
-Down(t, ctx) =
+down(t, ctx) =
     match t {
         Bin(l, r):
-            Down(l, BinL(ctx, r)), //Down comment
-        Tip x: App(Tip(x + 1), ctx)
+            down(l, BinL(ctx, r)), //Down comment
+        Tip x: app(Tip(x + 1), ctx)
     };
 
 fip (Tree, TZipper): Tree
-App(t, ctx) =
+app(t, ctx) =
     match ctx {
         Top: t,
         BinR(l, up):
-            App(Bin(l, t), up),
+            app(Bin(l, t), up),
         BinL(up, r):
-            Down(r, BinR(t, up))
+            down(r, BinR(t, up))
     };
 
 fip Tree: Tree
-TMap t = Down(t, Top);
+tmap t = down(t, Top);

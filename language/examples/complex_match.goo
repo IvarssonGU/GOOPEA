@@ -1,36 +1,36 @@
 enum Animal = Cat, Dog;
 
 Animal: Animal
-Convert x = match x {
+convert x = match x {
     Cat: Dog,
     Dog: Cat
 };
 
 (): Int
-MatchUnbox = match (1, 2) {
+matchUnbox = match (1, 2) {
     (x, y): x + y
 };
 
 (): (Int, Int)
-Coord = (7, 5);
+coord = (7, 5);
 
 (): Int
-LetUnbox = let x = 3 in x;
+letUnbox = let x = 3 in x;
 
 (): Int
-MatchUnbox2 = match Coord {
+matchUnbox2 = match coord {
     (x, y): x - y
 };
 
 Int: Int
-Fib i = match i {
+fib i = match i {
     0: 1,
     1: 1,
-    n: Fib (i-1) + Fib(i - 2)
+    n: fib (i-1) + fib(i - 2)
 };
 
 (): Animal
-Main = match Convert Cat {
+main = match convert Cat {
     Cat: Cat,
     Dog: Dog
 };
