@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{map_expr_box, ExpressionNode, FullExpression, FunctionData, Pattern, Program, UTuple, FID, VID}, base::{BaseNode, BaseProgram, SyntaxExpression}};
+use super::{ast::{map_expr_box, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseProgram, SyntaxExpression}};
 
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
 pub type ScopedNode = ExpressionNode<Scope, SimplifiedExpression<Scope>>;
@@ -44,20 +44,16 @@ impl ScopedProgram {
         let atom_constructors = program.constructors.iter().filter_map(|(fid, cons)| (cons.args.0.len() == 0).then_some(fid.clone())).collect();
         let zero_argument_functions = program.function_datas.iter().filter_map(|(fid, sig)| (sig.vars.0.len() == 0).then_some(fid.clone())).collect();
 
-        let mut function_bodies = HashMap::new();
-        for ((fid, body), func) in program.function_bodies.into_iter().zip(program.function_datas.values()) {
+        let program = program.transform_functions(|body, func, _| {
             let base_scope = func.vars.0.iter().map(
                 |vid| {
                     (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), internal_id: counter.replace_with(|&mut x| x + 1) }))
                 }
             ).collect::<Scope>();
 
-            let scoped_expression = scope_expression(body, base_scope, &counter, &atom_constructors, &zero_argument_functions)?;
+            scope_expression(body, base_scope, &counter, &atom_constructors, &zero_argument_functions)
+        })?;
 
-            function_bodies.insert(fid, scoped_expression);
-        }
-
-        let program =  ScopedProgram { adts: program.adts, constructors: program.constructors, function_datas: program.function_datas, function_bodies };
         program.validate_variable_occurences()?;
 
         Ok(program)

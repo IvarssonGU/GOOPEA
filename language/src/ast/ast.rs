@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::{Display, Formatter}, iter, ops::Deref};
 
-use crate::error::CompileResult;
+use crate::error::{CompileError, CompileResult};
 
 use super::{scoped::Scope, typed::ExpressionType};
 
@@ -25,10 +25,10 @@ pub struct Program<D, E> {
     pub function_bodies: HashMap<FID, ExpressionNode<D, E>>
 }
 
-pub struct ProgramData<'a> {
-    pub adts: &'a HashMap<AID, Vec<FID>>,
-    pub constructors: &'a HashMap<FID, Constructor>,
-    pub function_datas: &'a HashMap<FID, FunctionData>,
+pub struct ProgramData {
+    pub adts: HashMap<AID, Vec<FID>>,
+    pub constructors: HashMap<FID, Constructor>,
+    pub function_datas: HashMap<FID, FunctionData>,
 }
 
 #[derive(Debug, Clone)]
@@ -136,21 +136,13 @@ impl<D, E> Program<D, E>
 
         Ok(())
     }
+}
 
+impl<D, E> Program<D, E> {
     pub fn function_iter(&self) -> impl Iterator<Item = (&FID, &FunctionData, &ExpressionNode<D, E>)> {
         self.function_datas.iter().zip(self.function_bodies.values()).map(|((fid, data), body)| (fid, data, body))
     }
 
-    pub fn data(&self) -> ProgramData<'_> {
-        ProgramData {
-            adts: &self.adts,
-            constructors: &self.constructors,
-            function_datas: &self.function_datas
-        }
-    }
-}
-
-impl<D, E> Program<D, E> {
     pub fn map<E2: From<E>>(self) -> Program<D, E2> {
         Program { 
             adts: self.adts, 
@@ -158,6 +150,27 @@ impl<D, E> Program<D, E> {
             function_datas: self.function_datas,
             function_bodies: self.function_bodies.into_iter().map(|(fid, body)| (fid, body.map())).collect()
         }
+    }
+
+    pub fn split_data_and_bodies(self) -> (ProgramData, HashMap<FID, ExpressionNode<D, E>>) {
+        (
+            ProgramData { adts: self.adts, constructors: self.constructors, function_datas: self.function_datas },
+            self.function_bodies
+        )
+    }
+
+    pub fn transform_functions<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>, &FunctionData, &ProgramData) -> Result<ExpressionNode<D2, E2>, CompileError>) -> Result<Program<D2, E2>, CompileError> {
+        let (program_data, function_bodies) = self.split_data_and_bodies();
+
+        let function_bodies = function_bodies.into_iter().zip(program_data.function_datas.values())
+            .map(|((fid, body), data)| func(body, data, &program_data).map(|body| (fid, body))).collect::<Result<_, _>>()?;
+
+        Ok(Program { 
+            adts: program_data.adts,
+            constructors: program_data.constructors, 
+            function_datas: program_data.function_datas, 
+            function_bodies
+        })
     }
 }
 

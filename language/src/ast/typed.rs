@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{ChainedData, ExpressionNode, FunctionData, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
+use super::{ast::{ChainedData, ExpressionNode, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
 
 pub type TypedData = ChainedData<ExpressionType, Scope>;
 
@@ -71,7 +71,7 @@ impl TypedProgram {
             all_function_signatures.insert(fid.clone(), func.signature.clone());
         }
 
-        let function_bodies = program.function_bodies.into_iter().zip(program.function_datas.values()).map(|((fid, body), func)| {
+        let program = program.transform_functions(|body, func, _| {
             let func_vars = &func.vars.0;
             let func_types = &func.signature.argument_type.0;
 
@@ -85,10 +85,9 @@ impl TypedProgram {
                 }
             ).collect::<HashMap<_, _>>();
 
-            type_expression(body, base_var_types, &all_function_signatures).map(|body| (fid, body) )
-        }).collect::<Result<HashMap<_, _>, _>>()?;
+            type_expression(body, base_var_types, &all_function_signatures)
+        })?;
 
-        let program = TypedProgram { adts: program.adts, constructors: program.constructors, function_datas: program.function_datas, function_bodies };
         program.validate_expressions_by(|node| program.validate_function_call(node, &all_function_signatures))?;
         program.validate_expressions_by(|node| program.validate_match_pattern(node))?;
         program.validate_return_types()?;
