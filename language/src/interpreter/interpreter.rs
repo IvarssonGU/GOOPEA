@@ -6,6 +6,8 @@ use crate::simple_ast::{Operator, add_refcounts, from_scoped};
 use crate::{code, grammar, ir};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 use std::{fmt, vec};
 
