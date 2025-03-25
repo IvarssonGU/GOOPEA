@@ -1,6 +1,10 @@
 #![feature(formatting_options)]
 
-use std::{fs, path::Path};
+#[cfg(not(target_arch = "wasm32"))]
+use std::fs;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
 
 use lalrpop_util::lalrpop_mod;
 use ast::{ast::{ChainedData, Type}, base::BaseProgram, scoped::ScopedProgram, typed::TypedProgram};
@@ -17,17 +21,10 @@ mod interpreter;
 use interpreter::*;
 lalrpop_mod!(pub grammar);
 
-pub fn run(code: String) -> String {
-    let base_program = BaseProgram::new(&code).unwrap();
-    let scoped_program = ScopedProgram::new(base_program).unwrap();
-    let typed_program = TypedProgram::new(scoped_program).unwrap();
-    let simple_program = from_scoped(&typed_program);
-    let with_ref_count = add_refcounts(&simple_program);
-    let code = code::Compiler::new().compile(&with_ref_count);
+#[cfg(target_arch = "wasm32")]
+fn main() {}
 
-    ir::output(&code).join("\n")
-}
-
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let code = fs::read_to_string(Path::new("examples/zipper_tree.goo")).unwrap();
 
