@@ -93,7 +93,7 @@ pub fn scope_expression(
             // This should never happen
             else if atom_constructors.contains(&vid) { SimplifiedExpression::FunctionCall(vid, UTuple(vec![])) }
             else if zero_argument_functions.contains(&vid) { SimplifiedExpression::FunctionCall(vid, UTuple(vec![])) }
-            else { return Err(CompileError::UnknownVariable(vid.clone())) }
+            else { SimplifiedExpression::Variable(vid) }
         },
         SimplifiedExpression::Match(match_expr, cases) => {
             let scoped_match_child = scope_expression(*match_expr, scope.clone(), counter, atom_constructors, zero_argument_functions)?;

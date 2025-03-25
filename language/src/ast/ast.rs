@@ -140,7 +140,7 @@ impl<D, E> Program<D, E>
 
 impl<D, E> Program<D, E> {
     pub fn function_iter(&self) -> impl Iterator<Item = (&FID, &FunctionData, &ExpressionNode<D, E>)> {
-        self.function_datas.iter().zip(self.function_bodies.values()).map(|((fid, data), body)| (fid, data, body))
+        self.function_datas.keys().map(|fid| (fid, &self.function_datas[fid], &self.function_bodies[fid]))
     }
 
     pub fn map<E2: From<E>>(self) -> Program<D, E2> {
@@ -160,10 +160,10 @@ impl<D, E> Program<D, E> {
     }
 
     pub fn transform_functions<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>, &FunctionData, &ProgramData) -> Result<ExpressionNode<D2, E2>, CompileError>) -> Result<Program<D2, E2>, CompileError> {
-        let (program_data, function_bodies) = self.split_data_and_bodies();
+        let (program_data, mut function_bodies) = self.split_data_and_bodies();
 
-        let function_bodies = function_bodies.into_iter().zip(program_data.function_datas.values())
-            .map(|((fid, body), data)| func(body, data, &program_data).map(|body| (fid, body))).collect::<Result<_, _>>()?;
+        let function_bodies = program_data.function_datas.keys()
+            .map(|fid| func(function_bodies.remove(fid).unwrap(), &program_data.function_datas[fid], &program_data).map(|body| (fid.clone(), body))).collect::<Result<_, _>>()?;
 
         Ok(Program { 
             adts: program_data.adts,
