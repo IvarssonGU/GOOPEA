@@ -1,3 +1,4 @@
+use crate::ir::Prog;
 use crate::lexer::Lexer;
 use crate::scoped_ast::ScopedProgram;
 use crate::simple_ast::{Operator, add_refcounts, from_scoped};
@@ -98,6 +99,15 @@ impl Interpreter {
         }
     }
 
+    pub fn from_program(prog: &Prog) -> Self {
+        let mut interpreter = Interpreter::new();
+        for def in prog.0.clone() {
+            interpreter = interpreter.with_fn(IDef::from_def(&def));
+        }
+        interpreter = interpreter.with_entry_point("Main");
+        interpreter
+    }
+
     pub fn with_fn(mut self, function: IDef) -> Self {
         self.functions.insert(function.id.clone(), function);
         self
@@ -141,6 +151,23 @@ impl Interpreter {
         Data::Pointer(self.heap.len() - 1)
     }
 
+    fn inc(&mut self, ptr: usize) {
+        self.heap[ptr][2].inc();
+    }
+
+    fn dec(&mut self, ptr: usize) {
+        self.heap[ptr][2].dec();
+        if self.heap[ptr][2].unwrap_val() == 0 {
+            for i in 3..self.heap[ptr].len() {
+                if let Data::Pointer(ptr) = self.heap[ptr][i] {
+                    self.dec(ptr);
+                }
+            }
+
+            self.heap[ptr] = Vec::new();
+        }
+    }
+
     pub fn step(&mut self) -> Result<(), ()> {
         let s = self.statements.pop_front();
         if let Some(statement) = s {
@@ -172,21 +199,16 @@ impl Interpreter {
                 IStatement::Print(ioperand) => println!("> {:?}", ioperand),
                 IStatement::Inc(ioperand) => {
                     let id = ioperand.unwrap_id();
-                    let ptr = self.get_local_var(&id);
-                    if ptr.is_ptr() {
-                        self.heap[ptr.unwrap_ptr()][2].inc();
+                    let data = self.get_local_var(&id);
+                    if let Data::Pointer(ptr) = data {
+                        self.inc(ptr);
                     }
                 }
                 IStatement::Dec(ioperand) => {
                     let id = ioperand.unwrap_id();
-                    let ptr = self.get_local_var(&id);
-                    if ptr.is_ptr() {
-                        let block = &mut self.heap[ptr.unwrap_ptr()];
-                        if block[2].dec() == 0 {
-                            for _ in &block[3..] {
-                                // println!("SOMETHING IS GOOONE")
-                            }
-                        }
+                    let data = self.get_local_var(&id);
+                    if let Data::Pointer(ptr) = data {
+                        self.dec(ptr);
                     }
                 }
                 IStatement::Assign(id, ioperand) => {
@@ -257,6 +279,16 @@ impl Interpreter {
         }
     }
 
+    fn run_until_return(&mut self) -> Result<(), ()> {
+        let s = self.function_names_stack.len();
+
+        while self.function_names_stack.len() >= s {
+            self.step()?;
+        }
+
+        Ok(())
+    }
+
     fn enter_fn(&mut self, name: &str, passed_args: Vec<Data>) {
         let f = self.functions.get(name).expect(&format!(
             "Function '{}' should be in functions but is not",
@@ -312,9 +344,7 @@ impl Debug for Interpreter {
             writeln!(
                 f,
                 "Inside Function '{}'",
-                self.function_names_stack
-                    .last()
-                    .unwrap()
+                self.function_names_stack.last().unwrap()
             )?;
             writeln!(f, "Current Statements:")?;
             for s in self.statements.clone() {
@@ -340,41 +370,32 @@ impl Debug for Data {
     }
 }
 
-pub fn interpreter_test_time() {
-    let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
+pub fn interpreter_test_time(src: &str) {
+    let code = fs::read_to_string(Path::new(src)).unwrap();
 
     let program = grammar::ProgramParser::new()
         .parse(Lexer::new(&code))
         .unwrap();
-
     let scoped_program = ScopedProgram::new(&program).unwrap();
     scoped_program.validate().unwrap();
     let simple_program = from_scoped(&scoped_program);
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
 
-    ir::output(&code)
-        .iter()
-        .for_each(|line| println!("{}", line));
-
-    let mut interpreter = Interpreter::new();
-    for def in code.0.clone() {
-        interpreter = interpreter.with_fn(IDef::from_def(&def));
-        println!("{}\n", IDef::from_def(&def));
-    }
-    interpreter = interpreter.with_entry_point("Main");
+    let mut interpreter = Interpreter::from_program(&code);
 
     println!("Starting!");
     let now = std::time::Instant::now();
 
-    while let Ok(_) = interpreter.step() {}
+    interpreter.run_until_return().unwrap();
 
     let elapsed = now.elapsed().as_micros();
     println!("Done! ({} us)", elapsed);
+    println!("{:?}", interpreter);
 }
 
-pub fn interpreter_test_tree_flip() {
-    let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
+pub fn interpreter_test(src: &str) {
+    let code = fs::read_to_string(Path::new(src)).unwrap();
 
     let program = grammar::ProgramParser::new()
         .parse(Lexer::new(&code))
@@ -386,87 +407,35 @@ pub fn interpreter_test_tree_flip() {
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
 
-    ir::output(&code)
+    let c_code = ir::output(&code).join("\n");
+    fs::write(Path::new(".interpreter_out/c_code.c"), c_code).unwrap();
+
+    let c_ast = code
+        .0
         .iter()
-        .for_each(|line| println!("{}", line));
+        .map(|def| {
+            let statements = def
+                .body
+                .iter()
+                .map(|s| format!("    {:?}", s))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("function {}{:?}:\n{}\n", def.id, def.args, statements)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(Path::new(".interpreter_out/c_ast.txt"), c_ast).unwrap();
 
-    let mut interpreter = Interpreter::new();
-    for def in code.0.clone() {
-        interpreter = interpreter.with_fn(IDef::from_def(&def));
-        println!("{}\n", IDef::from_def(&def));
-    }
-    interpreter = interpreter.with_entry_point("Main");
+    let interpreter = Interpreter::from_program(&code);
 
-    interpreter._yolo();
-
-    interpreter.step().unwrap();
-
-    println!("{:?}", interpreter);
-
-    for _ in 0..50 {
-        interpreter.step().unwrap();
-    }
-    // end of build
-    println!("build end\n{:?}", interpreter);
-
-    for _ in 0..224 {
-        interpreter.step().unwrap();
-    }
-    // end of flip
-    println!("flip end\n{:?}", interpreter);
-
-    for _ in 0..175 {
-        interpreter.step().unwrap();
-    }
-    // end of sum
-    println!("sum end\n{:?}", interpreter);
-
-    interpreter.step();
-    println!("main end\n{:?}", interpreter);
-}
-
-impl fmt::Display for IDef {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fn write_indent(f: &mut fmt::Formatter, s: IStatement, indent: usize) -> fmt::Result {
-            match s {
-                IStatement::IfExpr(items) => {
-                    let n_cases = items.len();
-                    for (i, (operand, statements)) in items.iter().enumerate() {
-                        write!(f, "{}", "    ".repeat(indent))?;
-                        writeln!(
-                            f,
-                            "{} {:?}:",
-                            if i == 0 { "if" } else { "else if" },
-                            operand
-                        )?;
-                        let n_statements = statements.len();
-                        for (j, statement) in statements.iter().enumerate() {
-                            write_indent(f, statement.clone(), indent + 1)?;
-                            if i < n_cases - 1 || j < n_statements - 1 {
-                                writeln!(f, "")?;
-                            }
-                        }
-                    }
-                }
-                _ => {
-                    write!(f, "{}", "    ".repeat(indent))?;
-                    write!(f, "{:?}", s)?;
-                }
-            }
-
-            Ok(())
-        }
-
-        writeln!(f, "function {}{:?}:", self.id, self.args)?;
-
-        let len = self.body.len();
-        for (i, statement) in self.body.iter().enumerate() {
-            write_indent(f, statement.clone(), 1)?;
-            if i < len - 1 {
-                writeln!(f, "")?;
-            }
-        }
-
-        Ok(())
-    }
+    let i_ast = interpreter
+        .functions
+        .iter()
+        .map(|(_, idef)| {
+            format!("{}\n", idef)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    
+    fs::write(Path::new(".interpreter_out/i_ast.txt"), i_ast).unwrap();
 }
