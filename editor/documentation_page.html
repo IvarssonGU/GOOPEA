@@ -44,24 +44,27 @@
 			<td>
 				<button class="toggle-header">Editor</button>
 				<div class="toggle-content">
-					<button class="toggle-header subsection">Keyboard shortcuts</button>
-					<div class="toggle-content">
-						<p><b>Ctrl-/</b>: Toggle line comment</p>
-						<p><b>Ctrl-S</b>: Copy all text in editor to clipboard</p>
-						<p><b>Alt-Down</b>: Copy current line and insert-paste it on line below</p>
-						<p><b>Shift-Alt-Up/Down</b>: Swap the current line with the line above/below</p>
-					</div>
-					<button class="toggle-header subsection">Examples</button>
-					<div class="toggle-content">
-						<p><b>Reverse</b>: Reverses the list created in main. Uses enum, fip,</p>
-						<p><b>Treeflip</b>: Flips a tree around the vertical axis and then sums it</p>
-						<p><b>Arithmetic</b>: mathematical operations</p>
-						<p><b>Complex match</b>: converts a Cat to a Dog and then returns the new value</p>
-						<p><b>Multiple Return Values</b>: stuff</p>
-						<p><b>Type error</b>: Tries to increment a Dog (passes a variable to a function that doesn't take that type)</p>
-						<p><b>Utuple</b>: </p>
-						<p><b>Zipper tree</b>: Copy current line and insert-paste it on line below</p>
-					</div>
+
+					<table>
+								<button class="toggle-header subsection">Keyboard shortcuts</button>
+								<div class="toggle-content">
+									<p><b>Ctrl-/</b>: Toggle line comment</p>
+									<p><b>Ctrl-S</b>: Copy all text in editor to clipboard</p>
+									<p><b>Alt-Down</b>: Copy current line and insert-paste it on line below</p>
+									<p><b>Shift-Alt-Up/Down</b>: Swap the current line with the line above/below</p>
+								</div>
+								<button class="toggle-header subsection">Examples</button>
+								<div class="toggle-content">
+									<p><b>Reverse</b>: Reverses the list created in main. Uses enum, fip,</p>
+									<p><b>Treeflip</b>: Flips a tree around the vertical axis and then sums it</p>
+									<p><b>Arithmetic</b>: mathematical operations</p>
+									<p><b>Complex match</b>: converts a Cat to a Dog and then returns the new value</p>
+									<p><b>Multiple Return Values</b>: stuff</p>
+									<p><b>Type error</b>: Tries to increment a Dog (passes a variable to a function that doesn't take that type)</p>
+									<p><b>Utuple</b>: </p>
+									<p><b>Zipper tree</b>: Copy current line and insert-paste it on line below</p>
+								</div>
+					</table>
 				</div>
 			</td>
 		</tr>
@@ -71,53 +74,70 @@
 				<div class="toggle-content">
 					<p>See Examples page for context</p>
 
-					<button class="toggle-header subsection">A function's type declaration</button>
-					<div class="toggle-content">
-						<p><b>fip (parameters): (returns)</b></p>
-						<p><b>(parameters): (returns)</b></p>
-						<p class="tabbed">The optional 'fip' keyword declares whether or not the function is written to use fip functionality or not</p>
-						<p class="tabbed">Both the parameter and returns are tuples of datatypes or enums, separate them with commas: (x, y, z)</p>
-						<p class="tabbed">If a function takes no parameters or doesn't return anything, use an empty tuple "()"</p>
-						<p class="tabbed">If a function takes or returns only one variable, you can just write that datatype/enum, e.g. "Tree", "Int"</p>
-						<p class="tabbed">See the examples "Reverse" and "Multiple Return Values" for how this looks</p>
-						<!-- <p class="description">If a function does not take a parameter, use an empty tuple ():_</p>
-						<p class="description">If a function does not return anything (i.e. void), use _:()</p> -->
-						<p></p>
-					</div>
-					<button class="toggle-header subsection">Function declaration</button>
-					<div class="toggle-content">
-						<p class="multiline">The function declaration goes on the line under the type declaration. The name of the function is first, 
-							and does not start with a capital letter. The names of the parameters whose types were declared earlier are then given. 
-							The "Reverse" example shows how functions are declared with 0, 1, and 2+ parameters.
-						</p>
-					</div>
-					
-					<button class="toggle-header subsection" style="color: #708">Keywords</button>
-					<div class="toggle-content">
-						<p class="multiline">Keywords are words that are reserved (can't be used for anything else) because they are special in 
-							the eye of the compiler (have a predefined purpose for the structure and syntax of the program and language). They are 
-							also case-sensitive.
-						</p>
-						
-						<p class="tabbed"><b>match</b>: Pattern matching!! Check out "complex match" example!!!</p>
-						<p class="tabbed multiline"><b>enum</b>: Creates a user-defined datatype. The name of an enum starts with a capital letter. 
-							See examples "Complex match" and "Multiple return values"</p>
-						<p class="tabbed"><b>let _ in _</b>: declare a variable (first _) in stuff</p>
-						<p class="tabbed"><b>fip</b>: declare a function to use fip, see "a function's type declaration"</p>
-						<p class="tabbed"><b>Int</b>: integer datatype</p>
-					</div>
-					<button class="toggle-header subsection" style="color: royalblue">Constructors</button>
-					<div class="toggle-content">
-						<p class="multiline">Constructors are used to create objects. stuff
-						</p>
+					<table>
+						<tr>
+							<td>
+								<button class="toggle-header subsection">A function's type declaration</button>
+								<div class="toggle-content">
+									<p><b>fip (parameters): (returns)</b></p>
+									<p><b>(parameters): (returns)</b></p>
+									<p class="tabbed">The optional 'fip' keyword declares whether or not the function is written to use fip functionality or not</p>
+									<p class="tabbed">Both the parameter and returns are tuples of datatypes or enums, separate them with commas: (x, y, z)</p>
+									<p class="tabbed">If a function takes no parameters or doesn't return anything, use an empty tuple "()"</p>
+									<p class="tabbed">If a function takes or returns only one variable, you can just write that datatype/enum, e.g. "Tree", "Int"</p>
+									<p class="tabbed">See the examples "Reverse" and "Multiple Return Values" for how this looks</p>
+									<!-- <p class="description">If a function does not take a parameter, use an empty tuple ():_</p>
+									<p class="description">If a function does not return anything (i.e. void), use _:()</p> -->
+									<p></p>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection">Function declaration</button>
+								<div class="toggle-content">
+									<p class="multiline">The function declaration goes on the line under the type declaration. The name of the function is first, 
+										and does not start with a capital letter. The names of the parameters whose types were declared earlier are then given. 
+										The "Reverse" example shows how functions are declared with 0, 1, and 2+ parameters.
+									</p>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection" style="color: #708">Keywords</button>
+								<div class="toggle-content">
+									<p class="multiline">Keywords are words that are reserved (can't be used for anything else) because they are special in 
+										the eye of the compiler (have a predefined purpose for the structure and syntax of the program and language). They are 
+										also case-sensitive.
+									</p>
+									
+									<p class="tabbed"><b>match</b>: Pattern matching!! Check out "complex match" example!!!</p>
+									<p class="tabbed multiline"><b>enum</b>: Creates a user-defined datatype. The name of an enum starts with a capital letter. 
+										See examples "Complex match" and "Multiple return values"</p>
+									<p class="tabbed"><b>let _ in _</b>: declare a variable (first _) in stuff</p>
+									<p class="tabbed"><b>fip</b>: declare a function to use fip, see "a function's type declaration"</p>
+									<p class="tabbed"><b>Int</b>: integer datatype</p>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection" style="color: royalblue">Constructors</button>
+								<div class="toggle-content">
+									<p class="multiline">Constructors are used to create objects. stuff
+									</p>
 
-						<p class="tabbed"><b>Cons</b>: stuff</p>
-						<p class="tabbed"><b>Node</b>: stuff</p>
-						<p class="tabbed"><b>Nil</b>: stuff</p>
-						<!-- <p class="tabbed"><b>Some</b>: stuff</p>
-						<p class="tabbed"><b>Empty</b>: stuff</p>
-						<p class="tabbed"><b>None</b>: stuff</p> -->
-					</div>
+									<p class="tabbed"><b>Cons</b>: stuff</p>
+									<p class="tabbed"><b>Node</b>: stuff</p>
+									<p class="tabbed"><b>Nil</b>: stuff</p>
+									<!-- <p class="tabbed"><b>Some</b>: stuff</p>
+									<p class="tabbed"><b>Empty</b>: stuff</p>
+									<p class="tabbed"><b>None</b>: stuff</p> -->
+								</div>
+							</td>
+						</tr>
+					</table>
 				</div>
 			</td>
 		</tr>

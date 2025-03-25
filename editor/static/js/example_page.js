@@ -20,20 +20,20 @@ function example_dropdown_changed() {
     switch(example_select.value) {
         case "reverse":
             code_field.setValue( 
-`enum List = Nil, Cons(Int, List);
-
+`enum List = Nil, Cons(List, Int);
+    
 fip (List, List): List
-ReverseHelper(list, acc) =
+reverseHelper(list, acc) =
         match list {
             Nil: acc,
-            Cons(x, xs): ReverseHelper(xs, Cons(x, acc))
+            Cons(xs, x): reverseHelper(xs, Cons(acc, x))
         };
 
 fip List: List
-ReverseList list = ReverseHelper(list, Nil);
+reverseList list = reverseHelper(list, Nil);
 
 fip (): ()
-Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));`);
+main = print(reverseList(Cons(1, Cons(2, Cons(3, Nil)))));`);
             output_field.value = "Cons(3, Cons(2, Cons(1, Nil)))";
             break;
         case "treeflip":
@@ -41,7 +41,32 @@ Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));`);
 `enum Tree = Empty, Node(Tree, Int, Tree);
 
 (): Tree
-build = Node(Node(Node(Empty, 15, Empty), 10, Node(Empty, 52, Empty)), 5, Node(Node(Empty, 69, Empty), 23, Empty));
+build = 
+    Node(
+        Node(
+            Node(
+                Empty, 
+                15, 
+                Empty
+            ), 
+            10, 
+            Node(
+                Empty, 
+                52, 
+                Empty
+            )
+        ), 
+        5, 
+        Node(
+            Node(
+                Empty, 
+                69, 
+                Empty
+            ), 
+            23, 
+            Empty
+        )
+    );
 
 Tree: Int
 sum tree = match tree {
@@ -62,10 +87,10 @@ main = sum(flip(build()));`);
         case "arithmetic":
             code_field.setValue( 
 `(): Int
-GetMinusFive = -5;
+getMinusFive = -5;
 
 (): Int
-Subtract = 2 - 1;
+subtract = 2 - 1;
 
 (): Int
 main = 3 * (1 + 15/5) - (6/(2+1))*6;`);
@@ -76,36 +101,36 @@ main = 3 * (1 + 15/5) - (6/(2+1))*6;`);
 `enum Animal = Cat, Dog;
 
 Animal: Animal
-Convert x = match x {
+convert x = match x {
     Cat: Dog,
     Dog: Cat
 };
 
 (): Int
-MatchUnbox = match (1, 2) {
+matchUnbox = match (1, 2) {
     (x, y): x + y
 };
 
 (): (Int, Int)
-Coord = (7, 5);
+coord = (7, 5);
 
 (): Int
-LetUnbox = let x = 3 in x;
+letUnbox = let x = 3 in x;
 
 (): Int
-MatchUnbox2 = match Coord {
+matchUnbox2 = match coord {
     (x, y): x - y
 };
 
 Int: Int
-Fib i = match i {
+fib i = match i {
     0: 1,
     1: 1,
-    n: Fib (i-1) + Fib(i - 2)
+    n: fib (i-1) + fib(i - 2)
 };
 
 (): Animal
-Main = match Convert Cat {
+main = match convert Cat {
     Cat: Cat,
     Dog: Dog
 };`);
@@ -159,7 +184,8 @@ main = let (a, b) = nums() in match a {
             break;
         case "zipper-tree":
             code_field.setValue( 
-`enum Tree = 
+`// this is a test file
+enum Tree = 
     Bin(Tree, Tree),
     Tip Int;
 
@@ -169,43 +195,40 @@ enum TZipper =
     BinR(Tree, TZipper);
 
 fip (Tree, TZipper): Tree
-Down(t, ctx) =
+down(t, ctx) =
     match t {
         Bin(l, r):
-            Down(l, BinL(ctx, r)),
-        Tip x: App(Tip(x + 1), ctx)
+            down(l, BinL(ctx, r)), //Down comment
+        Tip x: app(Tip(x + 1), ctx)
     };
 
 fip (Tree, TZipper): Tree
-App(t, ctx) =
+app(t, ctx) =
     match ctx {
         Top: t,
         BinR(l, up):
-            App(Bin(l, t), up),
+            app(Bin(l, t), up),
         BinL(up, r):
-            Down(r, BinR(t, up))
+            down(r, BinR(t, up))
     };
 
 fip Tree: Tree
-TMap t = Down(t, Top);`);
+tmap t = down(t, Top);`);
             output_field.value = "output here";
             break;
         default:
             code_field.setValue( 
-`enum List = Nil, Cons(Int, List);
+`enum List = Nil, Cons(List, Int);
 
 fip (List, List): List
-ReverseHelper(list, acc) =
+reverseHelper(list, acc) =
         match list {
             Nil: acc,
-            Cons(x, xs): ReverseHelper(xs, Cons(x, acc))
+            Cons(xs, x): reverseHelper(xs, Cons(acc, x))
         };
 
 fip List: List
-ReverseList list = ReverseHelper(list, Nil);
-
-fip (): ()
-Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));`);
+reverseList list = reverseHelper(list, Nil);`);
             output_field.value = "Cons(3, Cons(2, Cons(1, Nil)))";
     }
 
