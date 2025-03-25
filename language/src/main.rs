@@ -13,6 +13,8 @@ mod lexer;
 mod error;
 pub mod ast;
 
+mod interpreter;
+use interpreter::*;
 lalrpop_mod!(pub grammar);
 
 pub fn run(code: String) -> String {
@@ -27,7 +29,7 @@ pub fn run(code: String) -> String {
 }
 
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/arithmetic.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/zipper_tree.goo")).unwrap();
 
     let base_program = BaseProgram::new(&code).unwrap();
     println!("{base_program}");

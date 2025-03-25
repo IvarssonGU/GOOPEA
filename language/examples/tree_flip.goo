@@ -1,7 +1,32 @@
 enum Tree = Empty, Node(Tree, Int, Tree);
 
 (): Tree
-build = Node(Node(Node(Empty, 15, Empty), 10, Node(Empty, 52, Empty)), 5, Node(Node(Empty, 69, Empty), 23, Empty));
+build = 
+    Node(
+        Node(
+            Node(
+                Empty, 
+                15, 
+                Empty
+            ), 
+            10, 
+            Node(
+                Empty, 
+                52, 
+                Empty
+            )
+        ), 
+        5, 
+        Node(
+            Node(
+                Empty, 
+                69, 
+                Empty
+            ), 
+            23, 
+            Empty
+        )
+    );
 
 Tree: Int
 sum tree = match tree {

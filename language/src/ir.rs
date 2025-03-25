@@ -22,15 +22,7 @@ pub enum Type {
 pub enum Operand {
     Ident(String),
     NonShifted(i64),
-    //BinOp(Operator, Box<Operand>, Box<Operand>),
     Int(i64)
-    //Application(String, Vec<Operand>),
-    //DerefField(String, i64),
-    //AccessField(String, i64),
-    //Condition(bool, String, Box<Operand>, Box<Operand>),
-    //UTuple(Vec<Operand>),
-    //Inc(Box<Operand>),
-    //Dec(Box<Operand>),
 }
 
 #[derive(Debug, Clone)]
@@ -226,7 +218,7 @@ fn statement_to_string(stmt: &Statement) -> String {
         Statement::AssignConditional(id, b, op, tag) => {
             let result = operand_to_string(op);
             if *b {
-                format!("Value {} = !(1 & {}) && {} == ((void** {})[0]);", id, result, tag, result)
+                format!("Value {} = !(1 & {}) && {} == ((void** {})[0];", id, result, tag, result)
             } else {
                 format!("Value {} = {} == {};", id, tag, result)
             }

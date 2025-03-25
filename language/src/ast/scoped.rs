@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc};
+use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 
 use crate::error::{CompileError, CompileResult};
 
@@ -41,6 +41,9 @@ impl ScopedProgram {
 
         let counter = RefCell::new(0);
 
+        let atom_constructors = program.constructors.iter().filter_map(|(fid, cons)| (cons.args.0.len() == 0).then_some(fid.clone())).collect();
+        let zero_argument_functions = program.functions.iter().filter_map(|(fid, sig)| (sig.vars.0.len() == 0).then_some(fid.clone())).collect();
+
         let mut functions = HashMap::new();
         for (fid, func) in program.functions {
             let base_scope = func.vars.0.iter().map(
@@ -49,7 +52,7 @@ impl ScopedProgram {
                 }
             ).collect::<Scope>();
 
-            let scoped_expression = scope_expression(func.body, base_scope, &counter)?;
+            let scoped_expression = scope_expression(func.body, base_scope, &counter, &atom_constructors, &zero_argument_functions)?;
 
             functions.insert(
                 fid, 
@@ -67,6 +70,7 @@ impl ScopedProgram {
         Ok(program)
     }
 
+    // This should be redundant
     fn validate_variable_occurences(&self) -> CompileResult {
         self.validate_expressions_by(
             |node| {
@@ -79,32 +83,35 @@ impl ScopedProgram {
     }
 }
 
-// Creates a ScopeExpressionNode recursively for the expression
-// Each node contains a mapping from VID to VariableDefinition and the resulting type of the expression
-// A variable definition contains type information 
-// Checks that each case in match has correct number of arguments for the constructor
-// Does type inference on variables and expression, with minimum type checking
-pub fn scope_expression<'a>(
+pub fn scope_expression(
     expr: ExpressionNode<(), SimplifiedExpression<()>>, 
     scope: Scope,
-    counter: &RefCell<usize>
+    counter: &RefCell<usize>,
+    atom_constructors: &HashSet<FID>,
+    zero_argument_functions: &HashSet<FID>
 ) -> Result<ScopedNode, CompileError> 
 {
     let expr = match expr.expr {
         SimplifiedExpression::UTuple(children) => {
-            SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter)).collect::<Result<_, _>>()?))
+            SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
         },
         SimplifiedExpression::FunctionCall(fid, children) => {
-            SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter)).collect::<Result<_, _>>()?))
+            SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
         },
         SimplifiedExpression::Integer(x) => SimplifiedExpression::Integer(x),
-        SimplifiedExpression::Variable(vid) => SimplifiedExpression::Variable(vid),
+        SimplifiedExpression::Variable(vid) => {
+            if scope.contains_key(&vid) { SimplifiedExpression::Variable(vid) }
+            // This should never happen
+            else if atom_constructors.contains(&vid) { SimplifiedExpression::FunctionCall(vid, UTuple(vec![])) }
+            else if zero_argument_functions.contains(&vid) { SimplifiedExpression::FunctionCall(vid, UTuple(vec![])) }
+            else { return Err(CompileError::UnknownVariable(vid.clone())) }
+        },
         SimplifiedExpression::Match(match_expr, cases) => {
-            let scoped_match_child = scope_expression(*match_expr, scope.clone(), counter)?;
+            let scoped_match_child = scope_expression(*match_expr, scope.clone(), counter, atom_constructors, zero_argument_functions)?;
 
             let case_scopes = cases.into_iter().map(|(pattern, child)| {
                 match &pattern {
-                    Pattern::Integer(_) => scope_expression(child, scope.clone(), counter),
+                    Pattern::Integer(_) => scope_expression(child, scope.clone(), counter, atom_constructors, zero_argument_functions),
                     Pattern::UTuple(vars) | Pattern::Constructor(_, vars) => {
                         scope_expression(
                             child,
@@ -117,7 +124,9 @@ pub fn scope_expression<'a>(
                                     }
                                 })
                             ),
-                            counter
+                            counter,
+                            atom_constructors,
+                            zero_argument_functions
                         )
                     }
                 }.map(move |new_expr| (pattern, new_expr))
