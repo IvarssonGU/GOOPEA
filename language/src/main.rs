@@ -1,6 +1,10 @@
 #![feature(formatting_options)]
 
-use std::{fs, path::Path};
+#[cfg(not(target_arch = "wasm32"))]
+use std::fs;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
 
 use lalrpop_util::lalrpop_mod;
 use ast::{ast::{ChainedData, Type}, base::BaseProgram, scoped::ScopedProgram, typed::TypedProgram};
@@ -17,6 +21,10 @@ mod interpreter;
 use interpreter::*;
 lalrpop_mod!(pub grammar);
 
+#[cfg(target_arch = "wasm32")]
+fn main() {}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let code = fs::read_to_string(Path::new("examples/zipper_tree.goo")).unwrap();
 
