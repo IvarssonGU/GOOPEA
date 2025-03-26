@@ -44,6 +44,7 @@ fn main() {
 }
 
 #[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
 mod tests {
     use std::path::Path;
     use std::fs;

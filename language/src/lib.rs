@@ -14,7 +14,7 @@ pub mod ast;
 mod interpreter;
 lalrpop_mod!(pub grammar);
 
-fn compile_and_run(code: &str) -> String {
+pub fn compile_and_run(code: &str) -> String {
     let base_program = BaseProgram::new(&code).unwrap();
     println!("{base_program}");
 

@@ -10,10 +10,6 @@ path = "src/lib.rs"
 [build-dependencies]
 lalrpop = "0.22.1"
 
-[lib]
-name = "language"
-path = "src/lib.rs"
-
 [dependencies]
 lalrpop-util = { version = "0.21.0", features = ["lexer", "unicode"] }
 logos = "0.15.0"

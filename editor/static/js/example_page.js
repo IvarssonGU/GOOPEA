@@ -180,7 +180,7 @@ main = let (a, b) = nums() in match a {
     Nothing: b,
     Just x: x * b + b
 };`);
-            output_field.value = "output here";
+            output_field.value = "";
             break;
         case "zipper-tree":
             code_field.setValue( 

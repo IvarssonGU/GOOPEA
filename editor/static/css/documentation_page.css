@@ -63,11 +63,14 @@ p.multiline {
 } */
 
 .control-button {
-    margin-right: 5px;
+    margin-left: 5px;
     margin-top: 5px;
 }
-.control-button:first-of-type {
-    margin-left: 5%;
+.control-button:last-of-type {
+    margin-right: 5%;
+}
+#control-row {
+    text-align: right;
 }
 
 p {
