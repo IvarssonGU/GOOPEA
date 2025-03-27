@@ -76,6 +76,7 @@ pub enum FullExpression<'a, D, E> {
     UTuple(&'a UTuple<ExpressionNode<D, E>>),
     FunctionCall(&'a FID, &'a UTuple<ExpressionNode<D, E>>),
     Constructor(&'a FID, &'a UTuple<ExpressionNode<D, E>>),
+    Atom(&'a FID),
     Integer(&'a i64),
     Variable(&'a VID),
     Match(&'a Box<ExpressionNode<D, E>>, &'a Vec<(Pattern, ExpressionNode<D, E>)>),
@@ -181,11 +182,26 @@ impl<D, E> ExpressionNode<D, E> {
             data: self.data 
         }
     }
+
+    pub fn transform<E2>(self, func: impl Fn(E) -> Result<E2, CompileError>) -> Result<ExpressionNode<D, E2>, CompileError> {
+        Ok(ExpressionNode { 
+            expr: func(self.expr)?,
+            data: self.data 
+        })
+    }
 }
 
 impl<D, E> UTuple<ExpressionNode<D, E>> {
     pub fn map<E2: From<E>>(self) -> UTuple<ExpressionNode<D, E2>> {
         UTuple(map_expr_vec(self.0))
+    }
+
+    pub fn transform_expressions<E2>(self, func: impl Fn(E) -> Result<E2, CompileError> + Clone) -> Result<UTuple<ExpressionNode<D, E2>>, CompileError> {
+        Ok(UTuple(self.0.into_iter().map(|x| x.transform(func.clone())).collect::<Result<_, _>>()?))
+    }
+    
+    pub fn transform_nodes<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>) -> Result<ExpressionNode<D2, E2>, CompileError>) -> Result<UTuple<ExpressionNode<D2, E2>>, CompileError> {
+        Ok(UTuple(self.0.into_iter().map(|x| func(x)).collect::<Result<_, _>>()?))
     }
 }
 
@@ -197,6 +213,10 @@ pub fn map_expr_box<D, E, E2: From<E>>(x: Box<ExpressionNode<D, E>>) -> Box<Expr
     Box::new(x.map())
 }
 
+pub fn transform_box<D, E, E2>(x: Box<ExpressionNode<D, E>>, func: impl Fn(E) -> Result<E2, CompileError>) -> Result<Box<ExpressionNode<D, E2>>, CompileError> {
+    Ok(Box::new(x.transform(func)?))
+}
+
 impl<D, E> ExpressionNode<D, E>
     where for<'a> &'a E: Into<FullExpression<'a, D, E>>
 {
@@ -205,9 +225,9 @@ impl<D, E> ExpressionNode<D, E>
             FullExpression::UTuple(utuple) |
             FullExpression::FunctionCall(_, utuple) |
             FullExpression::Constructor(_, utuple) => Box::new(utuple.0.iter()),
-            FullExpression::Integer(_) | FullExpression::Variable(_) => Box::new(iter::empty()),
-            FullExpression::Match(expression_node, items) 
-                => Box::new(iter::once(expression_node.as_ref()).chain(items.iter().map(|tup| &tup.1))),
+            FullExpression::Integer(_) | FullExpression::Variable(_) | FullExpression::Atom(_) => Box::new(iter::empty()),
+            FullExpression::Match(expression_node, cases) 
+                => Box::new(iter::once(expression_node.as_ref()).chain(cases.iter().map(|tup| &tup.1))),
             FullExpression::LetEqualIn(_, e1, e2) |
             FullExpression::Operation(e1, _, e2) => Box::new(iter::once(e1.as_ref()).chain(iter::once(e2.as_ref()))),
         }
@@ -307,11 +327,11 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
             write_indent(f, indent)?;
             write!(f, "{x}") 
         },
-        FullExpression::Variable(var) => {
+        FullExpression::Variable(id) | FullExpression::Atom(id) => {
             write_indent(f, indent)?;
-            write!(f, "{var}")
+            write!(f, "{id}")
         },
-        FullExpression::Match(expression_node, items) => {
+        FullExpression::Match(expression_node, cases) => {
             write_indent(f, indent)?;
             writeln!(f, "match")?;
             write_expression_node(f, expression_node, indent + 1)?;
@@ -320,7 +340,7 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
             write_indent(f, indent)?;
             writeln!(f, "{{")?;
 
-            write_separated_list(f, items.iter(), ",\n", |f, (pattern, body)| {
+            write_separated_list(f, cases.iter(), ",\n", |f, (pattern, body)| {
                 write_indent(f, indent + 1)?;
                 writeln!(f, "{pattern}:")?;
                 write_expression_node(f, body, indent + 2)
