@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::{HashMap, HashSet}};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{transform_box, ExpressionNode, FullExpression, FunctionData, Pattern, Program, UTuple, FID, VID}, scoped::SimplifiedExpression, typed::{TypedData, TypedNode, TypedProgram}};
+use super::{ast::{transform_box, ExpressionNode, FullExpression, FunctionData, Pattern, Program, Type, UTuple, FID, VID}, scoped::SimplifiedExpression, typed::{ExpressionType, TypedData, TypedNode, TypedProgram}};
 
 pub type FIPData = TypedData;
 
@@ -90,13 +90,17 @@ impl FIPNode {
                 },
                 FIPExpression::ReusedConstructor(_, _, _) => unreachable!(),
                 FIPExpression::Match(e1, cases) => {
-                    /*let e1 = Box::new(e1.fipify(tokens_cell)?);
+                    let e1 = Box::new(e1.fipify(tokens_cell)?);
 
-                    if let FIPExpression::Variable(vid) = e1.expr {
+                    if let FIPExpression::Variable(vid) = &e1.expr {
+                        if let Type::ADT(aid) = &e1.data.data.expect_tp().unwrap() {
 
+                        }
                     } else {
-                        if 
-                    }*/
+                        let ExpressionType::UTuple(_) = &e1.data.data else { todo!("Matching on non variable in FIP not yet supported"); };
+                    }
+
+                    Ok(FIPExpression::Match(e1, cases.into_iter().map(|(pat, e)| e.fipify(tokens_cell).map(|e| (pat, e))).collect::<Result<_, _>>()?))
                 }
             }
         })?;

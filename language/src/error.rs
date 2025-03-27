@@ -37,7 +37,7 @@ pub enum CompileError {
     FIPFunctionHasUnusedVar(VID),
     FIPFunctionHasMultipleUsedVar(VID),
     FIPFunctionAllocatesMemory,
-    FIPFunctionDeallocatesMemory
+    FIPFunctionDeallocatesMemory,
 }
 
 impl<'a> Display for CompileError {
