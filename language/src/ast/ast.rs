@@ -76,7 +76,6 @@ pub enum FullExpression<'a, D, E> {
     UTuple(&'a UTuple<ExpressionNode<D, E>>),
     FunctionCall(&'a FID, &'a UTuple<ExpressionNode<D, E>>),
     Constructor(&'a FID, &'a UTuple<ExpressionNode<D, E>>),
-    Atom(&'a FID),
     Integer(&'a i64),
     Variable(&'a VID),
     Match(&'a Box<ExpressionNode<D, E>>, &'a Vec<(Pattern, ExpressionNode<D, E>)>),
@@ -225,7 +224,7 @@ impl<D, E> ExpressionNode<D, E>
             FullExpression::UTuple(utuple) |
             FullExpression::FunctionCall(_, utuple) |
             FullExpression::Constructor(_, utuple) => Box::new(utuple.0.iter()),
-            FullExpression::Integer(_) | FullExpression::Variable(_) | FullExpression::Atom(_) => Box::new(iter::empty()),
+            FullExpression::Integer(_) | FullExpression::Variable(_) => Box::new(iter::empty()),
             FullExpression::Match(expression_node, cases) 
                 => Box::new(iter::once(expression_node.as_ref()).chain(cases.iter().map(|tup| &tup.1))),
             FullExpression::LetEqualIn(_, e1, e2) |
@@ -327,7 +326,7 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
             write_indent(f, indent)?;
             write!(f, "{x}") 
         },
-        FullExpression::Variable(id) | FullExpression::Atom(id) => {
+        FullExpression::Variable(id) => {
             write_indent(f, indent)?;
             write!(f, "{id}")
         },
