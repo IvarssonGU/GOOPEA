@@ -18,16 +18,27 @@
     text-decoration: none;
     color: black;
     margin: 0 10px 0 10px;
+    user-select: none;
     /* display: inline-block; */
     /* border: 1px solid black; */
 }
-.nav a:hover {
+.nav a:not(a.logo):hover {
     background-color: #c7e6f0;
-    color: black;
+    /* color: black; */
+    cursor: pointer;
+}
+.nav.dark a:not(a.logo):hover {
+    background-color: #003f54;
+    /* color: #d6d6d6; */
+    /* color: black; */
     cursor: pointer;
 }
 .nav a.current-page {
     background-color: lightblue;
+    color: black;
+}
+.nav.dark a.current-page {
+    background-color: #006f93;
     color: black;
 }
 
@@ -41,11 +52,27 @@
     color: black;
     margin-top: -3px;
 }
-.nav a.logo:hover {
-    background-color: white;
+
+.nav.dark a, .nav.dark a.logo {
+    color: #d6d6d6;
+}
+#theme-button {
+    /* content: '\263E' */
+    /* margin-bottom: -4px; */
+    height: 25px;
+    width: 25px;
+    text-align: center;
+    vertical-align: middle;
+}
+#theme-button p{
+    margin-top: -3px;
+    /* transform: rotate(-30deg); */
+}
+/* other shared styles */
+button {
+    cursor: pointer;
 }
 
-/* other shared styles */
 .styled-button {
     outline: none;
     background-color: #e3f1f6;
@@ -58,10 +85,23 @@
     background-color: #c7e6f0;
 }
 
+.styled-button.dark {
+    background-color: #003f54;
+    color:#d6d6d6;
+}
+.styled-button.dark:hover {
+    background-color: #006f93;
+    color:#d6d6d6;
+}
+
 mark {
     background-color: #e3f1f6;
     border-radius: 2px;
 }
 mark b {
     padding: 0 3px 0 3px;
+}
+mark.dark {
+    background-color: #003142;
+    color:#d6d6d6;
 }

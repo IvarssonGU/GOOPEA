@@ -1,6 +1,14 @@
 body {
     font-family: 'Courier New', Courier, monospace;
 }
+#examples-body.dark {
+    background-color: #090300;
+    color: #d6d6d6;
+}
+#output-field.dark {
+    background-color: #090300;
+    color: #d6d6d6;
+}
 
 .container {
     text-align: left;
@@ -46,7 +54,7 @@ table {
 }
 
 #output-title-cell {
-    height:auto;
+    height: min-content;
 }
 
 .temp-button {
@@ -55,4 +63,9 @@ table {
 
 select {
     font-family: 'Courier New', Courier, monospace;
+    cursor: pointer;
+}
+
+select.dark {
+    color:#d6d6d6;
 }

@@ -3,37 +3,44 @@
 <head>
 	<meta charset="UTF-8">
 	<link rel="stylesheet" href="./codemirror/codemirror.css">
+	<link rel="stylesheet" href="./codemirror/3024_night.css">
 	<link rel="stylesheet" href="./static/css/index.css">
 	<link rel="stylesheet" href="./static/css/navbar.css">
 
 	<title>GOOPEA editor</title>
 </head>
-<body>
-	<div class="nav">
+<body id="editor-body">
+	<div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
 		<a href="index.html" class="current-page">Editor</a>
 		<a onclick="save_code(0)">Examples</a>
 		<a onclick="save_code(1)">Documentation</a>
+		<a onclick="change_theme(0)" id="theme-button"><p>&#X263E;</p></a>
 	</div>
 
 	<div class="container">
-		<table width="100%">
+		<table width="100%" id="container-table">
 			<tr>
 				<th>Code</th>
 				<th id="button-cell">
 					<button onclick="clear_button_clicked()" class="styled-button">Clear</button>
 					<button onclick="run_button_clicked()" id="run-button" class="styled-button">Run</button>
 				</th>
-				<th>Output</th>
+				<td colspan="2" rowspan="2" id="output-cell">
+					<button onclick="switch_to_output()" class="tab-button styled-button current-tab" id="output-button">Output</button>
+					<button onclick="switch_to_memory()" class="tab-button styled-button" id="memory-button">Memory</button>
+					<!-- <button onclick="switch_to_output()" class="tab-button current-tab" id="output-button">Output</button>
+					<button onclick="switch_to_memory()" class="tab-button" id="memory-button">Memory</button> -->
+					<!-- <button class="tab-button styled-button" id="tab-filler">meow</button> -->
+					<div class="output-container">
+						<textarea id="output" readonly="true" placeholder="your code will output here" height="100%"></textarea>
+						<textarea id="memory" readonly="true" placeholder="view memory here" height="100%"></textarea>
+					</div>
+				</td>
 			</tr>
 			<tr id="text-row">
 				<td colspan="2" id="code-cell">
 					<textarea id="code"></textarea>
-				</td>
-				<td colspan="2" id="output-cell">
-					<div class="output-container">
-						<textarea id="output" readonly="true" placeholder="your code will output here" height="100%"></textarea>
-					</div>
 				</td>
 			</tr>
 			<tr>
@@ -57,6 +64,7 @@
 	<script src="./codemirror/comment.js"></script>
 	<script src="./static/js/GOOPEA_mode.js"></script>
 	<script src="./static/js/index.js"></script>
+	<script src="./static/js/navbar.js"></script>
 </body>
 
 </html>

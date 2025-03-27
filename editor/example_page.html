@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./codemirror/codemirror.css">
+    <link rel="stylesheet" href="./codemirror/3024_night.css">
     <link rel="stylesheet" href="./static/css/example_page.css">
 	<link rel="stylesheet" href="./static/css/navbar.css">
 	<link rel="stylesheet" href="./static/css/diagram_slideshow.css">
 
     <title>GOOPEA examples</title>
 </head>
-<body>
-    <div class="nav">
+<body id="examples-body">
+    <div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
-		<a href="index.html">Editor</a>
+		<a onclick="change_page(0)">Editor</a>
 		<a href="example_page.html" class="current-page">Examples</a>
-		<a href="documentation_page.html">Documentation</a>
+		<a onclick="change_page(2)">Documentation</a>
+        <a onclick="change_theme(1)" id="theme-button"><p>&#X263E;</p></a>
 	</div>
 
     <div class="container">
@@ -173,5 +175,6 @@
     <script src="./codemirror/simple_mode.js"></script>
 	<script src="./static/js/GOOPEA_mode.js"></script>
 	<script src="./static/js/example_page.js"></script>
+    <script src="./static/js/navbar.js"></script>
 </body>
 </html>

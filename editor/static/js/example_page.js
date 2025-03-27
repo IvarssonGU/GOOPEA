@@ -11,8 +11,24 @@ var code_field = CodeMirror.fromTextArea(document.getElementById("code-field"), 
 //change codemirror editor to fit code heightwise
 // code_field.setSize("100%", "100%");
 
-window.onload = example_dropdown_changed();
+window.onload = function () {
+    example_dropdown_changed();
 
+    if ("theme" in localStorage) {
+        let theme = localStorage.getItem("theme");
+        if (theme === "dark") {
+            change_theme(1);
+        }
+    }
+}
+
+window.onbeforeunload = function() {    
+    if (document.getElementById("examples-body").classList.contains("dark")) {
+        localStorage.setItem("theme", "dark");
+    } else {
+        localStorage.setItem("theme", "default");
+    }
+};
 
 //change example showed from dropdown
 // example_select.addEventListener(onChange, (event) => {
@@ -233,6 +249,19 @@ reverseList list = reverseHelper(list, Nil);`);
     }
 
     code_field.refresh();
+}
+
+function change_example_editor_theme(opt) {
+    switch (opt) {
+        case 0: //dark theme
+            code_field.setOption("theme", "3024-night");
+            break;
+        case 1: //light theme
+            code_field.setOption("theme", "default");
+            break;
+        default:
+            code_field.setOption("theme", "default");   
+    }
 }
 
 //slideshow

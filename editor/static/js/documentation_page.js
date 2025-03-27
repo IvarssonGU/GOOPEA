@@ -3,8 +3,8 @@ let toggle_contents = document.getElementsByClassName("toggle-content");
 
 window.onload = function() {
     for (var i = 0; i < toggle_headers.length; i++) {
-        toggle_contents[i].style.display = 'block'; //change back to none later
-        toggle_headers[i].classList.toggle("open"); //remove later
+        toggle_contents[i].style.display = 'block'; //change back to none for starting collapsed p1
+        toggle_headers[i].classList.toggle("open"); //remove for starting collapsed p2
 
         toggle_headers[i].addEventListener("click", function() {
             this.classList.toggle("open");
@@ -13,6 +13,21 @@ window.onload = function() {
             if (content.style.display === 'none') content.style.display = 'block';
             else content.style.display = 'none';
         });
+    }
+
+    if ("theme" in localStorage) {
+        let theme = localStorage.getItem("theme");
+        if (theme === "dark") {
+            change_theme(2);
+        }
+    }
+};
+
+window.onbeforeunload = function() {    
+    if (document.getElementById("documentation-body").classList.contains("dark")) {
+        localStorage.setItem("theme", "dark");
+    } else {
+        localStorage.setItem("theme", "default");
     }
 };
 

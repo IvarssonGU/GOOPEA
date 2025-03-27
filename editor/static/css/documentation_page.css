@@ -1,6 +1,10 @@
 body {
     font-family: 'Courier New', Courier, monospace;
 }
+#documentation-body.dark {
+    background-color: #090300;
+    color: #d6d6d6;
+}
 
 p.multiline {
     line-height: 1.5;
@@ -27,7 +31,7 @@ p.multiline {
 
 .toggle-header {
     cursor: pointer;
-    background-color: white;
+    background-color: transparent;
     outline: none;
     border: none;
     vertical-align: middle;
@@ -44,6 +48,14 @@ p.multiline {
     float:left;
     padding-right: 15px;
     margin-top: -3px;
+}
+
+.toggle-header.dark {
+    /* background-color: #090300; */
+    color: #d6d6d6;
+}
+.toggle-header.dark::before {
+    color: #d6d6d6;
 }
 
 .open::before{

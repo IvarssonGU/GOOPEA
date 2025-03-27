@@ -7,12 +7,13 @@
 
     <title>GOOPEA documentation</title>
 </head>
-<body>
-    <div class="nav">
+<body id="documentation-body">
+    <div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
-		<a href="index.html">Editor</a>
-		<a href="example_page.html">Examples</a>
+		<a onclick="change_page(0)">Editor</a>
+		<a onclick="change_page(1)">Examples</a>
 		<a href="documentation_page.html" class="current-page">Documentation</a>
+		<a onclick="change_theme(2)" id="theme-button"><p>&#X263E;</p></a>
 	</div>
 	
 	<table id="container-table">
@@ -183,6 +184,7 @@
 	</table>
 	
 	<script src="./static/js/documentation_page.js"></script>
+	<script src="./static/js/navbar.js"></script>
 </body>
 </html>
 

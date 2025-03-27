@@ -2,9 +2,13 @@ body {
     text-align: center;
     font-family: 'Courier New', Courier, monospace;
 }
-
-button {
-    cursor: pointer;
+#editor-body.dark {
+    background-color: #090300;
+    color: #d6d6d6;
+}
+#output.dark, #memory.dark {
+    background-color: #090300;
+    color: #d6d6d6;
 }
 
 .container {
@@ -13,14 +17,16 @@ button {
     text-align: left;
 }
 
+/* #container-table {
+    border-collapse: collapse;
+} */
+
 #editor {
     height: 100%;
 }
 
-#output {
-    /* width: 99%; */
+#output, #memory {
     height: 99%;
-    /* margin-top: -2px; */
 }
 
 .output-container {
@@ -28,9 +34,15 @@ button {
     width: 100%;
 }
 
-#code-cell {
+#code-cell, #output-cell{
     border: 1px solid gray;
     border-radius: 2px;
+}
+
+#output-cell {
+    /* border-top: none; */
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
 }
 
 table {
@@ -52,13 +64,8 @@ textarea {
     border: none;
 }
 
-#code-cell, #output-cell {
+#code-cell, #output, #memory {
     height:70vh;
-}
-
-#output-cell {
-    border: 1px solid gray;
-    border-radius: 2px;
 }
 
 #display {
@@ -79,6 +86,10 @@ textarea {
     background-color: #d8ecf3;
     font-weight: bold;
 }
+#runtime.dark {
+    background-color: #003f54;
+    color: #d6d6d6;
+}
 
 /* containing run and clear buttons */
  #button-cell { 
@@ -90,4 +101,27 @@ textarea {
     margin-right: 12px;
 }
 
+.tab-button {
+    margin: -1.5px 0 2px -1.5px;
+    padding-bottom: 2px;
+}
 
+#output-button {
+    border-top-right-radius: 0px;
+}
+#memory-button {
+    border-top-left-radius: 0px;
+    margin-left: -10px;
+    /* border-right: none; */
+}
+.current-tab.styled-button {
+    background-color: #c3e3ee;
+}
+/* #tab-filler {
+    background-color: white;
+    color: white;
+    cursor:default;
+    border: none;
+    margin-left: -9px;
+    border-bottom: 1px solid gray;
+} */
