@@ -1,0 +1,10 @@
+enum Pair = Pair(Int, Int) , Nothing;
+
+Pair: Int
+Sum pair = match pair {
+    Pair(a, b) : a + b,
+    Nothing : 0
+};
+
+(): Int
+Main = Sum(Pair(5, 3));
