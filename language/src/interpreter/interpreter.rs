@@ -6,8 +6,13 @@ use crate::simple_ast::{Operator, add_refcounts, from_scoped};
 use crate::{code, grammar, ir};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
-use std::{fmt, fs, vec};
+use std::{fmt, vec};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::fs;
 
 use super::iast::*;
 
@@ -342,6 +347,7 @@ impl Debug for Data {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test_time() {
     let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
 
@@ -373,6 +379,7 @@ pub fn interpreter_test_time() {
     println!("Done! ({} us)", elapsed);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test_tree_flip() {
     let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
 
