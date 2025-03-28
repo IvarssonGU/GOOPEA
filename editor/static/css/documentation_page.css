@@ -88,3 +88,17 @@ p.multiline {
 p {
     margin-bottom: 5px;
 }
+
+/* headers */
+#keywords-header {
+    color: #708;
+}
+#keywords-header.dark {
+    color: #db2d20;
+}
+#constructors-header {
+    color: royalblue;
+}
+#constructors-header.dark {
+    color: #e8bbd0;
+}

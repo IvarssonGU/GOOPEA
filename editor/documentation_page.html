@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./static/css/documentation_page.css">
 	<link rel="stylesheet" href="./static/css/navbar.css">
+	<link rel="icon" type="image/x-icon" href="/images/favicon.ico">
 
     <title>GOOPEA documentation</title>
 </head>
@@ -116,7 +117,7 @@
 						</tr>
 						<tr>
 							<td>
-								<button class="toggle-header subsection" style="color: #708">Keywords</button>
+								<button class="toggle-header subsection" id="keywords-header">Keywords</button>
 								<div class="toggle-content">
 									<p class="multiline">Keywords are words that are reserved (can't be used for anything else) because they are special in 
 										the eye of the compiler (have a predefined purpose for the structure and syntax of the program and language). They are 
@@ -134,9 +135,10 @@
 						</tr>
 						<tr>
 							<td>
-								<button class="toggle-header subsection" style="color: royalblue">Constructors</button>
+								<button class="toggle-header subsection" id="constructors-header">Constructors</button>
 								<div class="toggle-content">
-									<p class="multiline">Constructors are used to create objects. <i>stuff</i>
+									<p class="multiline">Constructors are used to create objects. Use them in enum definitions and declarations. See 
+										"multiple return values" example.
 									</p>
 
 									<p class="tabbed"><mark><b>Cons</b></mark>: <i>stuff</i></p>

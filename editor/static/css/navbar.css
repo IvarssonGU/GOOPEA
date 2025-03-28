@@ -1,9 +1,5 @@
 .nav {
-    /* background-color: cornflowerblue; */
     overflow: hidden;
-
-    /* margin: 0;
-    padding: 0; */
 }
 
 .nav a {
@@ -11,7 +7,6 @@
     float: left;
     text-align: center;
     padding: 15px 15px;
-    /* color:black; */
     font-size: 22px;
     font-weight: bold;
     border-radius: 5px;
@@ -19,18 +14,14 @@
     color: black;
     margin: 0 10px 0 10px;
     user-select: none;
-    /* display: inline-block; */
-    /* border: 1px solid black; */
 }
 .nav a:not(a.logo):hover {
     background-color: #c7e6f0;
-    /* color: black; */
     cursor: pointer;
 }
 .nav.dark a:not(a.logo):hover {
     background-color: #003f54;
-    /* color: #d6d6d6; */
-    /* color: black; */
+    color: #d6d6d6;
     cursor: pointer;
 }
 .nav a.current-page {
@@ -52,13 +43,11 @@
     color: black;
     margin-top: -3px;
 }
-
 .nav.dark a, .nav.dark a.logo {
     color: #d6d6d6;
 }
+
 #theme-button {
-    /* content: '\263E' */
-    /* margin-bottom: -4px; */
     height: 25px;
     width: 25px;
     text-align: center;
@@ -68,6 +57,8 @@
     margin-top: -3px;
     /* transform: rotate(-30deg); */
 }
+
+
 /* other shared styles */
 button {
     cursor: pointer;
@@ -81,7 +72,6 @@ button {
     border-radius: 5px;
 }
 .styled-button:hover {
-    /* border: 1px solid gray; */
     background-color: #c7e6f0;
 }
 
