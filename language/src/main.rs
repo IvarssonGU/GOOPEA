@@ -26,7 +26,7 @@ fn main() {}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/zipper_tree.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/bools.goo")).unwrap();
 
     let base_program = BaseProgram::new(&code).unwrap();
     println!("{base_program}");

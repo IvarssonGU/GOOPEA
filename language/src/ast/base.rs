@@ -19,11 +19,15 @@ impl BaseProgram {
 
         let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
 
+        let builtin_defs = vec![
+            Definition::ADT("Bool".to_string(), vec![("False".to_string(), UTuple::empty()), ("True".to_string(), UTuple::empty())])
+        ];
+
         let mut adts = HashMap::new();
         let mut all_constructors = HashMap::new();
         let mut function_datas = HashMap::new();
         let mut function_bodies = HashMap::new();
-        for def in program {
+        for def in program.into_iter().chain(builtin_defs.into_iter()) {
             match def {
                 Definition::ADT(aid, constructors) => {
                     adts.insert(aid.clone(), constructors.iter().map(|(fid, _)| fid.clone()).collect());

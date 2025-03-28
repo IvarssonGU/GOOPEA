@@ -246,6 +246,17 @@ impl<D, E> ExpressionNode<D, E>
     }
 }
 
+impl<T> UTuple<T> {
+    pub fn empty() -> Self {
+        Self(vec![])
+    }
+}
+
+impl Operator {
+    pub const COMPERATORS: [Self; 6] = [Operator::Equal, Operator::NotEqual, Operator::Less, Operator::LessOrEq, Operator::Greater, Operator::GreaterOrEqual ];
+    pub const NUMERICAL: [Self; 4] = [Operator::Add, Operator::Div, Operator::Sub, Operator::Mul];
+}
+
 // ==== PRETTY PRINT CODE ====
 
 pub fn write_indent(f: &mut Formatter, indent: usize) -> std::fmt::Result {
@@ -338,17 +349,20 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
         FullExpression::MatchOnVariable(_, cases) |
         FullExpression::MatchOnExpression(_, cases) => {
             write_indent(f, indent)?;
-            writeln!(f, "match ")?;
+            write!(f, "match")?;
 
             match full_expression {
-                FullExpression::MatchOnExpression(expr, _) => write_expression_node(f, expr, indent + 1)?,
-                FullExpression::MatchOnVariable(var, _) => write!(f, "{}", var.expr)?,
+                FullExpression::MatchOnExpression(expr, _) => {
+                    writeln!(f)?;
+                    write_expression_node(f, expr, indent + 1)?;
+                    writeln!(f)?;
+                    write_indent(f, indent)?;
+                },
+                FullExpression::MatchOnVariable(var, _) => write!(f, " {} ", var.expr)?,
                 _ => unreachable!()
             }
             
 
-            writeln!(f)?;
-            write_indent(f, indent)?;
             writeln!(f, "{{")?;
 
             write_separated_list(f, cases.iter(), ",\n", |f, (pattern, body)| {

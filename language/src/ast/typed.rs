@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{ChainedData, ExpressionNode, FunctionSignature, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
+use super::{ast::{ChainedData, ExpressionNode, FunctionSignature, Operator, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
 
 pub type TypedData = ChainedData<ExpressionType, Scope>;
 
@@ -48,10 +48,18 @@ impl ExpressionType {
 impl TypedProgram {
     pub fn new<'a>(program: ScopedProgram) -> Result<Self, CompileError> {
         let mut all_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
-        for op in "+-/*".chars() {
+        for op in Operator::NUMERICAL {
             all_function_signatures.insert(op.to_string(), FunctionSignature { 
                 argument_type: UTuple(vec![Type::Int, Type::Int]),
                 result_type: UTuple(vec![Type::Int]),
+                is_fip: true
+            });
+        }
+
+        for op in Operator::COMPERATORS {
+            all_function_signatures.insert(op.to_string(), FunctionSignature { 
+                argument_type: UTuple(vec![Type::Int, Type::Int]),
+                result_type: UTuple(vec![Type::ADT("Bool".to_string())]),
                 is_fip: true
             });
         }
@@ -380,7 +388,7 @@ pub fn type_expression(
             }
 
             let mut new_var_types = var_types;
-            new_var_types.extend(vars.0.iter().map(|vid| expr.data[vid].internal_id).zip(vt.into_iter()));
+            new_var_types.extend(vars.0.iter().map(|vid| e2.data[vid].internal_id).zip(vt.into_iter()));
 
             let e2 = type_expression(*e2, new_var_types.clone(), function_signatures)?;
 

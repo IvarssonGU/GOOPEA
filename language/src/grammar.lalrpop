@@ -129,20 +129,8 @@ Expression: BaseNode = {
     #[precedence(level="4")] #[assoc(side="left")]
     <e1: Expression> <op: "+-"> <e2: Expression> => BaseNode::operation(op.as_str().try_into().unwrap(), e1, e2),
 
-    /*#[precedence(level="5")] #[assoc(side="left")]
-    <e1: Expression> <op: "cmp"> <e2: Expression> => {
-        let operation = match op.as_str() {
-            "==" => Operator::Equal,
-            "!=" => Operator::NotEqual,
-            "<" => Operator::Less,
-            "<=" => Operator::LessOrEqual,
-            ">" => Operator::Greater,
-            ">=" => Operator::GreaterOrEqual,
-            _ => panic!("???")
-        };
-
-        Expression::Operation(operation, Box::new(e1), Box::new(e2))
-    },*/
+    #[precedence(level="5")] #[assoc(side="left")]
+    <e1: Expression> <op: "cmp"> <e2: Expression> => BaseNode::operation(op.as_str().try_into().unwrap(), e1, e2),
 
     #[precedence(level="6")]
     "match" <expr: Expression> "{" <cases: MatchCases> "}" => {
