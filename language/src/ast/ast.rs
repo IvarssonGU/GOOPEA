@@ -78,8 +78,9 @@ pub enum FullExpression<'a, D, E> {
     Constructor(&'a FID, &'a UTuple<ExpressionNode<D, E>>),
     Integer(&'a i64),
     Variable(&'a VID),
-    Match(&'a Box<ExpressionNode<D, E>>, &'a Vec<(Pattern, ExpressionNode<D, E>)>),
-    LetEqualIn(&'a Pattern, &'a Box<ExpressionNode<D, E>>, &'a Box<ExpressionNode<D, E>>),
+    MatchOnExpression(&'a Box<ExpressionNode<D, E>>, &'a Vec<(Pattern, ExpressionNode<D, E>)>),
+    MatchOnVariable(&'a ExpressionNode<D, VID>, &'a Vec<(Pattern, ExpressionNode<D, E>)>),
+    LetEqualIn(&'a UTuple<VID>, &'a Box<ExpressionNode<D, E>>, &'a Box<ExpressionNode<D, E>>),
     Operation(&'a Box<ExpressionNode<D, E>>, &'a Operator, &'a Box<ExpressionNode<D, E>>)
 }
 
@@ -93,7 +94,7 @@ pub struct ChainedData<D, P> {
 pub enum Pattern {
     Integer(i64),
     Constructor(FID, UTuple<VID>),
-    UTuple(UTuple<VID>)
+    Variable(VID)
 }
 
 impl<D, E> ExpressionNode<D, E> {
@@ -225,8 +226,10 @@ impl<D, E> ExpressionNode<D, E>
             FullExpression::FunctionCall(_, utuple) |
             FullExpression::Constructor(_, utuple) => Box::new(utuple.0.iter()),
             FullExpression::Integer(_) | FullExpression::Variable(_) => Box::new(iter::empty()),
-            FullExpression::Match(expression_node, cases) 
+            FullExpression::MatchOnExpression(expression_node, cases) 
                 => Box::new(iter::once(expression_node.as_ref()).chain(cases.iter().map(|tup| &tup.1))),
+            FullExpression::MatchOnVariable(_, cases)
+                => Box::new(cases.iter().map(|tup| &tup.1)),
             FullExpression::LetEqualIn(_, e1, e2) |
             FullExpression::Operation(e1, _, e2) => Box::new(iter::once(e1.as_ref()).chain(iter::once(e2.as_ref()))),
         }
@@ -283,7 +286,9 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
 {
     node.data.fmt(f, indent)?;
 
-    match (&node.expr).into() {
+    let full_expression = (&node.expr).into();
+
+    match full_expression {
         FullExpression::UTuple(utuple) => {
             write_indent(f, indent)?;
             write!(f, "(")?;
@@ -330,10 +335,17 @@ where for<'a> &'a E: Into<FullExpression<'a, D, E>>
             write_indent(f, indent)?;
             write!(f, "{id}")
         },
-        FullExpression::Match(expression_node, cases) => {
+        FullExpression::MatchOnVariable(_, cases) |
+        FullExpression::MatchOnExpression(_, cases) => {
             write_indent(f, indent)?;
-            writeln!(f, "match")?;
-            write_expression_node(f, expression_node, indent + 1)?;
+            writeln!(f, "match ")?;
+
+            match full_expression {
+                FullExpression::MatchOnExpression(expr, _) => write_expression_node(f, expr, indent + 1)?,
+                FullExpression::MatchOnVariable(var, _) => write!(f, "{}", var.expr)?,
+                _ => unreachable!()
+            }
+            
 
             writeln!(f)?;
             write_indent(f, indent)?;
@@ -491,8 +503,8 @@ impl Display for Pattern {
                 write!(f, "{}", fid)?;
                 write_implicit_utuple(f, &vars.0, ", ", |f, vid| write!(f, "{vid}"))
             },
-            Pattern::UTuple(utuple) => {
-                write_implicit_utuple(f, &utuple.0, ", ", |f, vid| { write!(f, "{vid}") })
+            Pattern::Variable(vid) => {
+                write!(f, "{vid}")
             },
         }
     }

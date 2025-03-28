@@ -149,8 +149,8 @@ Expression: BaseNode = {
         BaseNode::mtch(expr, cases)
     },
 
-    "let" <pattern: Pattern> "=" <e1: Expression> "in" <e2: Expression> => {
-        BaseNode::let_equal_in(pattern, e1, e2)
+    "let" <vars: ImplicitUTuple<WildcardableVar>> "=" <e1: Expression> "in" <e2: Expression> => {
+        BaseNode::let_equal_in(vars, e1, e2)
     }
 }
 
@@ -173,10 +173,10 @@ WildcardableVar: String = {
 Pattern: Pattern = {
     <cons_id: "cap_id"> <vars: OptionalImplicitUTuple<WildcardableVar>> => Pattern::Constructor(cons_id, vars),
     "int" => Pattern::Integer(<>),
-    ImplicitUTuple<WildcardableVar> => Pattern::UTuple(<>)
+    "noncap_id" => Pattern::Variable(<>)
 }
 
 #[inline]
 MatchCase: (Pattern, BaseNode) = {
-    <pattern: Pattern> ":" <body: Expression> => (pattern, body)
+    <vars: Pattern> ":" <body: Expression> => (vars, body)
 }
