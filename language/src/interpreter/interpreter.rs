@@ -1,4 +1,4 @@
-use crate::ast::base::BaseProgram;
+use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
 use crate::ir::Prog;
@@ -381,7 +381,7 @@ impl Debug for Data {
 pub fn interpreter_test_time(src: &str) {
     let code = fs::read_to_string(Path::new(src)).unwrap();
 
-    let base_program = BaseProgram::new(&code).unwrap();
+    let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
 
@@ -409,7 +409,7 @@ pub fn interpreter_test(src: &str) {
         .parse(Lexer::new(&code))
         .unwrap();
 
-    let base_program = BaseProgram::new(&code).unwrap();
+    let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
 

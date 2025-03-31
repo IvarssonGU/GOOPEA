@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::{Display, Formatter}, iter, ops::Deref};
+use std::{collections::HashMap, fmt::{Display, Formatter}, iter, ops::{Deref, Range}};
 
 use crate::error::{CompileError, CompileResult};
 
@@ -426,6 +426,27 @@ impl DisplayData for ExpressionType {
     fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
         write_indent(f, indent)?;
         writeln!(f, "// type: {}", self)
+    }
+}
+
+impl DisplayData for Range<usize> {
+    fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
+        write_indent(f, indent)?;
+        writeln!(f, "// Source location: {}-{}", self.start, self.end)
+    }
+}
+
+impl DisplayData for &'_ str {
+
+    fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
+        let end_length = 10;
+
+        write_indent(f, indent)?;
+        if self.len() <= end_length*3 {
+            writeln!(f, "// Source: \"{self}\"")
+        } else {
+            writeln!(f, "// Source: \"{}\" ... \"{}\"", self[..end_length].escape_default(), self[self.len() - end_length..].escape_default())
+        }
     }
 }
 

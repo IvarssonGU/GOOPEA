@@ -2,14 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{ChainedData, ExpressionNode, FunctionSignature, Operator, Pattern, Program, Type, UTuple, FID}, scoped::{Scope, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
+use super::{ast::{ChainedData, ExpressionNode, FunctionSignature, Operator, Pattern, Program, Type, UTuple, FID}, scoped::{ScopedData, ScopedNode, ScopedProgram, SimplifiedExpression, VariableDefinition}};
 
-pub type TypedData = ChainedData<ExpressionType, Scope>;
+pub type TypedData<'i> = ChainedData<ExpressionType, ScopedData<'i>>;
 
-pub type TypedNode = ExpressionNode<TypedData, SimplifiedExpression<TypedData>>;
-pub type TypedProgram = Program<TypedData, SimplifiedExpression<TypedData>>;
+pub type TypedNode<'i> = ExpressionNode<TypedData<'i>, SimplifiedExpression<TypedData<'i>>>;
+pub type TypedProgram<'i> = Program<TypedData<'i>, SimplifiedExpression<TypedData<'i>>>;
 
-fn get_children_same_type<'a>(mut iter: impl Iterator<Item = &'a TypedNode>) -> Option<ExpressionType> {
+fn get_children_same_type<'a>(mut iter: impl Iterator<Item = &'a TypedNode<'a>>) -> Option<ExpressionType> {
     let tp = iter.next()?.data.data.clone();
 
     for x in iter {
@@ -45,8 +45,8 @@ impl ExpressionType {
     }
 }
 
-impl TypedProgram {
-    pub fn new<'a>(program: ScopedProgram) -> Result<Self, CompileError> {
+impl<'i> TypedProgram<'i> {
+    pub fn new<'a>(program: ScopedProgram<'i>) -> Result<Self, CompileError> {
         let mut all_function_signatures: HashMap<FID, FunctionSignature> = HashMap::new();
         for op in Operator::NUMERICAL {
             all_function_signatures.insert(op.to_string(), FunctionSignature { 
@@ -304,11 +304,11 @@ impl TypedProgram {
 // A variable definition contains type information 
 // Checks that each case in match has correct number of arguments for the constructor
 // Does type inference on variables and expression, with minimum type checking
-pub fn type_expression(
-    expr: ScopedNode,
+pub fn type_expression<'i>(
+    expr: ScopedNode<'i>,
     var_types: HashMap<usize, Type>,
     function_signatures: &HashMap<FID, FunctionSignature>
-) -> Result<TypedNode, CompileError> 
+) -> Result<TypedNode<'i>, CompileError> 
 {
     let (new_expr, tp) = match expr.expr {
         SimplifiedExpression::UTuple(args) => {

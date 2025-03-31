@@ -1,5 +1,6 @@
 use crate::lexer::{Token, LexicalError};
 use crate::ast::{base::*, ast::*};
+use std::ops::Range;
 
 grammar;
 
@@ -90,60 +91,60 @@ CallableID: String = {
 }
 
 ExpressionReset = <Expression>;
-Expression: BaseNode = {
+Expression: BaseRangeNode = {
     #[precedence(level="0")]
-    "cap_id" => BaseNode::function_call(<>, UTuple(vec![])),
-    "noncap_id" => BaseNode::variable(<>),
-    "int" => BaseNode::integer(<>),
-    <mut tup: UTuple<ExpressionReset>> => {
+    <l: @L> <id: "cap_id"> <r: @R> => BaseRangeNode::function_call(id, UTuple(vec![]), l..r),
+    <l: @L> <id: "noncap_id"> <r: @R> => BaseRangeNode::variable(id, l..r),
+    <l: @L> <x: "int"> <r: @R> => BaseRangeNode::integer(x, l..r),
+    <l: @L> <mut tup: UTuple<ExpressionReset>> <r: @R> => {
         if tup.0.len() == 1 {
             tup.0.pop().unwrap()
         } else {
-            BaseNode::utuple(tup)
+            BaseRangeNode::utuple(tup, l..r)
         }
     },
 
 
     #[precedence(level="1")]
-    <id: CallableID> <arg: Expression> => {
+    <l: @L> <id: CallableID> <arg: Expression> <r: @R> => {
         match arg.expr {
             SyntaxExpression::UTuple(args) => {
-                BaseNode::function_call(id, args)
+                BaseRangeNode::function_call(id, args, l..r)
             },
-            _ => BaseNode::function_call(id, UTuple(vec![arg]))
+            _ => BaseRangeNode::function_call(id, UTuple(vec![arg]), l..r)
         }
     },
 
     #[precedence(level="2")]
-    <op: "+-"> <e: Expression> => {
+    <l: @L> <op: "+-"> <e: Expression> <r: @R> => {
         if op == "+" {
             e
         } else {
-            BaseNode::operation(op.as_str().try_into().unwrap(), BaseNode::integer(0), e)
+            BaseRangeNode::operation(op.as_str().try_into().unwrap(), BaseRangeNode::integer(0, l..r), e, l..r)
         }
     },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <e1: Expression> <op: "*/"> <e2: Expression> => BaseNode::operation(op.as_str().try_into().unwrap(), e1, e2),
+    <l: @L> <e1: Expression> <op: "*/"> <e2: Expression> <r: @R> => BaseRangeNode::operation(op.as_str().try_into().unwrap(), e1, e2, l..r),
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <e1: Expression> <op: "+-"> <e2: Expression> => BaseNode::operation(op.as_str().try_into().unwrap(), e1, e2),
+    <l: @L> <e1: Expression> <op: "+-"> <e2: Expression> <r: @R> => BaseRangeNode::operation(op.as_str().try_into().unwrap(), e1, e2, l..r),
 
     #[precedence(level="5")] #[assoc(side="left")]
-    <e1: Expression> <op: "cmp"> <e2: Expression> => BaseNode::operation(op.as_str().try_into().unwrap(), e1, e2),
+    <l: @L> <e1: Expression> <op: "cmp"> <e2: Expression> <r: @R> => BaseRangeNode::operation(op.as_str().try_into().unwrap(), e1, e2, l..r),
 
     #[precedence(level="6")]
-    "match" <expr: Expression> "{" <cases: MatchCases> "}" => {
-        BaseNode::mtch(expr, cases)
+    <l: @L> "match" <expr: Expression> "{" <cases: MatchCases> "}" <r: @R> => {
+        BaseRangeNode::mtch(expr, cases, l..r)
     },
 
-    "let" <vars: ImplicitUTuple<WildcardableVar>> "=" <e1: Expression> "in" <e2: Expression> => {
-        BaseNode::let_equal_in(vars, e1, e2)
+    <l: @L> "let" <vars: ImplicitUTuple<WildcardableVar>> "=" <e1: Expression> "in" <e2: Expression> <r: @R> => {
+        BaseRangeNode::let_equal_in(vars, e1, e2, l..r)
     }
 }
 
 #[inline]
-MatchCases: Vec<(Pattern, BaseNode)> = {
+MatchCases: Vec<(Pattern, BaseRangeNode)> = {
     <first: MatchCase> <rest: ("," <MatchCase>)*> => {
         let mut cases = vec![first];
         cases.extend(rest);
@@ -165,6 +166,6 @@ Pattern: Pattern = {
 }
 
 #[inline]
-MatchCase: (Pattern, BaseNode) = {
+MatchCase: (Pattern, BaseRangeNode) = {
     <vars: Pattern> ":" <body: Expression> => (vars, body)
 }

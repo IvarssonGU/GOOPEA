@@ -1,23 +1,24 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, ops::Range};
 
 use crate::{error::{CompileError, CompileResult}, grammar, lexer::Lexer};
 
 use super::ast::{Constructor, ExpressionNode, FullExpression, FunctionData, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
 
-pub type BaseNode = ExpressionNode<(), SyntaxExpression<()>>;
-pub type BaseProgram = Program<(), SyntaxExpression<()>>;
+pub type BaseSliceNode<'i> = ExpressionNode<&'i str, SyntaxExpression<&'i str>>;
+pub type BaseSliceProgram<'i> = Program<&'i str, SyntaxExpression<&'i str>>;
+
+pub type BaseRangeNode = ExpressionNode<Range<usize>, SyntaxExpression<Range<usize>>>;
+pub type BaseRangeProgram = Program<Range<usize>, SyntaxExpression<Range<usize>>>;
 
 #[derive(Debug)]
 pub enum Definition {
     ADT(AID, Vec<(FID, UTuple<Type>)>),
-    Function(FID, (FunctionData, BaseNode))
+    Function(FID, (FunctionData, BaseRangeNode))
 }
 
-impl BaseProgram {
-    pub fn new(code: &str) -> Result<BaseProgram, CompileError> {
-        //program.validate_top_level_ids();
-
-        let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
+impl<'i> BaseSliceProgram<'i> {
+    pub fn new(code: &'i str) -> Result<BaseSliceProgram<'i>, CompileError> {
+        let program: Vec<Definition> = grammar::ProgramParser::new().parse(Lexer::new(code)).unwrap();
 
         let builtin_defs = vec![
             Definition::ADT("Bool".to_string(), vec![("False".to_string(), UTuple::empty()), ("True".to_string(), UTuple::empty())])
@@ -38,12 +39,12 @@ impl BaseProgram {
                 },
                 Definition::Function(fid, (data, body)) => {    
                     function_datas.insert(fid.clone(), data);
-                    function_bodies.insert(fid, body);
+                    function_bodies.insert(fid, body.make_slice(code));
                 }
             }
         }
 
-        let program = BaseProgram { adts, constructors: all_constructors, function_datas, function_bodies };
+        let program = BaseSliceProgram { adts, constructors: all_constructors, function_datas, function_bodies };
         program.validate_top_level_ids()?;
         program.validate_all_types()?;
 
@@ -84,34 +85,63 @@ impl BaseProgram {
     }
 }
 
-impl BaseNode {
-    pub fn integer(x: i64) -> Self { Self::new((),SyntaxExpression::Integer(x)) }
+impl BaseRangeNode {
+    pub fn make_slice<'i>(self, code: &'i str) -> BaseSliceNode<'i> {
+        let new_expr = match self.expr {
+            SyntaxExpression::UTuple(tup) => 
+                SyntaxExpression::UTuple(tup.transform_nodes(|e| Ok(e.make_slice(code))).unwrap()),
+            SyntaxExpression::FunctionCall(fid, tup) => 
+                SyntaxExpression::FunctionCall(fid, tup.transform_nodes(|e| Ok(e.make_slice(code))).unwrap()),
+            SyntaxExpression::Integer(x) => SyntaxExpression::Integer(x),
+            SyntaxExpression::Variable(vid) => SyntaxExpression::Variable(vid),
+            SyntaxExpression::Match(expr, cases) => 
+                SyntaxExpression::Match(
+                    Box::new(expr.make_slice(code)), 
+                    cases.into_iter().map(|(pattern, e)| (pattern, e.make_slice(code))).collect()
+                ),
+            SyntaxExpression::LetEqualIn(tup, e1, e2) => 
+                SyntaxExpression::LetEqualIn(tup, Box::new(e1.make_slice(code)), Box::new(e2.make_slice(code))),
+            SyntaxExpression::Operation(e1, operator, e2) => 
+                SyntaxExpression::Operation(Box::new(e1.make_slice(code)), operator, Box::new(e2.make_slice(code))),
+        };
 
-    pub fn variable(vid: VID) -> Self { Self::new((), SyntaxExpression::Variable(vid)) }
+        let slice = &code[self.data];
 
-    pub fn function_call(fid: FID, args: UTuple<Self>) -> Self {
-        Self::new((), SyntaxExpression::FunctionCall(fid, args))
+        BaseSliceNode {
+            expr: new_expr,
+            data: slice
+        }
+    }
+}
+
+impl BaseRangeNode {
+    pub fn integer(x: i64, location: Range<usize>) -> Self { Self::new(location,SyntaxExpression::Integer(x)) }
+
+    pub fn variable(vid: VID, location: Range<usize>) -> Self { Self::new(location, SyntaxExpression::Variable(vid)) }
+
+    pub fn function_call(fid: FID, args: UTuple<Self>, location: Range<usize>) -> Self {
+        Self::new(location, SyntaxExpression::FunctionCall(fid, args))
     }
 
-    pub fn operation(op: Operator, l: Self, r: Self) -> Self {
-        Self::new((), SyntaxExpression::Operation(Box::new(l), op, Box::new(r)))
+    pub fn operation(op: Operator, l: Self, r: Self, location: Range<usize>) -> Self {
+        Self::new(location, SyntaxExpression::Operation(Box::new(l), op, Box::new(r)))
     }
 
-    pub fn utuple(args: UTuple<Self>) -> Self {
-        Self::new((), SyntaxExpression::UTuple(args))
+    pub fn utuple(args: UTuple<Self>, location: Range<usize>) -> Self {
+        Self::new(location, SyntaxExpression::UTuple(args))
     }
 
-    pub fn mtch(match_on: Self, cases: Vec<(Pattern, Self)>) -> Self {
-        Self::new((), SyntaxExpression::Match(Box::new(match_on), cases))
+    pub fn mtch(match_on: Self, cases: Vec<(Pattern, Self)>, location: Range<usize>) -> Self {
+        Self::new(location, SyntaxExpression::Match(Box::new(match_on), cases))
     }
 
-    pub fn let_equal_in(vars: UTuple<VID>, e1: Self, e2: Self) -> Self {
-        Self::new((), SyntaxExpression::LetEqualIn(vars, Box::new(e1), Box::new(e2)))
+    pub fn let_equal_in(vars: UTuple<VID>, e1: Self, e2: Self, location: Range<usize>) -> Self {
+        Self::new(location, SyntaxExpression::LetEqualIn(vars, Box::new(e1), Box::new(e2)))
     }
 }
 
 impl Type {
-    fn validate_in(&self, program: &BaseProgram) -> CompileResult {
+    fn validate_in(&self, program: &BaseSliceProgram) -> CompileResult {
         match self {
             Type::Int => Ok(()),
             Type::ADT(aid) => {
@@ -126,7 +156,7 @@ impl Type {
 }
 
 impl UTuple<Type> {
-    fn validate_in(&self, program: &BaseProgram) -> CompileResult {
+    fn validate_in(&self, program: &BaseSliceProgram) -> CompileResult {
         for tp in &self.0 { tp.validate_in(program)?; }
         Ok(())
     }

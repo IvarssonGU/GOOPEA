@@ -2,12 +2,14 @@ use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{map_expr_box, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseProgram, SyntaxExpression}};
+use super::{ast::{ChainedData, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseSliceNode, BaseSliceProgram, SyntaxExpression}};
 
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
-pub type ScopedNode = ExpressionNode<Scope, SimplifiedExpression<Scope>>;
+pub type ScopedData<'i> = ChainedData<Scope, &'i str>;
 
-pub type ScopedProgram = Program<Scope, SimplifiedExpression<Scope>>;
+pub type ScopedNode<'i> = ExpressionNode<ScopedData<'i>, SimplifiedExpression<ScopedData<'i>>>;
+
+pub type ScopedProgram<'i> = Program<ScopedData<'i>, SimplifiedExpression<ScopedData<'i>>>;
 
 #[derive(Clone, Debug, Eq)]
 pub struct VariableDefinition {
@@ -33,11 +35,11 @@ fn extended_scope(base: &Scope, new_vars: impl Iterator<Item = VariableDefinitio
     new_scope
 }
 
-impl ScopedProgram {
+impl<'i> ScopedProgram<'i> {
     // Creates a new program with scope information
     // Performs minimum required validation, such as no top level symbol collisions
-    pub fn new(program: BaseProgram) -> Result<ScopedProgram, CompileError> {
-        let program = program.map();
+    pub fn new(program: BaseSliceProgram) -> Result<ScopedProgram, CompileError> {
+        let program = program.transform_functions(|body, _, _| Ok(body.into())).unwrap();
 
         let counter = RefCell::new(0);
 
@@ -72,17 +74,17 @@ impl ScopedProgram {
     }
 }
 
-pub fn scope_expression(
-    expr: ExpressionNode<(), SimplifiedExpression<()>>, 
+pub fn scope_expression<'i>(
+    expr: ExpressionNode<&'i str, SimplifiedExpression<&'i str>>, 
     scope: Scope,
     counter: &RefCell<usize>,
     atom_constructors: &HashSet<FID>,
     zero_argument_functions: &HashSet<FID>
-) -> Result<ScopedNode, CompileError> 
+) -> Result<ScopedNode<'i>, CompileError> 
 {
-    let expr = match expr.expr {
+    let new_expr = match expr.expr {
         SimplifiedExpression::UTuple(children) => {
-                        SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
+                SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
             },
         SimplifiedExpression::FunctionCall(fid, children) => {
                 SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
@@ -96,7 +98,7 @@ pub fn scope_expression(
                 else { SimplifiedExpression::Variable(vid) }
             },
         SimplifiedExpression::Match(var_node, cases) => {
-                let var_node = ExpressionNode { expr: var_node.expr, data: scope.clone() };
+                let var_node = ExpressionNode { expr: var_node.expr, data: ChainedData { data: scope.clone(), next: var_node.data } };
 
                 let case_scopes = cases.into_iter().map(|(pattern, child)| {
                     match &pattern {
@@ -156,8 +158,8 @@ pub fn scope_expression(
     };
 
     Ok(ExpressionNode {
-        expr,
-        data: scope
+        expr: new_expr,
+        data: ChainedData { data: scope, next: expr.data }
     })
 }
 
@@ -184,35 +186,37 @@ impl<'a, D> From<&'a SimplifiedExpression<D>> for FullExpression<'a, D, Simplifi
     }
 }
 
-impl From<SyntaxExpression<()>> for SimplifiedExpression<()> {
-    fn from(value: SyntaxExpression<()>) -> Self {
-        match value {
-            SyntaxExpression::UTuple(x) => SimplifiedExpression::UTuple(x.map()),
-            SyntaxExpression::FunctionCall(x, y) => SimplifiedExpression::FunctionCall(x, y.map()),
+impl<'i> From<BaseSliceNode<'i>> for ExpressionNode<&'i str, SimplifiedExpression<&'i str>> {
+    fn from(node: BaseSliceNode<'i>) -> Self {
+        let new_expr = match node.expr {
+            SyntaxExpression::UTuple(x) => SimplifiedExpression::UTuple(x.transform_nodes(|e| Ok(e.into())).unwrap()),
+            SyntaxExpression::FunctionCall(x, y) => SimplifiedExpression::FunctionCall(x, y.transform_nodes(|e| Ok(e.into())).unwrap()),
             SyntaxExpression::Integer(x) => SimplifiedExpression::Integer(x),
             SyntaxExpression::Variable(x) => SimplifiedExpression::Variable(x),
             SyntaxExpression::Match(expr, cases) => {
-                let new_cases = cases.into_iter().map(|(a, b)| (a, b.map())).collect();
+                let new_cases = cases.into_iter().map(|(a, b)| (a, b.into())).collect();
 
                 match &expr.expr {
-                    SyntaxExpression::Variable(vid) => SimplifiedExpression::Match(ExpressionNode { expr: vid.clone(), data: () }, new_cases),
+                    SyntaxExpression::Variable(vid) => SimplifiedExpression::Match(ExpressionNode { expr: vid.clone(), data: node.data }, new_cases),
                     _ => SimplifiedExpression::LetEqualIn(
                         UTuple(vec!["<temp>".to_string()]), 
-                        map_expr_box(expr),
+                        Box::new((*expr).into()),
                         Box::new(ExpressionNode { 
-                            data: (), 
+                            data: node.data, 
                             expr: SimplifiedExpression::Match(
-                                ExpressionNode { expr: "<temp>".to_string(), data: () },
+                                ExpressionNode { expr: "<temp>".to_string(), data: node.data },
                                 new_cases
                             ) 
                         })
                     )
                 }
             },
-            SyntaxExpression::LetEqualIn(x, y, z) => SimplifiedExpression::LetEqualIn(x, map_expr_box(y), map_expr_box(z)),
+            SyntaxExpression::LetEqualIn(x, y, z) => SimplifiedExpression::LetEqualIn(x, Box::new((*y).into()), Box::new((*z).into())),
             SyntaxExpression::Operation(e1, op, e2) => {
-                SimplifiedExpression::FunctionCall(op.to_string(), UTuple(vec![e1.map(), e2.map()]))
+                SimplifiedExpression::FunctionCall(op.to_string(), UTuple(vec![(*e1).into(), (*e2).into()]))
             }
-        }
+        };
+
+        ExpressionNode { expr: new_expr, data: node.data }
     }
 }
