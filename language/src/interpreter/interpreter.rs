@@ -108,9 +108,9 @@ impl Interpreter {
         }
     }
 
-    pub fn from_program(prog: &Prog) -> Self {
+    pub fn from_program(program: &Prog) -> Self {
         let mut interpreter = Interpreter::new();
-        for def in prog.0.clone() {
+        for def in program.0.clone() {
             interpreter = interpreter.with_fn(IDef::from_def(&def));
         }
         interpreter = interpreter.with_entry_point("main");
@@ -295,7 +295,7 @@ impl Interpreter {
         s
     }
 
-    fn run_until_next_mem(&mut self) {
+    pub fn run_until_next_mem(&mut self) {
         loop {
             while let Some(s) = self.statements.get(0) {
                 match s {
@@ -313,11 +313,11 @@ impl Interpreter {
         }
     }
 
-    fn run_until_done(&mut self) {
+    pub fn run_until_done(&mut self) {
         while let Some(_) = self.step() {}
     }
 
-    fn run_until_return(&mut self) {
+    pub fn run_until_return(&mut self) {
         let s = self.function_names_stack.len();
 
         while self.function_names_stack.len() >= s {

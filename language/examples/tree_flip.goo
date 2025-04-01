@@ -21,7 +21,19 @@ build =
             Node(
                 Empty,
                 69,
-                Empty
+                Node(
+                    Node(
+                        Empty,
+                        7,
+                        Empty
+                    ),
+                    100,
+                    Node(
+                        Empty,
+                        4,
+                        Empty
+                    )
+                ),
             ),
             23,
             Empty
