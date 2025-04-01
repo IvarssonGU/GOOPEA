@@ -90,7 +90,7 @@ pub struct Interpreter {
     local_variables: HashMap<String, Data>,
     variable_stack: Vec<HashMap<String, Data>>,
     return_value: Option<Data>,
-    steps: u64
+    steps: u64,
 }
 
 impl Interpreter {
@@ -104,7 +104,7 @@ impl Interpreter {
             local_variables: HashMap::new(),
             variable_stack: Vec::new(),
             return_value: None,
-            steps: 0
+            steps: 0,
         }
     }
 
@@ -296,18 +296,16 @@ impl Interpreter {
     }
 
     pub fn run_until_next_mem(&mut self) {
-        loop {
-            while let Some(s) = self.statements.get(0) {
-                match s {
-                    IStatement::InitConstructor(_, _)
-                    | IStatement::Inc(_)
-                    | IStatement::Dec(_)
-                    | IStatement::AssignToField(_, _, _) => {
-                        break;
-                    }
-                    _ => {
-                        self.step();
-                    }
+        while let Some(s) = self.statements.get(0) {
+            match s {
+                IStatement::InitConstructor(_, _)
+                | IStatement::Inc(_)
+                | IStatement::Dec(_)
+                | IStatement::AssignToField(_, _, _) => {
+                    break;
+                }
+                _ => {
+                    self.step();
                 }
             }
         }
@@ -451,7 +449,12 @@ pub fn interpreter_test_time(src: &str) {
 
     let elapsed = now.elapsed().as_micros();
     let steps = interpreter.steps;
-    println!("Done!\n{} steps in {} us\n{} sps", steps, elapsed, 1_000_000 * steps / elapsed as u64);
+    println!(
+        "Done!\n{} steps in {} us\n{} sps",
+        steps,
+        elapsed,
+        1_000_000 * steps / elapsed as u64
+    );
     println!("{:?}", interpreter);
 }
 

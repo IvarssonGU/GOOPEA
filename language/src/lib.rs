@@ -14,6 +14,11 @@ use interpreter::Interpreter;
 use ir::Prog;
 use lalrpop_util::lalrpop_mod;
 use simple_ast::{add_refcounts, from_scoped};
+use std::cell::RefCell;
+
+thread_local! {
+    static INTERPRETER: RefCell<Interpreter> = RefCell::new(Interpreter::new());
+}
 
 pub fn compile(code: &str) -> Prog {
     let base_program = BaseSliceProgram::new(&code).unwrap();
@@ -29,7 +34,25 @@ pub fn c_code(program: &Prog) -> String {
     ir::output(program).join("\n")
 }
 
-pub fn run_interpreter(program: &Prog) {
-    let mut interpreter = Interpreter::from_program(program);
-    interpreter.run_until_done();
+pub fn load_interpreter(program: &Prog) {
+    let interpreter = Interpreter::from_program(program);
+    INTERPRETER.set(interpreter);
+}
+
+pub fn step_interpreter() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.step();
+    });
+}
+
+pub fn run_interpreter() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.run_until_done();
+    });
+}
+
+pub fn interpreter_state() -> String {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        format!("{:?}", interpreter)
+    })
 }
