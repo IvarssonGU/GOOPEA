@@ -1,7 +1,8 @@
 let toggle_headers = document.getElementsByClassName("toggle-header");
 let toggle_contents = document.getElementsByClassName("toggle-content");
 
-window.onload = function() {
+document.addEventListener("DOMContentLoaded", () => {
+// window.onload = function() {
     for (var i = 0; i < toggle_headers.length; i++) {
         toggle_contents[i].style.display = 'block'; //change back to none for starting collapsed p1
         toggle_headers[i].classList.toggle("open"); //remove for starting collapsed p2
@@ -21,7 +22,7 @@ window.onload = function() {
             change_theme(2);
         }
     }
-};
+});
 
 window.onbeforeunload = function() {    
     if (document.getElementById("documentation-body").classList.contains("dark")) {

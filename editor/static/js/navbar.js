@@ -5,6 +5,7 @@ let styled_buttons = document.getElementsByClassName("styled-button");
 let editor_body = document.getElementById("editor-body");
 let editor_output = document.getElementById("output");
 let editor_memory = document.getElementById("memory");
+let editor_c_code = document.getElementById("c-code");
 let editor_runtime = document.getElementById("runtime");
 
 let examples_body = document.getElementById("examples-body");
@@ -29,6 +30,7 @@ function change_theme(opt) {
             editor_output.classList.toggle("dark");
             editor_memory.classList.toggle("dark");
             editor_runtime.classList.toggle("dark");
+            editor_c_code.classList.toggle("dark");
             break;
         case 1: //case current page is examples
             examples_body.classList.toggle("dark");

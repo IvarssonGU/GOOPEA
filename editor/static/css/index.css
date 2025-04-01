@@ -6,7 +6,7 @@ body {
     background-color: #090300;
     color: #d6d6d6;
 }
-#output.dark, #memory.dark {
+#output.dark, #memory.dark, #c-code.dark {
     background-color: #090300;
     color: #d6d6d6;
 }
@@ -64,7 +64,7 @@ textarea {
     border: none;
 }
 
-#code-cell, #output, #memory {
+#code-cell, #output, #memory, #c-code {
     height:70vh;
 }
 
@@ -109,13 +109,20 @@ textarea {
 #output-button {
     border-top-right-radius: 0px;
 }
-#memory-button {
+/* #memory-button {
     border-top-left-radius: 0px;
     margin-left: -10px;
-    /* border-right: none; */
+} */
+#c-button, #memory-button {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    margin-left: -10px;
 }
 .current-tab.styled-button {
     background-color: #c3e3ee;
+}
+.current-tab.styled-button.dark {
+    background-color: #006f93;
 }
 /* #tab-filler {
     background-color: white;

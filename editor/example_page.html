@@ -35,7 +35,9 @@
                         <option value="utuple">Utuple</option>
                         <option value="zipper-tree">Zipper tree</option>
                     </select>
-                    <button class="styled-button temp-button">run</button>
+                    <!-- <button class="styled-button temp-button">run</button> -->
+                    <button onclick="copy_code()" class="styled-button">Copy code</button>
+                    <button class="styled-button" id="copied-ack">Copied &#x2713;</button>
                 </th>
                 <th>Diagram</th>
             </tr>
@@ -44,7 +46,7 @@
                     <textarea id="code-field"></textarea>
                 </td>
                 <td rowspan="3" id="example-diagrams-cell">
-                    <div class="example1-diagrams">
+                    <!-- <div class="example1-diagrams">
                         <div class="slide">
                             <div class="numbering">1/27</div>
                             <img src="example-diagrams/example1/img_00.png" style="width:100%">
@@ -152,11 +154,11 @@
                         <div class="slide">
                             <div class="numbering">27/27</div>
                             <img src="example-diagrams/example1/img_26.png" style="width:100%">
-                        </div>
+                        </div> -->
 
-                        <a class="prev-arrow" onclick="change_slide(-1)">&larr;</a>
+                        <!-- <a class="prev-arrow" onclick="change_slide(-1)">&larr;</a>
                         <a class="next-arrow" onclick="change_slide(1)">&rarr;</a>
-                    </div>
+                    </div> -->
                 </td>
             </tr>
             <tr>

@@ -1,5 +1,6 @@
 let output_textarea = document.getElementById("output");
 let memory_textarea = document.getElementById("memory");
+let c_textarea = document.getElementById("c-code");
 
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     lineNumbers: true,
@@ -13,8 +14,11 @@ var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
 
 editor.setSize("100%", "100%");
 
-window.onload = function() {
+// window.onload = function() {
+document.addEventListener("DOMContentLoaded", () => {
     memory_textarea.style.display = 'none';
+    c_textarea.style.display = 'none';
+
     if ("code" in localStorage) {
         editor.setValue(localStorage.getItem("code"));
     }
@@ -24,7 +28,15 @@ window.onload = function() {
             change_theme(0);
         }
     }
-};
+
+});
+window.onload = function() {
+    document.getElementById("code").classList.toggle("hidden");
+    output_textarea.classList.toggle("hidden");
+    c_textarea.classList.toggle("hidden");
+    memory_textarea.classList.toggle("hidden");
+    
+}
 // document.addEventListener("DOMContentLoaded", function() {
 // document.onreadystatechange = function() {
 //     if ("theme" in localStorage) {
@@ -52,8 +64,8 @@ async function run_button_clicked() {
 
     let code = editor.getValue();
     localStorage.setItem("code", code);
-    const output = wasm_bindgen.rust_function(code);
-    output_textarea.value = output;
+    const c_code = wasm_bindgen.rust_function(code);
+    c_textarea.value = c_code;
 
 	const endTime = performance.now();
 
@@ -86,19 +98,46 @@ function save_code(opt) {
     }
 }
 
-function switch_to_output() {
-    document.getElementById("output-button").classList.toggle("current-tab");
-    document.getElementById("memory-button").classList.toggle("current-tab");
-    
-    memory_textarea.style.display = 'none';
-    output_textarea.style.display = 'block';
+function switch_tab(opt) {    
+    let output_button = document.getElementById("output-button");
+    let c_code_button = document.getElementById("c-button");
+    let memory_button = document.getElementById("memory-button");
+
+    if (output_button.classList.contains("current-tab")) output_button.classList.toggle("current-tab");
+    if (c_code_button.classList.contains("current-tab")) c_code_button.classList.toggle("current-tab");
+    if (memory_button.classList.contains("current-tab")) memory_button.classList.toggle("current-tab");
+
+    switch (opt) {
+        case 0: //switch to output
+            output_button.classList.toggle("current-tab");
+            output_textarea.style.display = 'block';
+            c_textarea.style.display = 'none';
+            memory_textarea.style.display = 'none';
+            break;
+        case 1: //switch to c code
+            c_code_button.classList.toggle("current-tab");
+            c_textarea.style.display = 'block'
+            output_textarea.style.display = 'none';
+            memory_textarea.style.display = 'none';
+            break;
+        case 2: //switch to memory
+            memory_button.classList.toggle("current-tab");
+            memory_textarea.style.display = 'block';
+            c_textarea.style.display = 'none';
+            output_textarea.style.display = 'none';
+            break;
+        default:
+            output_button.classList.toggle("current-tab");
+            output_textarea.style.display = 'block';
+            c_textarea.style.display = 'none';
+            memory_textarea.style.display = 'none';
+
+    }
 }
 function switch_to_memory() {
     document.getElementById("output-button").classList.toggle("current-tab");
     document.getElementById("memory-button").classList.toggle("current-tab");
 
-    output_textarea.style.display = 'none';
-    memory_textarea.style.display = 'block';
 }
 
 function change_editor_theme(opt) {
@@ -139,6 +178,12 @@ command to run otherwise:
 
 or: (linux)
     GOOPEA.sh
+*/
+
+/*
+other notes
+- shared js/css is in navbar files
+
 */
 
 

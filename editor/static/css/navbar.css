@@ -1,3 +1,18 @@
+:root {
+    --background: white;
+    --main-color: lightblue;
+    --medium-color: #c7e6f0;
+    --light-color: #e3f1f6;
+    --text-color: black;
+}
+[theme="dark"] {
+    --background: #090300;
+    --main-color: #006f93;
+    --medium-color: #003f54;
+    --light-color: #003142;
+    --text-color: #d6d6d6;
+}
+
 .nav {
     overflow: hidden;
 }
@@ -94,4 +109,8 @@ mark b {
 mark.dark {
     background-color: #003142;
     color:#d6d6d6;
+}
+
+.hidden {
+    content-visibility: hidden;
 }

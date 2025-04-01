@@ -28,20 +28,22 @@
 					<button onclick="run_button_clicked()" id="run-button" class="styled-button">Run</button>
 				</th>
 				<td colspan="2" rowspan="2" id="output-cell">
-					<button onclick="switch_to_output()" class="tab-button styled-button current-tab" id="output-button">Output</button>
-					<button onclick="switch_to_memory()" class="tab-button styled-button" id="memory-button">Memory</button>
+					<button onclick="switch_tab(0)" class="tab-button styled-button current-tab" id="output-button">Output</button>
+					<button onclick="switch_tab(1)" class="tab-button styled-button" id="c-button">C code</button>
+					<button onclick="switch_tab(2)" class="tab-button styled-button" id="memory-button">Memory</button>
 					<!-- <button onclick="switch_to_output()" class="tab-button current-tab" id="output-button">Output</button>
 					<button onclick="switch_to_memory()" class="tab-button" id="memory-button">Memory</button> -->
 					<!-- <button class="tab-button styled-button" id="tab-filler">meow</button> -->
 					<div class="output-container">
-						<textarea id="output" readonly="true" placeholder="your code will output here" height="100%"></textarea>
-						<textarea id="memory" readonly="true" placeholder="view memory here" height="100%"></textarea>
+						<textarea id="output" class="hidden" readonly="true" placeholder="connection to interpreter not implemented yet" height="100%"></textarea>
+						<textarea id="c-code" class="hidden" readonly="true" placeholder="click Run to view C-code here" height="100%"></textarea>
+						<textarea id="memory" class="hidden" readonly="true" placeholder="view memory here (not implemented)" height="100%"></textarea>
 					</div>
 				</td>
 			</tr>
 			<tr id="text-row">
 				<td colspan="2" id="code-cell">
-					<textarea id="code"></textarea>
+					<textarea id="code" class="hidden"></textarea>
 				</td>
 			</tr>
 			<tr>

@@ -65,7 +65,23 @@ select {
     font-family: 'Courier New', Courier, monospace;
     cursor: pointer;
 }
-
 select.dark {
     color:#d6d6d6;
+}
+
+#copied-ack {
+    transition: opacity 1s;
+    width:max-content;
+    opacity: 0;
+    cursor: default;
+    /* hover:none; */
+    /* border: 2px solid black; */
+}
+.appearing {
+    opacity: 1;
+    animation: temp-appear 1.5s linear;
+}
+@keyframes temp-appear {
+    0%, 100% { opacity: 0 }
+    20%, 80% { opacity: 1 }
 }

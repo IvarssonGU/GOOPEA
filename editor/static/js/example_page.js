@@ -1,5 +1,6 @@
 let example_select = document.getElementById("examples");
 let output_field = document.getElementById("output-field");
+let copied_ack = document.getElementById("copied-ack");
 
 var code_field = CodeMirror.fromTextArea(document.getElementById("code-field"), {
     lineNumbers: true,
@@ -11,7 +12,12 @@ var code_field = CodeMirror.fromTextArea(document.getElementById("code-field"), 
 //change codemirror editor to fit code heightwise
 // code_field.setSize("100%", "100%");
 
-window.onload = function () {
+// window.onload = function () {
+    document.addEventListener("DOMContentLoaded", () => {
+
+    if ("example" in localStorage) {
+        example_select.value = localStorage.getItem("example");
+    }
     example_dropdown_changed();
 
     if ("theme" in localStorage) {
@@ -20,7 +26,7 @@ window.onload = function () {
             change_theme(1);
         }
     }
-}
+});
 
 window.onbeforeunload = function() {    
     if (document.getElementById("examples-body").classList.contains("dark")) {
@@ -46,11 +52,8 @@ reverseHelper(list, acc) =
         };
 
 fip List: List
-reverseList list = reverseHelper(list, Nil);
-
-fip (): ()
-main = print(reverseList(Cons(1, Cons(2, Cons(3, Nil)))));`);
-            output_field.value = "Cons(3, Cons(2, Cons(1, Nil)))";
+reverseList list = reverseHelper(list, Nil);`);
+            output_field.value = "reverseList(Cons(1, Cons(2, Cons(3, Nil))))) = Cons(3, Cons(2, Cons(1, Nil)))";
             break;
         case "treeflip":
             code_field.setValue(
@@ -263,6 +266,31 @@ function change_example_editor_theme(opt) {
             code_field.setOption("theme", "default");   
     }
 }
+
+async function copy_code() {
+    // if (copied_ack.classList.contains("appearing")) copied_ack.classList.toggle("appearing");
+    
+    copied_ack.classList.toggle("appearing");
+    // console.log("dfs");
+    navigator.clipboard.writeText(code_field.getValue());
+    // copied_ack.classList.toggle("appearing");
+}
+
+function save_example(opt) {
+    localStorage.setItem("example", example_select.value);
+
+    switch(opt) {
+        case 0:
+            window.location.href = "index.html";
+            break;
+        case 1:
+            window.location.href = "documentation_page.html";
+            break;
+        default:
+            window.location.href = "example_page.html";
+    }
+}
+
 
 //slideshow
 let slide_index = 0;
