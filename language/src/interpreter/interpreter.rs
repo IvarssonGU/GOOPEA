@@ -81,6 +81,7 @@ impl Data {
     }
 }
 
+#[derive(Clone)]
 pub struct Interpreter {
     functions: HashMap<String, IDef>,
     heap: Vec<Vec<Data>>,
@@ -92,7 +93,7 @@ pub struct Interpreter {
     return_value: Option<Data>,
     steps: u64,
 }
-
+// init
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
@@ -126,7 +127,9 @@ impl Interpreter {
         self.enter_fn(function_name, vec![]);
         self
     }
-
+}
+// running
+impl Interpreter {
     fn eval_op(&self, op: &IOperand) -> i64 {
         match op {
             IOperand::Ident(id) => self.get_local_var(id).unwrap_val(),
@@ -162,6 +165,12 @@ impl Interpreter {
 
     fn inc(&mut self, ptr: usize) {
         self.heap[ptr][2].inc();
+    }
+
+    fn clean_memory(&mut self) {
+        // could make much more clean
+        let i = self.heap.iter().rposition(|x| !x.is_empty()).unwrap_or(0);
+        self.heap.truncate(i + 1);
     }
 
     fn dec(&mut self, ptr: usize) {
@@ -239,6 +248,7 @@ impl Interpreter {
                     if let Data::Pointer(ptr) = data {
                         self.dec(ptr);
                     }
+                    self.clean_memory();
                 }
                 IStatement::Assign(id, ioperand) => {
                     let val = self.op_to_data(&ioperand);
@@ -294,7 +304,9 @@ impl Interpreter {
         }
         s
     }
-
+}
+// running until
+impl Interpreter {
     pub fn run_until_next_mem(&mut self) {
         while let Some(s) = self.statements.get(0) {
             match s {
@@ -322,29 +334,10 @@ impl Interpreter {
             self.step();
         }
     }
+}
+// website interactions
+impl Interpreter {
 
-    fn run_debug(&mut self) {
-        loop {
-            if let Some(_) = self.statements.get(0) {
-                println!("{:?}", self);
-                println!("m, r, enter");
-                let input: String = input("");
-                match input.as_str() {
-                    "m" => {
-                        self.run_until_next_mem();
-                    }
-                    "r" => {
-                        self.run_until_return();
-                    }
-                    _ => {
-                        self.step();
-                    }
-                }
-            } else {
-                break;
-            }
-        }
-    }
 }
 
 fn concat_columns(left: &Vec<String>, right: &Vec<String>, sep: &str) -> Vec<String> {
@@ -500,5 +493,24 @@ pub fn interpreter_test(src: &str) {
 
     fs::write(Path::new(".interpreter_out/i_ast.txt"), i_ast).unwrap();
 
-    interpreter.run_debug();
+    loop {
+        if let Some(_) = interpreter.statements.get(0) {
+            println!("{:?}", interpreter);
+            println!("m, r, enter");
+            let input: String = input("");
+            match input.as_str() {
+                "m" => {
+                    interpreter.run_until_next_mem();
+                }
+                "r" => {
+                    interpreter.run_until_return();
+                }
+                _ => {
+                    interpreter.step();
+                }
+            }
+        } else {
+            break;
+        }
+    }
 }

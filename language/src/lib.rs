@@ -18,6 +18,7 @@ use std::cell::RefCell;
 
 thread_local! {
     static INTERPRETER: RefCell<Interpreter> = RefCell::new(Interpreter::new());
+    static INT_HISTORY: RefCell<Vec<Interpreter>> = RefCell::new(Vec::new());
 }
 
 pub fn compile(code: &str) -> Prog {
@@ -33,6 +34,8 @@ pub fn compile(code: &str) -> Prog {
 pub fn c_code(program: &Prog) -> String {
     ir::output(program).join("\n")
 }
+
+// Interpreter stuff
 
 pub fn load_interpreter(program: &Prog) {
     let interpreter = Interpreter::from_program(program);
@@ -51,8 +54,18 @@ pub fn run_interpreter() {
     });
 }
 
-pub fn interpreter_state() -> String {
-    INTERPRETER.with_borrow_mut(|interpreter| {
-        format!("{:?}", interpreter)
-    })
+pub fn get_interpreter_state() -> String {
+    INTERPRETER.with_borrow_mut(|interpreter| format!("{:?}", interpreter))
+}
+
+pub fn save_interpreter() {
+    INT_HISTORY.with_borrow_mut(|history| {
+        history.push(INTERPRETER.with(|x| x.clone()).borrow().clone());
+    });
+}
+
+pub fn restore_interpreter() {
+    INT_HISTORY.with_borrow_mut(|history| {
+        INTERPRETER.set(history.pop().unwrap()); // Skulle kunna felhantera här
+    });
 }
