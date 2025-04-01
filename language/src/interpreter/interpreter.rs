@@ -90,6 +90,7 @@ pub struct Interpreter {
     local_variables: HashMap<String, Data>,
     variable_stack: Vec<HashMap<String, Data>>,
     return_value: Option<Data>,
+    steps: u64
 }
 
 impl Interpreter {
@@ -103,6 +104,7 @@ impl Interpreter {
             local_variables: HashMap::new(),
             variable_stack: Vec::new(),
             return_value: None,
+            steps: 0
         }
     }
 
@@ -197,6 +199,7 @@ impl Interpreter {
     pub fn step(&mut self) -> Option<IStatement> {
         let s = self.statements.pop_front();
         if let Some(statement) = s.clone() {
+            self.steps += 1;
             match statement {
                 IStatement::Decl(_) => (), // does nothing
                 IStatement::IfExpr(items) => {
@@ -308,6 +311,10 @@ impl Interpreter {
                 }
             }
         }
+    }
+
+    fn run_until_done(&mut self) {
+        while let Some(_) = self.step() {}
     }
 
     fn run_until_return(&mut self) {
@@ -440,10 +447,11 @@ pub fn interpreter_test_time(src: &str) {
     println!("Starting!");
     let now = std::time::Instant::now();
 
-    interpreter.run_until_return();
+    interpreter.run_until_done();
 
     let elapsed = now.elapsed().as_micros();
-    println!("Done! ({} us)", elapsed);
+    let steps = interpreter.steps;
+    println!("Done!\n{} steps in {} us\n{} sps", steps, elapsed, 1_000_000 * steps / elapsed as u64);
     println!("{:?}", interpreter);
 }
 
