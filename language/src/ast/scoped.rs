@@ -2,12 +2,14 @@ use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 
 use crate::error::{CompileError, CompileResult};
 
-use super::{ast::{map_expr_box, ExpressionNode, FullExpression, Function, Pattern, Program, UTuple, FID, VID}, base::{BaseNode, BaseProgram, SyntaxExpression}};
+use super::{ast::{ChainedData, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseSliceNode, BaseSliceProgram, SyntaxExpression}};
 
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
-pub type ScopedNode = ExpressionNode<Scope, SimplifiedExpression<Scope>>;
+pub type ScopedData<'i> = ChainedData<Scope, &'i str>;
 
-pub type ScopedProgram = Program<Scope, SimplifiedExpression<Scope>>;
+pub type ScopedNode<'i> = ExpressionNode<ScopedData<'i>, SimplifiedExpression<ScopedData<'i>>>;
+
+pub type ScopedProgram<'i> = Program<ScopedData<'i>, SimplifiedExpression<ScopedData<'i>>>;
 
 #[derive(Clone, Debug, Eq)]
 pub struct VariableDefinition {
@@ -33,38 +35,27 @@ fn extended_scope(base: &Scope, new_vars: impl Iterator<Item = VariableDefinitio
     new_scope
 }
 
-impl ScopedProgram {
+impl<'i> ScopedProgram<'i> {
     // Creates a new program with scope information
     // Performs minimum required validation, such as no top level symbol collisions
-    pub fn new(program: BaseProgram) -> Result<ScopedProgram, CompileError> {
-        let program = program.map();
+    pub fn new(program: BaseSliceProgram) -> Result<ScopedProgram, CompileError> {
+        let program = program.transform_functions(|body, _, _| Ok(body.into())).unwrap();
 
         let counter = RefCell::new(0);
 
         let atom_constructors = program.constructors.iter().filter_map(|(fid, cons)| (cons.args.0.len() == 0).then_some(fid.clone())).collect();
-        let zero_argument_functions = program.functions.iter().filter_map(|(fid, sig)| (sig.vars.0.len() == 0).then_some(fid.clone())).collect();
+        let zero_argument_functions = program.function_datas.iter().filter_map(|(fid, sig)| (sig.vars.0.len() == 0).then_some(fid.clone())).collect();
 
-        let mut functions = HashMap::new();
-        for (fid, func) in program.functions {
+        let program = program.transform_functions(|body, func, _| {
             let base_scope = func.vars.0.iter().map(
                 |vid| {
                     (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), internal_id: counter.replace_with(|&mut x| x + 1) }))
                 }
             ).collect::<Scope>();
 
-            let scoped_expression = scope_expression(func.body, base_scope, &counter, &atom_constructors, &zero_argument_functions)?;
+            scope_expression(body, base_scope, &counter, &atom_constructors, &zero_argument_functions)
+        })?;
 
-            functions.insert(
-                fid, 
-                Function { 
-                    signature: func.signature,
-                    vars: func.vars,
-                    body: scoped_expression
-                }
-            );
-        }
-
-        let program =  ScopedProgram { adts: program.adts, constructors: program.constructors, functions };
         program.validate_variable_occurences()?;
 
         Ok(program)
@@ -83,65 +74,92 @@ impl ScopedProgram {
     }
 }
 
-pub fn scope_expression(
-    expr: ExpressionNode<(), SimplifiedExpression<()>>, 
+pub fn scope_expression<'i>(
+    expr: ExpressionNode<&'i str, SimplifiedExpression<&'i str>>, 
     scope: Scope,
     counter: &RefCell<usize>,
     atom_constructors: &HashSet<FID>,
     zero_argument_functions: &HashSet<FID>
-) -> Result<ScopedNode, CompileError> 
+) -> Result<ScopedNode<'i>, CompileError> 
 {
-    let expr = match expr.expr {
+    let new_expr = match expr.expr {
         SimplifiedExpression::UTuple(children) => {
-            SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
-        },
+                SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
+            },
         SimplifiedExpression::FunctionCall(fid, children) => {
-            SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
-        },
+                SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
+            },
         SimplifiedExpression::Integer(x) => SimplifiedExpression::Integer(x),
         SimplifiedExpression::Variable(vid) => {
-            if scope.contains_key(&vid) { SimplifiedExpression::Variable(vid) }
-            // This should never happen
-            else if atom_constructors.contains(&vid) { SimplifiedExpression::FunctionCall(vid, UTuple(vec![])) }
-            else if zero_argument_functions.contains(&vid) { SimplifiedExpression::FunctionCall(vid, UTuple(vec![])) }
-            else { return Err(CompileError::UnknownVariable(vid.clone())) }
+                if scope.contains_key(&vid) { SimplifiedExpression::Variable(vid) }
+                // This should never happen
+                else if atom_constructors.contains(&vid) { SimplifiedExpression::FunctionCall(vid, UTuple(vec![])) }
+                else if zero_argument_functions.contains(&vid) { SimplifiedExpression::FunctionCall(vid, UTuple(vec![])) }
+                else { SimplifiedExpression::Variable(vid) }
+            },
+        SimplifiedExpression::Match(var_node, cases) => {
+                let var_node = ExpressionNode { expr: var_node.expr, data: ChainedData { data: scope.clone(), next: var_node.data } };
+
+                let case_scopes = cases.into_iter().map(|(pattern, child)| {
+                    match &pattern {
+                        Pattern::Integer(_) => scope_expression(child, scope.clone(), counter, atom_constructors, zero_argument_functions),
+                        Pattern::Variable(_) | Pattern::Constructor(_, _) => {
+                            let vars = match &pattern {
+                                Pattern::Constructor(_, vars) => vars.0.iter().collect(),
+                                Pattern::Variable(vid) => vec![vid],
+                                Pattern::Integer(_) => unreachable!(),
+                            };
+
+                            scope_expression(
+                                child,
+                                extended_scope(
+                                    &scope, 
+                                    vars.iter().map(|new_vid| {
+                                        VariableDefinition {
+                                            id: (*new_vid).clone(),
+                                            internal_id: counter.replace_with(|&mut x| x + 1)
+                                        }
+                                    })
+                                ),
+                                counter,
+                                atom_constructors,
+                                zero_argument_functions
+                            )
+                        }
+                    }.map(move |new_expr| (pattern, new_expr))
+                }).collect::<Result<Vec<_>, _>>()?;
+
+                SimplifiedExpression::Match(
+                    var_node,
+                    case_scopes
+                )
+            }
+        SimplifiedExpression::LetEqualIn(vars, e1, e2) => {
+            let e1 = scope_expression(*e1, scope.clone(), counter, atom_constructors, zero_argument_functions)?;
+
+            let e2 = scope_expression(
+                *e2,
+                extended_scope(
+                    &scope, 
+                    vars.0.iter().map(|new_vid| {
+                        VariableDefinition {
+                            id: new_vid.clone(),
+                            internal_id: counter.replace_with(|&mut x| x + 1)
+                        }
+                    })
+                ),
+                counter,
+                atom_constructors,
+                zero_argument_functions
+            )?;
+
+            SimplifiedExpression::LetEqualIn(vars, Box::new(e1), Box::new(e2))
         },
-        SimplifiedExpression::Match(match_expr, cases) => {
-            let scoped_match_child = scope_expression(*match_expr, scope.clone(), counter, atom_constructors, zero_argument_functions)?;
-
-            let case_scopes = cases.into_iter().map(|(pattern, child)| {
-                match &pattern {
-                    Pattern::Integer(_) => scope_expression(child, scope.clone(), counter, atom_constructors, zero_argument_functions),
-                    Pattern::UTuple(vars) | Pattern::Constructor(_, vars) => {
-                        scope_expression(
-                            child,
-                            extended_scope(
-                                &scope, 
-                                vars.0.iter().map(|new_vid| {
-                                    VariableDefinition {
-                                        id: new_vid.clone(),
-                                        internal_id: counter.replace_with(|&mut x| x + 1)
-                                    }
-                                })
-                            ),
-                            counter,
-                            atom_constructors,
-                            zero_argument_functions
-                        )
-                    }
-                }.map(move |new_expr| (pattern, new_expr))
-            }).collect::<Result<Vec<_>, _>>()?;
-
-            SimplifiedExpression::Match(
-                Box::new(scoped_match_child),
-                case_scopes
-            )
-        }
     };
 
     Ok(ExpressionNode {
-        expr,
-        data: scope
+        expr: new_expr,
+        data: ChainedData { data: scope, next: expr.data }
     })
 }
 
@@ -151,7 +169,8 @@ pub enum SimplifiedExpression<D> {
     FunctionCall(FID, UTuple<ExpressionNode<D, Self>>),
     Integer(i64),
     Variable(VID),
-    Match(Box<ExpressionNode<D, Self>>, Vec<(Pattern, ExpressionNode<D, Self>)>),
+    Match(ExpressionNode<D, VID>, Vec<(Pattern, ExpressionNode<D, Self>)>),
+    LetEqualIn(UTuple<VID>, Box<ExpressionNode<D, Self>>, Box<ExpressionNode<D, Self>>),
 }
 
 impl<'a, D> From<&'a SimplifiedExpression<D>> for FullExpression<'a, D, SimplifiedExpression<D>> {
@@ -161,26 +180,43 @@ impl<'a, D> From<&'a SimplifiedExpression<D>> for FullExpression<'a, D, Simplifi
             SimplifiedExpression::FunctionCall(x, y) => FullExpression::FunctionCall(x, y),
             SimplifiedExpression::Integer(x) => FullExpression::Integer(x),
             SimplifiedExpression::Variable(x) => FullExpression::Variable(x),
-            SimplifiedExpression::Match(x, y) => FullExpression::Match(x, y),
+            SimplifiedExpression::Match(x, y) => FullExpression::MatchOnVariable(x, y),
+            SimplifiedExpression::LetEqualIn(x, y, z) => FullExpression::LetEqualIn(x, y, z),
         }
     }
 }
 
-impl<D> From<SyntaxExpression<D>> for SimplifiedExpression<D> {
-    fn from(value: SyntaxExpression<D>) -> Self {
-        match value {
-            SyntaxExpression::UTuple(x) => SimplifiedExpression::UTuple(x.map()),
-            SyntaxExpression::FunctionCall(x, y) => SimplifiedExpression::FunctionCall(x, y.map()),
+impl<'i> From<BaseSliceNode<'i>> for ExpressionNode<&'i str, SimplifiedExpression<&'i str>> {
+    fn from(node: BaseSliceNode<'i>) -> Self {
+        let new_expr = match node.expr {
+            SyntaxExpression::UTuple(x) => SimplifiedExpression::UTuple(x.transform_nodes(|e| Ok(e.into())).unwrap()),
+            SyntaxExpression::FunctionCall(x, y) => SimplifiedExpression::FunctionCall(x, y.transform_nodes(|e| Ok(e.into())).unwrap()),
             SyntaxExpression::Integer(x) => SimplifiedExpression::Integer(x),
             SyntaxExpression::Variable(x) => SimplifiedExpression::Variable(x),
-            SyntaxExpression::Match(x, y) => 
-                SimplifiedExpression::Match(map_expr_box(x), y.into_iter().map(|(a, b)| (a, b.map())).collect()),
-            SyntaxExpression::LetEqualIn(pattern, e1, e2) => {
-                SimplifiedExpression::Match(Box::new(e1.map()), vec![(pattern, e2.map())])
+            SyntaxExpression::Match(expr, cases) => {
+                let new_cases = cases.into_iter().map(|(a, b)| (a, b.into())).collect();
+
+                match &expr.expr {
+                    SyntaxExpression::Variable(vid) => SimplifiedExpression::Match(ExpressionNode { expr: vid.clone(), data: node.data }, new_cases),
+                    _ => SimplifiedExpression::LetEqualIn(
+                        UTuple(vec!["<temp>".to_string()]), 
+                        Box::new((*expr).into()),
+                        Box::new(ExpressionNode { 
+                            data: node.data, 
+                            expr: SimplifiedExpression::Match(
+                                ExpressionNode { expr: "<temp>".to_string(), data: node.data },
+                                new_cases
+                            ) 
+                        })
+                    )
+                }
             },
+            SyntaxExpression::LetEqualIn(x, y, z) => SimplifiedExpression::LetEqualIn(x, Box::new((*y).into()), Box::new((*z).into())),
             SyntaxExpression::Operation(e1, op, e2) => {
-                SimplifiedExpression::FunctionCall(op.to_string(), UTuple(vec![e1.map(), e2.map()]))
+                SimplifiedExpression::FunctionCall(op.to_string(), UTuple(vec![(*e1).into(), (*e2).into()]))
             }
-        }
+        };
+
+        ExpressionNode { expr: new_expr, data: node.data }
     }
 }

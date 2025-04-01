@@ -1,11 +1,23 @@
 enum List = Nil, Cons(List, Int);
+
+(): List
+build = Cons(Cons(Nil, 3), 5);
     
 fip (List, List): List
 reverseHelper(list, acc) =
-        match list {
-            Nil: acc,
-            Cons(xs, x): reverseHelper(xs, Cons(acc, x))
-        };
+    match list {
+        Nil: acc,
+        Cons(xs, x): reverseHelper(xs, Cons(acc, x))
+    };
 
 fip List: List
 reverseList list = reverseHelper(list, Nil);
+
+List: Int
+sum list = match list {
+    Nil: 0,
+    Cons(rest, value): value + sum(rest)
+};
+
+(): Int
+main = sum(reverseList(build()));

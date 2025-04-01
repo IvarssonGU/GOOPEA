@@ -1,15 +1,13 @@
+use super::load::extract_body;
 use crate::ir::*;
 use crate::simple_ast::Operator;
-use std::fmt::{Debug, Display};
-
-use super::load::extract_body;
+use itertools::Itertools;
+use std::fmt::{Debug, Display, Formatter, Result};
 
 #[derive(Debug, Clone)]
 pub enum IOperand {
     Ident(String),
     Int(i64),
-    // Atom(i64),
-    // Pointer(usize),
 }
 
 #[allow(unused)]
@@ -33,6 +31,15 @@ impl IOperand {
         match self {
             IOperand::Ident(_) => panic!("Not an int"),
             IOperand::Int(i) => *i,
+        }
+    }
+}
+
+impl Display for IOperand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            IOperand::Ident(id) => write!(f, "{id}"),
+            IOperand::Int(i) => write!(f, "{i}"),
         }
     }
 }
@@ -62,9 +69,30 @@ impl Display for IStatement {
             IStatement::IfExpr(items) => write!(
                 f,
                 "IfExpr {:?}",
-                items.iter().map(|(operand, _)| operand).collect::<Vec<_>>()
+                items
+                    .iter()
+                    .map(|(operand, _)| format!("{operand}"))
+                    .collect_vec()
             ),
-            x => write!(f, "{:?}", x),
+            IStatement::Decl(id) => write!(f, "Declare({id})"),
+            IStatement::InitConstructor(id, s) => write!(f, "{id} = malloc({s})"),
+            IStatement::Return(ioperand) => write!(f, "Return({ioperand})"),
+            IStatement::Print(ioperand) => write!(f, "Print({})", ioperand),
+            IStatement::Inc(ioperand) => write!(f, "Inc({})", ioperand),
+            IStatement::Dec(ioperand) => write!(f, "Dec({})", ioperand),
+            IStatement::Assign(id, ioperand) => write!(f, "{id} = {}", ioperand),
+            IStatement::AssignToField(id, ix, ioperand) => write!(f, "{id}[{ix}] = {}", ioperand),
+            IStatement::AssignFromField(id, ix, ioperand) => write!(f, "{id} = {}[{ix}]", ioperand),
+            IStatement::AssignBinaryOperation(id, operator, ioperand, ioperand1) => {
+                write!(f, "{id} = {} {operator} {}", ioperand, ioperand1)
+            }
+            IStatement::AssignConditional(id, _, _, _) => write!(f, "{id} = if else bruhmagic"),
+            IStatement::FunctionCall(id, ioperands) => write!(
+                f,
+                "call {id}{:?}",
+                ioperands.iter().map(|iop| format!("{iop}")).collect_vec()
+            ),
+            IStatement::AssignReturnvalue(id) => write!(f, "{id} = _ret_"),
         }
     }
 }
@@ -81,23 +109,66 @@ impl IDef {
         let mut iter = def
             .body
             .iter()
-            .filter(|&s| {
-                if matches!(
-                    s,
-                    Statement::Inc(Operand::Int(_)) | Statement::Inc(Operand::NonShifted(_))
-                ) {
-                    false
-                } else {
-                    true
-                }
-            })
             .filter(|&s| !matches!(s, Statement::Decl(_)))
+            .filter(|&s| !matches!(s, Statement::Inc(Operand::Int(_))))
             .peekable();
+
         let body = extract_body(&mut iter);
+
         IDef {
             id: def.id.clone(),
             args: def.args.clone(),
             body: body,
         }
+    }
+}
+
+impl Display for IDef {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        fn write_indent(f: &mut Formatter, s: IStatement, indent: usize) -> Result {
+            match s {
+                IStatement::IfExpr(items) => {
+                    let n_cases = items.len();
+
+                    for (i, (operand, statements)) in items.iter().enumerate() {
+                        write!(f, "{}", "    ".repeat(indent))?;
+
+                        writeln!(f, "{} {}:", if i == 0 { "if" } else { "else if" }, operand)?;
+
+                        let n_statements = statements.len();
+
+                        for (j, statement) in statements.iter().enumerate() {
+                            write_indent(f, statement.clone(), indent + 1)?;
+
+                            if i < n_cases - 1 || j < n_statements - 1 {
+                                writeln!(f, "")?;
+                            }
+                        }
+                    }
+                }
+
+                _ => {
+                    write!(f, "{}", "    ".repeat(indent))?;
+
+                    write!(f, "{}", s)?;
+                }
+            }
+
+            Ok(())
+        }
+
+        writeln!(f, "function {}{:?}:", self.id, self.args)?;
+
+        let len = self.body.len();
+
+        for (i, statement) in self.body.iter().enumerate() {
+            write_indent(f, statement.clone(), 1)?;
+
+            if i < len - 1 {
+                writeln!(f, "")?;
+            }
+        }
+
+        Ok(())
     }
 }

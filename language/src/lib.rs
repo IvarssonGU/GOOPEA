@@ -1,7 +1,7 @@
 #![feature(formatting_options)]
 
 use lalrpop_util::lalrpop_mod;
-use ast::{base::BaseProgram, scoped::ScopedProgram, typed::TypedProgram};
+use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
 use simple_ast::{add_refcounts, from_scoped};
 
 mod code;
@@ -15,14 +15,9 @@ mod interpreter;
 lalrpop_mod!(pub grammar);
 
 pub fn compile_and_run(code: &str) -> String {
-    let base_program = BaseProgram::new(&code).unwrap();
-    println!("{base_program}");
-
+    let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
-    println!("{scoped_program}");
-
     let typed_program = TypedProgram::new(scoped_program).unwrap();
-    println!("{typed_program}");
 
     let simple_program = from_scoped(&typed_program);
     let with_ref_count = add_refcounts(&simple_program);

@@ -1,19 +1,21 @@
-use crate::ast::base::BaseProgram;
+use super::iast::*;
+use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
-use crate::lexer::Lexer;
+use crate::ir::Prog;
 use crate::simple_ast::{Operator, add_refcounts, from_scoped};
-use crate::{code, grammar, ir};
+use crate::{code, ir};
+use input::*;
+use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
+
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 use std::{fmt, vec};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::fs;
-
-use super::iast::*;
 
 #[derive(Clone, Copy)]
 enum Data {
@@ -88,6 +90,7 @@ pub struct Interpreter {
     local_variables: HashMap<String, Data>,
     variable_stack: Vec<HashMap<String, Data>>,
     return_value: Option<Data>,
+    steps: u64
 }
 
 impl Interpreter {
@@ -101,7 +104,17 @@ impl Interpreter {
             local_variables: HashMap::new(),
             variable_stack: Vec::new(),
             return_value: None,
+            steps: 0
         }
+    }
+
+    pub fn from_program(prog: &Prog) -> Self {
+        let mut interpreter = Interpreter::new();
+        for def in prog.0.clone() {
+            interpreter = interpreter.with_fn(IDef::from_def(&def));
+        }
+        interpreter = interpreter.with_entry_point("main");
+        interpreter
     }
 
     pub fn with_fn(mut self, function: IDef) -> Self {
@@ -147,9 +160,46 @@ impl Interpreter {
         Data::Pointer(self.heap.len() - 1)
     }
 
-    pub fn step(&mut self) -> Result<(), ()> {
+    fn inc(&mut self, ptr: usize) {
+        self.heap[ptr][2].inc();
+    }
+
+    fn dec(&mut self, ptr: usize) {
+        self.heap[ptr][2].dec();
+        if self.heap[ptr][2].unwrap_val() == 0 {
+            for i in 3..self.heap[ptr].len() {
+                if let Data::Pointer(ptr) = self.heap[ptr][i] {
+                    self.dec(ptr);
+                }
+            }
+
+            self.heap[ptr] = Vec::new();
+        }
+    }
+
+    fn enter_fn(&mut self, name: &str, passed_args: Vec<Data>) {
+        let f = self.functions.get(name).expect(&format!(
+            "Function '{}' should be in functions but is not",
+            name
+        ));
+        self.function_names_stack.push(f.id.clone());
+        // std::mem::take could make it faster
+        self.statement_stack.push(self.statements.clone());
+        self.variable_stack.push(self.local_variables.clone());
+
+        self.statements = f.body.clone().into();
+        // beautiful code🦀
+        self.local_variables.clear();
+        self.local_variables
+            .extend(f.args.clone().into_iter().zip(passed_args));
+
+        ()
+    }
+
+    pub fn step(&mut self) -> Option<IStatement> {
         let s = self.statements.pop_front();
-        if let Some(statement) = s {
+        if let Some(statement) = s.clone() {
+            self.steps += 1;
             match statement {
                 IStatement::Decl(_) => (), // does nothing
                 IStatement::IfExpr(items) => {
@@ -175,24 +225,19 @@ impl Interpreter {
                         self.variable_stack.pop().expect("this should not happen");
                     self.function_names_stack.pop();
                 }
-                IStatement::Print(ioperand) => println!("> {:?}", ioperand),
+                IStatement::Print(ioperand) => println!("> {}", self.eval_op(&ioperand)),
                 IStatement::Inc(ioperand) => {
                     let id = ioperand.unwrap_id();
-                    let ptr = self.get_local_var(&id);
-                    if ptr.is_ptr() {
-                        self.heap[ptr.unwrap_ptr()][2].inc();
+                    let data = self.get_local_var(&id);
+                    if let Data::Pointer(ptr) = data {
+                        self.inc(ptr);
                     }
                 }
                 IStatement::Dec(ioperand) => {
                     let id = ioperand.unwrap_id();
-                    let ptr = self.get_local_var(&id);
-                    if ptr.is_ptr() {
-                        let block = &mut self.heap[ptr.unwrap_ptr()];
-                        if block[2].dec() == 0 {
-                            for _ in &block[3..] {
-                                // println!("SOMETHING IS GOOONE")
-                            }
-                        }
+                    let data = self.get_local_var(&id);
+                    if let Data::Pointer(ptr) = data {
+                        self.dec(ptr);
                     }
                 }
                 IStatement::Assign(id, ioperand) => {
@@ -227,16 +272,6 @@ impl Interpreter {
                     };
                     self.local_variables.insert(id, Data::Value(val));
                 }
-                /*
-                Statement::AssignConditional(id, b, op, tag) => {
-                    let result = operand_to_string(op);
-                    if *b {
-                        format!("Value {} = !(1 & {}) && {} == ((void** {})[0];", id, result, tag, result)
-                    } else {
-                        format!("Value {} = {} == {};", id, tag, result)
-                    }
-                }
-                */
                 IStatement::AssignConditional(id, b, iop, i) => {
                     let i = i >> 1; // bruh
                     let val = if b {
@@ -256,77 +291,126 @@ impl Interpreter {
                     self.return_value = None;
                 }
             }
+        }
+        s
+    }
 
-            Ok(())
-        } else {
-            Err(())
+    fn run_until_next_mem(&mut self) {
+        loop {
+            while let Some(s) = self.statements.get(0) {
+                match s {
+                    IStatement::InitConstructor(_, _)
+                    | IStatement::Inc(_)
+                    | IStatement::Dec(_)
+                    | IStatement::AssignToField(_, _, _) => {
+                        break;
+                    }
+                    _ => {
+                        self.step();
+                    }
+                }
+            }
         }
     }
 
-    fn enter_fn(&mut self, name: &str, passed_args: Vec<Data>) {
-        let f = self.functions.get(name).expect(&format!(
-            "Function '{}' should be in functions but is not",
-            name
-        ));
-        self.function_names_stack.push(f.id.clone());
-        // std::mem::take could make it faster
-        self.statement_stack.push(self.statements.clone());
-        self.variable_stack.push(self.local_variables.clone());
-
-        self.statements = f.body.clone().into();
-        // beautiful code🦀
-        self.local_variables.clear();
-        self.local_variables
-            .extend(f.args.clone().into_iter().zip(passed_args));
-
-        ()
+    fn run_until_done(&mut self) {
+        while let Some(_) = self.step() {}
     }
 
-    fn _yolo(&mut self) {
+    fn run_until_return(&mut self) {
+        let s = self.function_names_stack.len();
+
+        while self.function_names_stack.len() >= s {
+            self.step();
+        }
+    }
+
+    fn run_debug(&mut self) {
         loop {
-            println!("{:?}", self);
-            use std::io::{Write, stdin, stdout};
-            let mut s = String::new();
-            let _ = stdout().flush();
-            stdin()
-                .read_line(&mut s)
-                .expect("Did not enter a correct string");
-            self.step().unwrap();
+            if let Some(_) = self.statements.get(0) {
+                println!("{:?}", self);
+                println!("m, r, enter");
+                let input: String = input("");
+                match input.as_str() {
+                    "m" => {
+                        self.run_until_next_mem();
+                    }
+                    "r" => {
+                        self.run_until_return();
+                    }
+                    _ => {
+                        self.step();
+                    }
+                }
+            } else {
+                break;
+            }
         }
     }
 }
 
+fn concat_columns(left: &Vec<String>, right: &Vec<String>, sep: &str) -> Vec<String> {
+    let wleft = left.iter().map(|s| s.len()).max().unwrap_or(0);
+    let wright = right.iter().map(|s| s.len()).max().unwrap_or(0);
+
+    left.iter()
+        .zip_longest(right.iter())
+        .map(|e| match e {
+            itertools::EitherOrBoth::Both(a, b) => format!("{:<wleft$}{sep}{:<wright$}", a, b),
+            itertools::EitherOrBoth::Left(a) => format!("{:<wleft$}{sep}{:<wright$}", a, ""),
+            itertools::EitherOrBoth::Right(b) => format!("{:<wleft$}{sep}{:<wright$}", "", b),
+        })
+        .collect_vec()
+}
+
 impl Debug for Interpreter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{:=^50}", " Interpreter Debug Print ")?;
+        writeln!(
+            f,
+            "{:=^50}",
+            format!(
+                " Interpreter Debug Print | Inside '{}' ",
+                self.function_names_stack.last().unwrap_or(&"".to_string())
+            )
+        )?;
 
-        writeln!(f, "Heap:")?;
         let bruh = format!("{}", self.heap.len()).len();
-        for (i, m) in self.heap.clone().iter().enumerate() {
-            writeln!(f, "{:>bruh$}  {:?}", i, m)?;
-        }
-        writeln!(f, "")?;
+        let heap_lines = vec!["Heap data:".to_string()]
+            .into_iter()
+            .chain(
+                self.heap
+                    .iter()
+                    .enumerate()
+                    .map(|(i, m)| format!("{:>bruh$}  {:?}", i, m)),
+            )
+            .collect_vec();
 
-        writeln!(f, "Local Variables:")?;
-        for (k, v) in self.local_variables.clone().iter() {
-            writeln!(f, "  {} = {:?}", k, v)?;
+        let mut vars_lines = vec!["Local variables:".to_string()]
+            .into_iter()
+            .chain(
+                self.local_variables
+                    .iter()
+                    .map(|(k, v)| format!("{} = {:?}", k, v)),
+            )
+            .collect_vec();
+        if let Some(v) = self.return_value {
+            vars_lines.push(format!("Return value: {:?}", v));
         }
-        writeln!(f, "")?;
-        writeln!(f, "Return value: {:?}\n", self.return_value)?;
 
-        if !self.function_names_stack.is_empty() {
-            writeln!(
-                f,
-                "Inside Function '{}'",
-                self.function_names_stack
-                    .last()
-                    .unwrap()
-            )?;
-            writeln!(f, "Current Statements:")?;
-            for s in self.statements.clone() {
-                writeln!(f, "  {}", s)?;
-            }
-            writeln!(f, "")?;
+        let combined = concat_columns(&heap_lines, &vars_lines, " | ");
+
+        let statements_lines = self
+            .statements
+            .iter()
+            .map(|s| format!("{}", s))
+            .chain(vec!["...".to_string()].into_iter().cycle())
+            .take(15)
+            .collect_vec();
+
+        let combined = concat_columns(&combined, &statements_lines, " | ");
+
+        for line in &combined {
+            writeln!(f, "{}", line).unwrap();
         }
 
         writeln!(f, "Statement stack:")?;
@@ -347,10 +431,10 @@ impl Debug for Data {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_time() {
-    let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
+pub fn interpreter_test_time(src: &str) {
+    let code = fs::read_to_string(Path::new(src)).unwrap();
 
-    let base_program = BaseProgram::new(&code).unwrap();
+    let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
 
@@ -358,123 +442,60 @@ pub fn interpreter_test_time() {
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
 
-    ir::output(&code)
-        .iter()
-        .for_each(|line| println!("{}", line));
-
-    let mut interpreter = Interpreter::new();
-    for def in code.0.clone() {
-        interpreter = interpreter.with_fn(IDef::from_def(&def));
-        println!("{}\n", IDef::from_def(&def));
-    }
-    interpreter = interpreter.with_entry_point("Main");
+    let mut interpreter = Interpreter::from_program(&code);
 
     println!("Starting!");
     let now = std::time::Instant::now();
 
-    while let Ok(_) = interpreter.step() {}
+    interpreter.run_until_done();
 
     let elapsed = now.elapsed().as_micros();
-    println!("Done! ({} us)", elapsed);
+    let steps = interpreter.steps;
+    println!("Done!\n{} steps in {} us\n{} sps", steps, elapsed, 1_000_000 * steps / elapsed as u64);
+    println!("{:?}", interpreter);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_tree_flip() {
-    let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
-
-    let program = grammar::ProgramParser::new()
-        .parse(Lexer::new(&code))
-        .unwrap();
-
-    let base_program = BaseProgram::new(&code).unwrap();
+pub fn interpreter_test(src: &str) {
+    let code = fs::read_to_string(Path::new(src)).unwrap();
+    let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
-
     let simple_program = from_scoped(&typed_program);
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
 
-    ir::output(&code)
+    let c_code = ir::output(&code).join("\n");
+    fs::write(Path::new(".interpreter_out/c_code.c"), c_code).unwrap();
+
+    let mut c_ast = code.0.clone();
+    c_ast.sort_by(|a, b| a.id.cmp(&b.id));
+    let c_ast = c_ast
         .iter()
-        .for_each(|line| println!("{}", line));
+        .map(|def| {
+            let statements = def
+                .body
+                .iter()
+                .map(|s| format!("    {:?}", s))
+                .collect_vec()
+                .join("\n");
+            format!("function {}{:?}:\n{}\n", def.id, def.args, statements)
+        })
+        .collect_vec()
+        .join("\n");
+    fs::write(Path::new(".interpreter_out/c_ast.txt"), c_ast).unwrap();
 
-    let mut interpreter = Interpreter::new();
-    for def in code.0.clone() {
-        interpreter = interpreter.with_fn(IDef::from_def(&def));
-        println!("{}\n", IDef::from_def(&def));
-    }
-    interpreter = interpreter.with_entry_point("Main");
+    let mut interpreter = Interpreter::from_program(&code);
 
-    interpreter._yolo();
+    let mut i_ast = interpreter.functions.values().collect_vec().clone();
+    i_ast.sort_by(|a, b| a.id.cmp(&b.id));
+    let i_ast = i_ast
+        .iter()
+        .map(|idef| format!("{}\n", idef))
+        .collect_vec()
+        .join("\n");
 
-    interpreter.step().unwrap();
+    fs::write(Path::new(".interpreter_out/i_ast.txt"), i_ast).unwrap();
 
-    println!("{:?}", interpreter);
-
-    for _ in 0..50 {
-        interpreter.step().unwrap();
-    }
-    // end of build
-    println!("build end\n{:?}", interpreter);
-
-    for _ in 0..224 {
-        interpreter.step().unwrap();
-    }
-    // end of flip
-    println!("flip end\n{:?}", interpreter);
-
-    for _ in 0..175 {
-        interpreter.step().unwrap();
-    }
-    // end of sum
-    println!("sum end\n{:?}", interpreter);
-
-    interpreter.step();
-    println!("main end\n{:?}", interpreter);
-}
-
-impl fmt::Display for IDef {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fn write_indent(f: &mut fmt::Formatter, s: IStatement, indent: usize) -> fmt::Result {
-            match s {
-                IStatement::IfExpr(items) => {
-                    let n_cases = items.len();
-                    for (i, (operand, statements)) in items.iter().enumerate() {
-                        write!(f, "{}", "    ".repeat(indent))?;
-                        writeln!(
-                            f,
-                            "{} {:?}:",
-                            if i == 0 { "if" } else { "else if" },
-                            operand
-                        )?;
-                        let n_statements = statements.len();
-                        for (j, statement) in statements.iter().enumerate() {
-                            write_indent(f, statement.clone(), indent + 1)?;
-                            if i < n_cases - 1 || j < n_statements - 1 {
-                                writeln!(f, "")?;
-                            }
-                        }
-                    }
-                }
-                _ => {
-                    write!(f, "{}", "    ".repeat(indent))?;
-                    write!(f, "{:?}", s)?;
-                }
-            }
-
-            Ok(())
-        }
-
-        writeln!(f, "function {}{:?}:", self.id, self.args)?;
-
-        let len = self.body.len();
-        for (i, statement) in self.body.iter().enumerate() {
-            write_indent(f, statement.clone(), 1)?;
-            if i < len - 1 {
-                writeln!(f, "")?;
-            }
-        }
-
-        Ok(())
-    }
+    interpreter.run_debug();
 }

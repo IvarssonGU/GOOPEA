@@ -40,28 +40,49 @@ pub fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
     while let Some(statement) = statements.peek() {
         let x = match statement {
             Statement::If(_) => IStatement::IfExpr(extract_ifs(statements)),
-            Statement::ElseIf(_) => panic!("this should not happen"),
-            Statement::Else => todo!(),
+            Statement::ElseIf(_) | Statement::Else => panic!("this should not happen"),
             Statement::EndIf => {
                 statements.next();
                 break;
             }
-            Statement::Decl(id) => IStatement::Decl(id.clone()),
-            Statement::InitConstructor(id, i) => IStatement::InitConstructor(id.clone(), *i),
-            Statement::Return(operand) => IStatement::Return(IOperand::from_op(operand)),
-            Statement::Print(operand) => IStatement::Print(IOperand::from_op(operand)),
-            Statement::Inc(operand) => IStatement::Inc(IOperand::from_op(operand)),
-            Statement::Dec(operand) => IStatement::Dec(IOperand::from_op(operand)),
+            Statement::Decl(id) => {
+                statements.next();
+                IStatement::Decl(id.clone())
+            }
+            Statement::InitConstructor(id, i) => {
+                statements.next();
+                IStatement::InitConstructor(id.clone(), *i)
+            }
+            Statement::Return(operand) => {
+                statements.next();
+                IStatement::Return(IOperand::from_op(operand))
+            }
+            Statement::Print(operand) => {
+                statements.next();
+                IStatement::Print(IOperand::from_op(operand))
+            }
+            Statement::Inc(operand) => {
+                statements.next();
+                IStatement::Inc(IOperand::from_op(operand))
+            }
+            Statement::Dec(operand) => {
+                statements.next();
+                IStatement::Dec(IOperand::from_op(operand))
+            }
             Statement::Assign(_, id, operand) => {
+                statements.next();
                 IStatement::Assign(id.clone(), IOperand::from_op(operand))
             }
             Statement::AssignToField(id, i, operand) => {
+                statements.next();
                 IStatement::AssignToField(id.clone(), *i, IOperand::from_op(operand))
             }
             Statement::AssignFromField(id, i, operand) => {
+                statements.next();
                 IStatement::AssignFromField(id.clone(), *i, IOperand::from_op(operand))
             }
             Statement::AssignBinaryOperation(id, operator, operand, operand1) => {
+                statements.next();
                 IStatement::AssignBinaryOperation(
                     id.clone(),
                     operator.clone(),
@@ -70,9 +91,11 @@ pub fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
                 )
             }
             Statement::AssignConditional(id, b, operand, i) => {
+                statements.next();
                 IStatement::AssignConditional(id.clone(), *b, IOperand::from_op(operand), *i)
             }
             Statement::AssignFunctionCall(id, f, operands) => {
+                statements.next();
                 // first add a function call that puts the returned value in a register
                 istatements.push(IStatement::FunctionCall(
                     f.clone(),
@@ -82,8 +105,6 @@ pub fn extract_body<'a, T: Iterator<Item = &'a Statement>>(
                 IStatement::AssignReturnvalue(id.clone())
             }
         };
-        // consume if not if
-        statements.next_if(|x| !matches!(x, Statement::If(_) | Statement::EndIf));
         istatements.push(x);
     }
 

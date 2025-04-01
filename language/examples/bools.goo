@@ -1,0 +1,8 @@
+Int: Int
+fib x = match (x <= 1) {
+    True: 1,
+    False: fib(x-1) + fib(x-2)
+};
+
+(Int, Int): Bool
+cmp(a, b) = a <= b;
