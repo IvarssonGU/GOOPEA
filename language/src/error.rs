@@ -31,12 +31,11 @@ pub enum CompileError {
     InvalidPattern,
     MatchHasMultipleWildcards,
     MatchHasCaseAfterWildcard,
-    MatchHasMultipleTupleCases,
+    MatchingOnTuple,
     InternalError,
 
     FIPFunctionHasUnusedVar(VID),
     FIPFunctionHasMultipleUsedVar(VID),
-    FIPFunctionAllocatesMemory
 }
 
 impl<'a> Display for CompileError {

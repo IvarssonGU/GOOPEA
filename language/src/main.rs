@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use lalrpop_util::lalrpop_mod;
-use ast::{ast::{ChainedData, Type}, base::BaseProgram, scoped::ScopedProgram, typed::TypedProgram};
+use ast::{scoped::ScopedProgram, typed::TypedProgram};
 use simple_ast::{add_refcounts, from_scoped};
 
 mod code;
@@ -26,9 +26,11 @@ fn main() {}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/zipper_tree.goo")).unwrap();
+    use ast::base::BaseSliceProgram;
 
-    let base_program = BaseProgram::new(&code).unwrap();
+    let code = fs::read_to_string(Path::new("examples/bools.goo")).unwrap();
+
+    let base_program = BaseSliceProgram::new(&code).unwrap();
     println!("{base_program}");
 
     let scoped_program = ScopedProgram::new(base_program).unwrap();
