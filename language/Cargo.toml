@@ -13,3 +13,5 @@ lalrpop = "0.22.1"
 [dependencies]
 lalrpop-util = { version = "0.21.0", features = ["lexer", "unicode"] }
 logos = "0.15.0"
+input = { git = "https://github.com/Carlsonen/input.git" }
+itertools = "0.14.0"

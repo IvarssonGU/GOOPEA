@@ -1,8 +1,8 @@
+use super::load::extract_body;
 use crate::ir::*;
 use crate::simple_ast::Operator;
+use itertools::Itertools;
 use std::fmt::{Debug, Display, Formatter, Result};
-
-use super::load::extract_body;
 
 #[derive(Debug, Clone)]
 pub enum IOperand {
@@ -35,6 +35,15 @@ impl IOperand {
     }
 }
 
+impl Display for IOperand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            IOperand::Ident(id) => write!(f, "{id}"),
+            IOperand::Int(i) => write!(f, "{i}"),
+        }
+    }
+}
+
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum IStatement {
@@ -60,9 +69,30 @@ impl Display for IStatement {
             IStatement::IfExpr(items) => write!(
                 f,
                 "IfExpr {:?}",
-                items.iter().map(|(operand, _)| operand).collect::<Vec<_>>()
+                items
+                    .iter()
+                    .map(|(operand, _)| format!("{operand}"))
+                    .collect_vec()
             ),
-            x => write!(f, "{:?}", x),
+            IStatement::Decl(id) => write!(f, "Declare({id})"),
+            IStatement::InitConstructor(id, s) => write!(f, "{id} = malloc({s})"),
+            IStatement::Return(ioperand) => write!(f, "Return({ioperand})"),
+            IStatement::Print(ioperand) => write!(f, "Print({})", ioperand),
+            IStatement::Inc(ioperand) => write!(f, "Inc({})", ioperand),
+            IStatement::Dec(ioperand) => write!(f, "Dec({})", ioperand),
+            IStatement::Assign(id, ioperand) => write!(f, "{id} = {}", ioperand),
+            IStatement::AssignToField(id, ix, ioperand) => write!(f, "{id}[{ix}] = {}", ioperand),
+            IStatement::AssignFromField(id, ix, ioperand) => write!(f, "{id} = {}[{ix}]", ioperand),
+            IStatement::AssignBinaryOperation(id, operator, ioperand, ioperand1) => {
+                write!(f, "{id} = {} {operator} {}", ioperand, ioperand1)
+            }
+            IStatement::AssignConditional(id, _, _, _) => write!(f, "{id} = if else bruhmagic"),
+            IStatement::FunctionCall(id, ioperands) => write!(
+                f,
+                "call {id}{:?}",
+                ioperands.iter().map(|iop| format!("{iop}")).collect_vec()
+            ),
+            IStatement::AssignReturnvalue(id) => write!(f, "{id} = _ret_"),
         }
     }
 }
@@ -103,12 +133,7 @@ impl Display for IDef {
                     for (i, (operand, statements)) in items.iter().enumerate() {
                         write!(f, "{}", "    ".repeat(indent))?;
 
-                        writeln!(
-                            f,
-                            "{} {:?}:",
-                            if i == 0 { "if" } else { "else if" },
-                            operand
-                        )?;
+                        writeln!(f, "{} {}:", if i == 0 { "if" } else { "else if" }, operand)?;
 
                         let n_statements = statements.len();
 
@@ -125,7 +150,7 @@ impl Display for IDef {
                 _ => {
                     write!(f, "{}", "    ".repeat(indent))?;
 
-                    write!(f, "{:?}", s)?;
+                    write!(f, "{}", s)?;
                 }
             }
 
