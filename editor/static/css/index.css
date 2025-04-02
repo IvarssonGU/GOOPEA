@@ -1,14 +1,14 @@
 body {
     text-align: center;
     font-family: 'Courier New', Courier, monospace;
+    background-color: var(--background);
+    color: var(--text-color);
 }
-#editor-body.dark {
-    background-color: #090300;
-    color: #d6d6d6;
-}
-#output.dark, #memory.dark, #c-code.dark {
-    background-color: #090300;
-    color: #d6d6d6;
+
+/* TextFields */
+#output, #memory, #c-code {
+    background-color: var(--background);
+    color: var(--text-color);
 }
 
 .container {
@@ -83,13 +83,14 @@ textarea {
     padding: 10px 10px 10px 10px;
     border: 1px solid gray;
     border-radius: 2px;
-    background-color: #d8ecf3;
+    background-color: var(--small-color);
+    color: var(--text-color);
     font-weight: bold;
 }
-#runtime.dark {
+/* #runtime.dark {
     background-color: #003f54;
     color: #d6d6d6;
-}
+} */
 
 /* containing run and clear buttons */
  #button-cell { 
@@ -119,11 +120,11 @@ textarea {
     margin-left: -10px;
 }
 .current-tab.styled-button {
-    background-color: #c3e3ee;
+    background-color: var(--main-color);
 }
-.current-tab.styled-button.dark {
+/* .current-tab.styled-button.dark {
     background-color: #006f93;
-}
+} */
 /* #tab-filler {
     background-color: white;
     color: white;

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background-color: var(--background);">
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./codemirror/codemirror.css">
@@ -11,12 +11,12 @@
 
     <title>GOOPEA examples</title>
 </head>
-<body id="examples-body">
+<body onload="document.body.classList.add('show'); code_field.refresh();">
     <div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
-		<a onclick="change_page(0)">Editor</a>
+		<a onclick="save_example(0)">Editor</a>
 		<a href="example_page.html" class="current-page">Examples</a>
-		<a onclick="change_page(2)">Documentation</a>
+		<a onclick="save_example(2)">Documentation</a>
         <a onclick="change_theme(1)" id="theme-button"><p>&#X263E;</p></a>
 	</div>
 

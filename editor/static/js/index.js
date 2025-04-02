@@ -23,20 +23,23 @@ document.addEventListener("DOMContentLoaded", () => {
         editor.setValue(localStorage.getItem("code"));
     }
     if ("theme" in localStorage) {
-        let theme = localStorage.getItem("theme");
-        if (theme === "dark") {
+        if (localStorage.getItem("theme") === "dark") {
+            // change_theme(0);
+            document.documentElement.setAttribute("theme", "dark");
             change_theme(0);
+        } else {
+            document.documentElement.setAttribute("theme", "default");
         }
     }
 
 });
-window.onload = function() {
-    document.getElementById("code").classList.toggle("hidden");
-    output_textarea.classList.toggle("hidden");
-    c_textarea.classList.toggle("hidden");
-    memory_textarea.classList.toggle("hidden");
+// window.onload = function() {
+//     document.getElementById("editor-body").classList.toggle("hidden");
+//     // output_textarea.classList.toggle("hidden");
+//     // c_textarea.classList.toggle("hidden");
+//     // memory_textarea.classList.toggle("hidden");
     
-}
+// }
 // document.addEventListener("DOMContentLoaded", function() {
 // document.onreadystatechange = function() {
 //     if ("theme" in localStorage) {
@@ -50,7 +53,7 @@ window.onload = function() {
 window.onbeforeunload = function() {
     localStorage.setItem("code", editor.getValue());
     
-    if (document.getElementById("editor-body").classList.contains("dark")) {
+    if (document.getElementById("theme-button").classList.contains("dark")) {
         localStorage.setItem("theme", "dark");
     } else {
         localStorage.setItem("theme", "default");
@@ -134,11 +137,11 @@ function switch_tab(opt) {
 
     }
 }
-function switch_to_memory() {
-    document.getElementById("output-button").classList.toggle("current-tab");
-    document.getElementById("memory-button").classList.toggle("current-tab");
+// function switch_to_memory() {
+//     document.getElementById("output-button").classList.toggle("current-tab");
+//     document.getElementById("memory-button").classList.toggle("current-tab");
 
-}
+// }
 
 function change_editor_theme(opt) {
     switch (opt) {

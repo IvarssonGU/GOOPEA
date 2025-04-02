@@ -2,15 +2,19 @@
     --background: white;
     --main-color: lightblue;
     --medium-color: #c7e6f0;
-    --light-color: #e3f1f6;
+    --small-color: #e3f1f6;
     --text-color: black;
+    --keywords: #708;
+    --constructors: royalblue;
 }
 [theme="dark"] {
     --background: #090300;
     --main-color: #006f93;
     --medium-color: #003f54;
-    --light-color: #003142;
+    --small-color: #003142;
     --text-color: #d6d6d6;
+    --keywords: #db2d20;
+    --constructors: #e8bbd0;
 }
 
 .nav {
@@ -26,27 +30,28 @@
     font-weight: bold;
     border-radius: 5px;
     text-decoration: none;
-    color: black;
+    color: var(--text-color);
     margin: 0 10px 0 10px;
     user-select: none;
 }
 .nav a:not(a.logo):hover {
-    background-color: #c7e6f0;
+    background-color: var(--medium-color);
+    color: var(--text-color);
     cursor: pointer;
 }
-.nav.dark a:not(a.logo):hover {
+/* .nav.dark a:not(a.logo):hover {
     background-color: #003f54;
     color: #d6d6d6;
     cursor: pointer;
-}
+} */
 .nav a.current-page {
-    background-color: lightblue;
+    background-color: var(--main-color);
     color: black;
 }
-.nav.dark a.current-page {
+/* .nav.dark a.current-page {
     background-color: #006f93;
     color: black;
-}
+} */
 
 .nav a.logo {
     vertical-align: middle;
@@ -55,12 +60,12 @@
     float: left;
     padding: 15px 15px;
     margin: 0;
-    color: black;
+    color: var(--text-color);
     margin-top: -3px;
 }
-.nav.dark a, .nav.dark a.logo {
+/* .nav.dark a, .nav.dark a.logo {
     color: #d6d6d6;
-}
+} */
 
 #theme-button {
     height: 25px;
@@ -81,36 +86,39 @@ button {
 
 .styled-button {
     outline: none;
-    background-color: #e3f1f6;
+    background-color: var(--small-color);
     border: 1px solid gray;
     padding: 2px 5px;
     border-radius: 5px;
+    color: var(--text-color);
 }
 .styled-button:hover {
-    background-color: #c7e6f0;
+    background-color: var(--medium-color);
+    color: var(--text-color);
 }
 
-.styled-button.dark {
+/* .styled-button.dark {
     background-color: #003f54;
     color:#d6d6d6;
 }
 .styled-button.dark:hover {
     background-color: #006f93;
     color:#d6d6d6;
-}
+} */
 
 mark {
-    background-color: #e3f1f6;
+    background-color: var(--small-color);
+    color: var(--text-color);
     border-radius: 2px;
 }
 mark b {
     padding: 0 3px 0 3px;
 }
-mark.dark {
+/* mark.dark {
     background-color: #003142;
     color:#d6d6d6;
-}
+} */
 
-.hidden {
-    content-visibility: hidden;
+body:not(.show) {
+    display: none;
 }

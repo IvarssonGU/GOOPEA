@@ -13,7 +13,7 @@ var code_field = CodeMirror.fromTextArea(document.getElementById("code-field"), 
 // code_field.setSize("100%", "100%");
 
 // window.onload = function () {
-    document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
 
     if ("example" in localStorage) {
         example_select.value = localStorage.getItem("example");
@@ -21,15 +21,18 @@ var code_field = CodeMirror.fromTextArea(document.getElementById("code-field"), 
     example_dropdown_changed();
 
     if ("theme" in localStorage) {
-        let theme = localStorage.getItem("theme");
-        if (theme === "dark") {
+        if (localStorage.getItem("theme") === "dark") {
+            // change_theme(0);
+            document.documentElement.setAttribute("theme", "dark");
             change_theme(1);
+        } else {
+            document.documentElement.setAttribute("theme", "default");
         }
     }
 });
 
 window.onbeforeunload = function() {    
-    if (document.getElementById("examples-body").classList.contains("dark")) {
+    if (document.getElementById("theme-button").classList.contains("dark")) {
         localStorage.setItem("theme", "dark");
     } else {
         localStorage.setItem("theme", "default");
@@ -279,16 +282,7 @@ async function copy_code() {
 function save_example(opt) {
     localStorage.setItem("example", example_select.value);
 
-    switch(opt) {
-        case 0:
-            window.location.href = "index.html";
-            break;
-        case 1:
-            window.location.href = "documentation_page.html";
-            break;
-        default:
-            window.location.href = "example_page.html";
-    }
+    change_page(opt);
 }
 
 

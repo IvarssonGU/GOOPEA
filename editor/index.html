@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en" style="background-color: var(--background);">
 <head>
 	<meta charset="UTF-8">
 	<link rel="stylesheet" href="./codemirror/codemirror.css">
@@ -10,7 +10,7 @@
 
 	<title>GOOPEA editor</title>
 </head>
-<body id="editor-body">
+<body onload="document.body.classList.add('show'); editor.refresh();">
 	<div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
 		<a href="index.html" class="current-page">Editor</a>
@@ -35,15 +35,18 @@
 					<button onclick="switch_to_memory()" class="tab-button" id="memory-button">Memory</button> -->
 					<!-- <button class="tab-button styled-button" id="tab-filler">meow</button> -->
 					<div class="output-container">
-						<textarea id="output" class="hidden" readonly="true" placeholder="connection to interpreter not implemented yet" height="100%"></textarea>
+						<textarea id="output" readonly="true" placeholder="connection to interpreter not implemented yet" height="100%"></textarea>
+						<textarea id="c-code" readonly="true" placeholder="click Run to view C-code here" height="100%"></textarea>
+						<textarea id="memory" readonly="true" placeholder="view memory here (not implemented)" height="100%"></textarea>
+						<!-- <textarea id="output" class="hidden" readonly="true" placeholder="connection to interpreter not implemented yet" height="100%"></textarea>
 						<textarea id="c-code" class="hidden" readonly="true" placeholder="click Run to view C-code here" height="100%"></textarea>
-						<textarea id="memory" class="hidden" readonly="true" placeholder="view memory here (not implemented)" height="100%"></textarea>
+						<textarea id="memory" class="hidden" readonly="true" placeholder="view memory here (not implemented)" height="100%"></textarea> -->
 					</div>
 				</td>
 			</tr>
 			<tr id="text-row">
 				<td colspan="2" id="code-cell">
-					<textarea id="code" class="hidden"></textarea>
+					<textarea id="code"></textarea>
 				</td>
 			</tr>
 			<tr>

@@ -1,14 +1,14 @@
 body {
     font-family: 'Courier New', Courier, monospace;
 }
-#examples-body.dark {
-    background-color: #090300;
-    color: #d6d6d6;
+#examples-body, #output-field {
+    background-color: var(--background);
+    color: var(--text-color);
 }
-#output-field.dark {
-    background-color: #090300;
+/* #output-field.dark {
+    background-color: ;
     color: #d6d6d6;
-}
+} */
 
 .container {
     text-align: left;

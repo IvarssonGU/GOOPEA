@@ -17,15 +17,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if ("theme" in localStorage) {
-        let theme = localStorage.getItem("theme");
-        if (theme === "dark") {
-            change_theme(2);
+        if (localStorage.getItem("theme") === "dark") {
+            // change_theme(0);
+            document.documentElement.setAttribute("theme", "dark");
+            change_theme(-1);
+        } else {
+            document.documentElement.setAttribute("theme", "default");
         }
     }
 });
 
 window.onbeforeunload = function() {    
-    if (document.getElementById("documentation-body").classList.contains("dark")) {
+    if (document.getElementById("theme-button").classList.contains("dark")) {
         localStorage.setItem("theme", "dark");
     } else {
         localStorage.setItem("theme", "default");

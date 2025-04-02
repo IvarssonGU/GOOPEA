@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background-color: var(--background);">
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./static/css/documentation_page.css">
@@ -8,7 +8,7 @@
 
     <title>GOOPEA documentation</title>
 </head>
-<body id="documentation-body">
+<body onload="document.body.classList.add('show')">
     <div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
 		<a onclick="change_page(0)">Editor</a>
