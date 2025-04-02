@@ -81,6 +81,7 @@ impl Data {
     }
 }
 
+#[derive(Clone)]
 pub struct Interpreter {
     functions: HashMap<String, IDef>,
     heap: Vec<Vec<Data>>,
@@ -90,9 +91,9 @@ pub struct Interpreter {
     local_variables: HashMap<String, Data>,
     variable_stack: Vec<HashMap<String, Data>>,
     return_value: Option<Data>,
-    steps: u64
+    steps: u64,
 }
-
+// init
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
@@ -104,13 +105,13 @@ impl Interpreter {
             local_variables: HashMap::new(),
             variable_stack: Vec::new(),
             return_value: None,
-            steps: 0
+            steps: 0,
         }
     }
 
-    pub fn from_program(prog: &Prog) -> Self {
+    pub fn from_program(program: &Prog) -> Self {
         let mut interpreter = Interpreter::new();
-        for def in prog.0.clone() {
+        for def in program.0.clone() {
             interpreter = interpreter.with_fn(IDef::from_def(&def));
         }
         interpreter = interpreter.with_entry_point("main");
@@ -126,7 +127,9 @@ impl Interpreter {
         self.enter_fn(function_name, vec![]);
         self
     }
-
+}
+// running
+impl Interpreter {
     fn eval_op(&self, op: &IOperand) -> i64 {
         match op {
             IOperand::Ident(id) => self.get_local_var(id).unwrap_val(),
@@ -162,6 +165,12 @@ impl Interpreter {
 
     fn inc(&mut self, ptr: usize) {
         self.heap[ptr][2].inc();
+    }
+
+    fn clean_memory(&mut self) {
+        // could make much more clean
+        let i = self.heap.iter().rposition(|x| !x.is_empty()).unwrap_or(0);
+        self.heap.truncate(i + 1);
     }
 
     fn dec(&mut self, ptr: usize) {
@@ -239,6 +248,7 @@ impl Interpreter {
                     if let Data::Pointer(ptr) = data {
                         self.dec(ptr);
                     }
+                    self.clean_memory();
                 }
                 IStatement::Assign(id, ioperand) => {
                     let val = self.op_to_data(&ioperand);
@@ -294,59 +304,40 @@ impl Interpreter {
         }
         s
     }
-
-    fn run_until_next_mem(&mut self) {
-        loop {
-            while let Some(s) = self.statements.get(0) {
-                match s {
-                    IStatement::InitConstructor(_, _)
-                    | IStatement::Inc(_)
-                    | IStatement::Dec(_)
-                    | IStatement::AssignToField(_, _, _) => {
-                        break;
-                    }
-                    _ => {
-                        self.step();
-                    }
+}
+// running until
+impl Interpreter {
+    pub fn run_until_next_mem(&mut self) {
+        while let Some(s) = self.statements.get(0) {
+            match s {
+                IStatement::InitConstructor(_, _)
+                | IStatement::Inc(_)
+                | IStatement::Dec(_)
+                | IStatement::AssignToField(_, _, _) => {
+                    break;
+                }
+                _ => {
+                    self.step();
                 }
             }
         }
     }
 
-    fn run_until_done(&mut self) {
+    pub fn run_until_done(&mut self) {
         while let Some(_) = self.step() {}
     }
 
-    fn run_until_return(&mut self) {
+    pub fn run_until_return(&mut self) {
         let s = self.function_names_stack.len();
 
         while self.function_names_stack.len() >= s {
             self.step();
         }
     }
+}
+// website interactions
+impl Interpreter {
 
-    fn run_debug(&mut self) {
-        loop {
-            if let Some(_) = self.statements.get(0) {
-                println!("{:?}", self);
-                println!("m, r, enter");
-                let input: String = input("");
-                match input.as_str() {
-                    "m" => {
-                        self.run_until_next_mem();
-                    }
-                    "r" => {
-                        self.run_until_return();
-                    }
-                    _ => {
-                        self.step();
-                    }
-                }
-            } else {
-                break;
-            }
-        }
-    }
 }
 
 fn concat_columns(left: &Vec<String>, right: &Vec<String>, sep: &str) -> Vec<String> {
@@ -451,7 +442,12 @@ pub fn interpreter_test_time(src: &str) {
 
     let elapsed = now.elapsed().as_micros();
     let steps = interpreter.steps;
-    println!("Done!\n{} steps in {} us\n{} sps", steps, elapsed, 1_000_000 * steps / elapsed as u64);
+    println!(
+        "Done!\n{} steps in {} us\n{} sps",
+        steps,
+        elapsed,
+        1_000_000 * steps / elapsed as u64
+    );
     println!("{:?}", interpreter);
 }
 
@@ -497,5 +493,24 @@ pub fn interpreter_test(src: &str) {
 
     fs::write(Path::new(".interpreter_out/i_ast.txt"), i_ast).unwrap();
 
-    interpreter.run_debug();
+    loop {
+        if let Some(_) = interpreter.statements.get(0) {
+            println!("{:?}", interpreter);
+            println!("m, r, enter");
+            let input: String = input("");
+            match input.as_str() {
+                "m" => {
+                    interpreter.run_until_next_mem();
+                }
+                "r" => {
+                    interpreter.run_until_return();
+                }
+                _ => {
+                    interpreter.step();
+                }
+            }
+        } else {
+            break;
+        }
+    }
 }
