@@ -63,29 +63,41 @@ reverseList list = reverseHelper(list, Nil);`);
 `enum Tree = Empty, Node(Tree, Int, Tree);
 
 (): Tree
-build = 
+build =
     Node(
         Node(
             Node(
-                Empty, 
-                15, 
+                Empty,
+                15,
                 Empty
-            ), 
-            10, 
+            ),
+            10,
             Node(
-                Empty, 
-                52, 
+                Empty,
+                52,
                 Empty
             )
-        ), 
-        5, 
+        ),
+        5,
         Node(
             Node(
-                Empty, 
-                69, 
-                Empty
-            ), 
-            23, 
+                Empty,
+                69,
+                Node(
+                    Node(
+                        Empty,
+                        7,
+                        Empty
+                    ),
+                    100,
+                    Node(
+                        Empty,
+                        4,
+                        Empty
+                    )
+                ),
+            ),
+            23,
             Empty
         )
     );
@@ -102,8 +114,20 @@ flip tree = match tree {
     Node(left, value, right): Node(flip(right), value, flip(left))
 };
 
+(Tree, Tree): Tree
+combine (a, b) = match a {
+    Empty: match b {
+        Empty: Empty,
+        Node(left, value, right): Node(left, value, right)
+    },
+    Node(left, value, right): match b {
+        Empty: Node(left, value, right),
+        Node(left2, value2, right2): Node(combine(left, left2), value + value2, combine(right, right2))
+    }
+};
+
 (): Int
-main = sum(flip(build()));`);
+main = sum(combine(build(), flip(build())));`);
             output_field.value = "174";
             break;
         case "arithmetic":

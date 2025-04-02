@@ -1,6 +1,10 @@
 let output_textarea = document.getElementById("output");
-let memory_textarea = document.getElementById("memory");
+let debug_textarea = document.getElementById("debug");
 let c_textarea = document.getElementById("c-code");
+
+let output_button = document.getElementById("output-button");
+let c_code_button = document.getElementById("c-button");
+let debug_button = document.getElementById("debug-button");
 
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     lineNumbers: true,
@@ -16,8 +20,19 @@ editor.setSize("100%", "100%");
 
 // window.onload = function() {
 document.addEventListener("DOMContentLoaded", () => {
-    memory_textarea.style.display = 'none';
+    debug_textarea.style.display = 'none';
     c_textarea.style.display = 'none';
+    if ("tab" in localStorage) {
+        let current_tab = localStorage.getItem("tab");
+        switch (current_tab) {
+            case "output": switch_tab(0); break;
+            case "c_code": switch_tab(1); break;
+            case "debug": switch_tab(2); break;
+            default: switch_tab(0);
+        }
+    }
+
+    debug_textarea.value = "";
 
     if ("code" in localStorage) {
         editor.setValue(localStorage.getItem("code"));
@@ -37,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
 //     document.getElementById("editor-body").classList.toggle("hidden");
 //     // output_textarea.classList.toggle("hidden");
 //     // c_textarea.classList.toggle("hidden");
-//     // memory_textarea.classList.toggle("hidden");
+//     // debug_textarea.classList.toggle("hidden");
     
 // }
 // document.addEventListener("DOMContentLoaded", function() {
@@ -52,6 +67,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 window.onbeforeunload = function() {
     localStorage.setItem("code", editor.getValue());
+   
+    if (output_button.classList.contains("current-tab")) localStorage.setItem("tab", "output");
+    if (c_code_button.classList.contains("current-tab")) localStorage.setItem("tab", "c_code");
+    if (debug_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
     
     if (document.getElementById("theme-button").classList.contains("dark")) {
         localStorage.setItem("theme", "dark");
@@ -67,8 +86,13 @@ async function run_button_clicked() {
 
     let code = editor.getValue();
     localStorage.setItem("code", code);
-    const c_code = wasm_bindgen.rust_function(code);
+
+    const c_code = wasm_bindgen.get_c_code(code);
     c_textarea.value = c_code;
+
+    wasm_bindgen.start_interpreter(code);
+
+    debug_textarea.value = wasm_bindgen.get_state();
 
 	const endTime = performance.now();
 
@@ -83,49 +107,60 @@ function update_runtime(runtime) {
 
 function clear_button_clicked() {
     editor.setValue("");
+    output_textarea.value = "";
+    c_textarea.value = "";
+    debug_textarea.value = "";
 }
 
-function save_code(opt) {
-    localStorage.setItem("code", editor.getValue());
-    change_page(-1);
+function one_step_clicked() {
+    debug_textarea.value = wasm_bindgen.get_one_step();
+}
+function one_run_clicked() {
+    debug_textarea.value = wasm_bindgen.get_run();
+}
 
-    switch(opt) {
-        case 0:
-            window.location.href = "example_page.html";
-            break;
-        case 1:
-            window.location.href = "documentation_page.html";
-            break;
-        default:
-            window.location.href = "index.html";
-    }
+function save_state(opt) {
+    localStorage.setItem("code", editor.getValue());
+
+    if (output_button.classList.contains("current-tab")) localStorage.setItem("tab", "output");
+    if (c_code_button.classList.contains("current-tab")) localStorage.setItem("tab", "c_code");
+    if (debug_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
+
+    // console.log("ihweorfu");
+    change_page(opt);
 }
 
 function switch_tab(opt) {    
-    let output_button = document.getElementById("output-button");
-    let c_code_button = document.getElementById("c-button");
-    let memory_button = document.getElementById("memory-button");
+    
+    let step_button = document.getElementById("step-button")
+    let rud_button = document.getElementById("rud-button")
 
     if (output_button.classList.contains("current-tab")) output_button.classList.toggle("current-tab");
     if (c_code_button.classList.contains("current-tab")) c_code_button.classList.toggle("current-tab");
-    if (memory_button.classList.contains("current-tab")) memory_button.classList.toggle("current-tab");
+    if (debug_button.classList.contains("current-tab")) {
+        debug_button.classList.toggle("current-tab");
+        step_button.classList.toggle("hide");
+        rud_button.classList.toggle("hide");
+    }
 
     switch (opt) {
         case 0: //switch to output
             output_button.classList.toggle("current-tab");
             output_textarea.style.display = 'block';
             c_textarea.style.display = 'none';
-            memory_textarea.style.display = 'none';
+            debug_textarea.style.display = 'none';
             break;
         case 1: //switch to c code
             c_code_button.classList.toggle("current-tab");
             c_textarea.style.display = 'block'
             output_textarea.style.display = 'none';
-            memory_textarea.style.display = 'none';
+            debug_textarea.style.display = 'none';
             break;
-        case 2: //switch to memory
-            memory_button.classList.toggle("current-tab");
-            memory_textarea.style.display = 'block';
+        case 2: //switch to debug
+            debug_button.classList.toggle("current-tab");
+            step_button.classList.toggle("hide");
+            rud_button.classList.toggle("hide");
+            debug_textarea.style.display = 'block';
             c_textarea.style.display = 'none';
             output_textarea.style.display = 'none';
             break;
@@ -133,13 +168,13 @@ function switch_tab(opt) {
             output_button.classList.toggle("current-tab");
             output_textarea.style.display = 'block';
             c_textarea.style.display = 'none';
-            memory_textarea.style.display = 'none';
+            debug_textarea.style.display = 'none';
 
     }
 }
-// function switch_to_memory() {
+// function switch_to_debug() {
 //     document.getElementById("output-button").classList.toggle("current-tab");
-//     document.getElementById("memory-button").classList.toggle("current-tab");
+//     document.getElementById("debug-button").classList.toggle("current-tab");
 
 // }
 

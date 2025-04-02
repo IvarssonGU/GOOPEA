@@ -14,8 +14,8 @@
 	<div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
 		<a href="index.html" class="current-page">Editor</a>
-		<a onclick="save_code(0)">Examples</a>
-		<a onclick="save_code(1)">Documentation</a>
+		<a onclick="save_state(1)">Examples</a>
+		<a onclick="save_state(2)">Documentation</a>
 		<a onclick="change_theme(0)" id="theme-button"><p>&#X263E;</p></a>
 	</div>
 
@@ -30,17 +30,11 @@
 				<td colspan="2" rowspan="2" id="output-cell">
 					<button onclick="switch_tab(0)" class="tab-button styled-button current-tab" id="output-button">Output</button>
 					<button onclick="switch_tab(1)" class="tab-button styled-button" id="c-button">C code</button>
-					<button onclick="switch_tab(2)" class="tab-button styled-button" id="memory-button">Memory</button>
-					<!-- <button onclick="switch_to_output()" class="tab-button current-tab" id="output-button">Output</button>
-					<button onclick="switch_to_memory()" class="tab-button" id="memory-button">Memory</button> -->
-					<!-- <button class="tab-button styled-button" id="tab-filler">meow</button> -->
+					<button onclick="switch_tab(2)" class="tab-button styled-button" id="debug-button">Debug</button>
 					<div class="output-container">
-						<textarea id="output" readonly="true" placeholder="connection to interpreter not implemented yet" height="100%"></textarea>
+						<textarea id="output" readonly="true" placeholder="not implemented yet" height="100%"></textarea>
 						<textarea id="c-code" readonly="true" placeholder="click Run to view C-code here" height="100%"></textarea>
-						<textarea id="memory" readonly="true" placeholder="view memory here (not implemented)" height="100%"></textarea>
-						<!-- <textarea id="output" class="hidden" readonly="true" placeholder="connection to interpreter not implemented yet" height="100%"></textarea>
-						<textarea id="c-code" class="hidden" readonly="true" placeholder="click Run to view C-code here" height="100%"></textarea>
-						<textarea id="memory" class="hidden" readonly="true" placeholder="view memory here (not implemented)" height="100%"></textarea> -->
+						<textarea id="debug" readonly="true" placeholder="use the buttons below to view debug by step or function" height="100%"></textarea>
 					</div>
 				</td>
 			</tr>
@@ -52,6 +46,8 @@
 			<tr>
 				<td colspan="4" id="display">
 					<div id="filler-div"></div>
+					<button onclick="one_step_clicked()" id="step-button" class="debug-button styled-button hide">&#X23F5;&#xfe0e;</button>
+					<button onclick="one_run_clicked()" id="rud-button" class="debug-button styled-button hide">&#X23E9;&#xfe0e;</button>
 					<div id="runtime">
 						Runtime: N/A
 					</div>

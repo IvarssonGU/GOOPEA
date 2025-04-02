@@ -6,7 +6,7 @@ body {
 }
 
 /* TextFields */
-#output, #memory, #c-code {
+#output, #debug, #c-code {
     background-color: var(--background);
     color: var(--text-color);
 }
@@ -25,7 +25,7 @@ body {
     height: 100%;
 }
 
-#output, #memory {
+#output, #debug {
     height: 99%;
 }
 
@@ -64,13 +64,13 @@ textarea {
     border: none;
 }
 
-#code-cell, #output, #memory, #c-code {
+#code-cell, #output, #debug, #c-code {
     height:70vh;
 }
 
 #display {
     width: 100%;
-    height:fit-content;
+    height: fit-content;
     text-align: right;
 }
 
@@ -86,6 +86,7 @@ textarea {
     background-color: var(--small-color);
     color: var(--text-color);
     font-weight: bold;
+    vertical-align: top;
 }
 /* #runtime.dark {
     background-color: #003f54;
@@ -93,7 +94,7 @@ textarea {
 } */
 
 /* containing run and clear buttons */
- #button-cell { 
+#button-cell { 
     text-align: right;
     /* width:min-content; */
 }
@@ -105,16 +106,17 @@ textarea {
 .tab-button {
     margin: -1.5px 0 2px -1.5px;
     padding-bottom: 2px;
+    border-top: none;
 }
 
 #output-button {
     border-top-right-radius: 0px;
 }
-/* #memory-button {
+/* #debug-button {
     border-top-left-radius: 0px;
     margin-left: -10px;
 } */
-#c-button, #memory-button {
+#c-button, #debug-button {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
     margin-left: -10px;
@@ -122,6 +124,39 @@ textarea {
 .current-tab.styled-button {
     background-color: var(--main-color);
 }
+
+.debug-button {
+    font-family: "Lucida Sans Unicode", "Arial Unicode MS";
+    background-color: var(--small-color);
+    color: var(--text-color);
+    font-size: x-large;
+    vertical-align: top;
+    width: 6vh;
+    height: 5.6vh;
+    padding-top: -2px;
+    margin-left: -4px;
+}
+/* #step-button {
+    font-family: "Lucida Sans Unicode", "Arial Unicode MS";
+    background-color: var(--small-color);
+    color: var(--text-color);
+    font-size: x-large;
+    width: 6vh;
+    height: 6vh;
+    content: '\23F5\fe0e';
+    padding: 0px 10px -10px 10px; 
+    margin: -5px -5px -5px -5px;
+}
+#rud-button { 
+    font-family: "Lucida Sans Unicode", "Arial Unicode MS";
+    background-color: var(--small-color);
+    color: var(--text-color);
+    font-size: x-large;
+    width: 6vh;
+    height: 6vh;
+    content: '\23E9\fe0e';
+    padding: -10px 10px -10px 10px;
+} */
 /* .current-tab.styled-button.dark {
     background-color: #006f93;
 } */

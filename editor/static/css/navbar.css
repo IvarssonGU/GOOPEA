@@ -85,6 +85,8 @@ button {
 }
 
 .styled-button {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
     outline: none;
     background-color: var(--small-color);
     border: 1px solid gray;
@@ -121,4 +123,8 @@ mark b {
 
 body:not(.show) {
     display: none;
+}
+
+.hide {
+    visibility: hidden;
 }
