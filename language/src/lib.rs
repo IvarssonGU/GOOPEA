@@ -36,6 +36,9 @@ pub fn c_code(program: &Prog) -> String {
 }
 
 // Interpreter stuff
+//         store  store  store store
+// restore return memory step1 finish
+// state   state  state  state state
 
 pub fn load_interpreter(program: &Prog) {
     let interpreter = Interpreter::from_program(program);
@@ -45,6 +48,18 @@ pub fn load_interpreter(program: &Prog) {
 pub fn step_interpreter() {
     INTERPRETER.with_borrow_mut(|interpreter| {
         interpreter.step();
+    });
+}
+
+pub fn run_until_next_mem() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.run_until_next_mem();
+    });
+}
+
+pub fn run_until_return() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.run_until_return();
     });
 }
 
@@ -58,7 +73,7 @@ pub fn get_interpreter_state() -> String {
     INTERPRETER.with_borrow_mut(|interpreter| format!("{:?}", interpreter))
 }
 
-pub fn save_interpreter() {
+pub fn store_interpreter() {
     INT_HISTORY.with_borrow_mut(|history| {
         history.push(INTERPRETER.with(|x| x.clone()).borrow().clone());
     });
@@ -66,6 +81,8 @@ pub fn save_interpreter() {
 
 pub fn restore_interpreter() {
     INT_HISTORY.with_borrow_mut(|history| {
-        INTERPRETER.set(history.pop().unwrap()); // Skulle kunna felhantera här
+        if let Some(i) = history.pop() {
+            INTERPRETER.set(i);
+        }
     });
 }
