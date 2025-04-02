@@ -4,7 +4,7 @@ let c_textarea = document.getElementById("c-code");
 
 let output_button = document.getElementById("output-button");
 let c_code_button = document.getElementById("c-button");
-let debug_button = document.getElementById("debug-button");
+let debug_tab_button = document.getElementById("debug-button");
 
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     lineNumbers: true,
@@ -70,7 +70,7 @@ window.onbeforeunload = function() {
    
     if (output_button.classList.contains("current-tab")) localStorage.setItem("tab", "output");
     if (c_code_button.classList.contains("current-tab")) localStorage.setItem("tab", "c_code");
-    if (debug_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
+    if (debug_tab_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
     
     if (document.getElementById("theme-button").classList.contains("dark")) {
         localStorage.setItem("theme", "dark");
@@ -112,10 +112,19 @@ function clear_button_clicked() {
     debug_textarea.value = "";
 }
 
-function one_step_clicked() {
+function step_back_clicked() {
+    debug_textarea.value = wasm_bindgen.get_back_step();
+}
+function step_forward_clicked() {
     debug_textarea.value = wasm_bindgen.get_one_step();
 }
-function one_run_clicked() {
+function run_mem_clicked() {
+    debug_textarea.value = wasm_bindgen.get_until_mem();
+}
+function run_return_clicked() {
+    debug_textarea.value = wasm_bindgen.get_until_return();
+}
+function run_done_clicked() {
     debug_textarea.value = wasm_bindgen.get_run();
 }
 
@@ -124,7 +133,7 @@ function save_state(opt) {
 
     if (output_button.classList.contains("current-tab")) localStorage.setItem("tab", "output");
     if (c_code_button.classList.contains("current-tab")) localStorage.setItem("tab", "c_code");
-    if (debug_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
+    if (debug_tab_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
 
     // console.log("ihweorfu");
     change_page(opt);
@@ -132,15 +141,17 @@ function save_state(opt) {
 
 function switch_tab(opt) {    
     
-    let step_button = document.getElementById("step-button")
-    let rud_button = document.getElementById("rud-button")
+    // let step_button = document.getElementById("step-button")
+    // let rud_button = document.getElementById("rud-button")
+    let debug_buttons = document.getElementsByClassName("debug-button");
 
     if (output_button.classList.contains("current-tab")) output_button.classList.toggle("current-tab");
     if (c_code_button.classList.contains("current-tab")) c_code_button.classList.toggle("current-tab");
-    if (debug_button.classList.contains("current-tab")) {
-        debug_button.classList.toggle("current-tab");
-        step_button.classList.toggle("hide");
-        rud_button.classList.toggle("hide");
+    if (debug_tab_button.classList.contains("current-tab")) {
+        debug_tab_button.classList.toggle("current-tab");
+        // step_button.classList.toggle("hide");
+        // rud_button.classList.toggle("hide");
+        for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
     }
 
     switch (opt) {
@@ -157,9 +168,10 @@ function switch_tab(opt) {
             debug_textarea.style.display = 'none';
             break;
         case 2: //switch to debug
-            debug_button.classList.toggle("current-tab");
-            step_button.classList.toggle("hide");
-            rud_button.classList.toggle("hide");
+            debug_tab_button.classList.toggle("current-tab");
+            // step_button.classList.toggle("hide");
+            // rud_button.classList.toggle("hide");
+            for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
             debug_textarea.style.display = 'block';
             c_textarea.style.display = 'none';
             output_textarea.style.display = 'none';

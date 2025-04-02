@@ -46,8 +46,11 @@
 			<tr>
 				<td colspan="4" id="display">
 					<div id="filler-div"></div>
-					<button onclick="one_step_clicked()" id="step-button" class="debug-button styled-button hide">&#X23F5;&#xfe0e;</button>
-					<button onclick="one_run_clicked()" id="rud-button" class="debug-button styled-button hide">&#X23E9;&#xfe0e;</button>
+					<button onclick="step_back_clicked()" title="One step back" id="back-button" class="debug-button styled-button hide">&#X23F4;&#xfe0e;</button>
+					<button onclick="step_forward_clicked()" title="One step forward" id="step-button" class="debug-button styled-button hide">&#X23F5;&#xfe0e;</button>
+					<button onclick="run_mem_clicked()" title="Run until next memory modification" id="run-mem-button" class="debug-button styled-button hide">&#X23E9;&#xfe0e;</button>
+					<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide">&#X23ED;&#xfe0e;</button>
+					<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide">&#X23FA;&#xfe0e;</button>
 					<div id="runtime">
 						Runtime: N/A
 					</div>

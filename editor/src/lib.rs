@@ -19,13 +19,35 @@ pub fn start_interpreter(arg: &str) {
 
 #[wasm_bindgen]
 pub fn get_one_step() -> String {
+    language::store_interpreter();
     language::step_interpreter();
     language::get_interpreter_state()
 }
 
 #[wasm_bindgen]
 pub fn get_run() -> String {
+    language::store_interpreter();
     language::run_interpreter();
+    language::get_interpreter_state()
+}
+
+#[wasm_bindgen]
+pub fn get_back_step() -> String {
+    language::restore_interpreter();
+    language::get_interpreter_state()
+}
+
+#[wasm_bindgen]
+pub fn get_until_mem() -> String {
+    language::store_interpreter();
+    language::run_until_next_mem();
+    language::get_interpreter_state()
+}
+
+#[wasm_bindgen]
+pub fn get_until_return() -> String {
+    language::store_interpreter();
+    language::run_until_return();
     language::get_interpreter_state()
 }
 
