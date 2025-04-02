@@ -48,6 +48,18 @@ pub fn step_interpreter() {
     });
 }
 
+pub fn run_until_next_mem() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.run_until_next_mem();
+    });
+}
+
+pub fn run_until_return() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.run_until_return();
+    });
+}
+
 pub fn run_interpreter() {
     INTERPRETER.with_borrow_mut(|interpreter| {
         interpreter.run_until_done();
