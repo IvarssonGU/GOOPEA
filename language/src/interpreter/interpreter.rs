@@ -308,12 +308,13 @@ impl Interpreter {
 // running until
 impl Interpreter {
     pub fn run_until_next_mem(&mut self) {
+        self.step();
         while let Some(s) = self.statements.get(0) {
             match s {
-                IStatement::InitConstructor(_, _)
+                IStatement::InitConstructor(..)
                 | IStatement::Inc(_)
                 | IStatement::Dec(_)
-                | IStatement::AssignToField(_, _, _) => {
+                | IStatement::AssignToField(..) => {
                     break;
                 }
                 _ => {
@@ -330,14 +331,10 @@ impl Interpreter {
     pub fn run_until_return(&mut self) {
         let s = self.function_names_stack.len();
 
-        while self.function_names_stack.len() >= s {
+        while self.function_names_stack.len() >= s && !self.statements.is_empty() {
             self.step();
         }
     }
-}
-// website interactions
-impl Interpreter {
-
 }
 
 fn concat_columns(left: &Vec<String>, right: &Vec<String>, sep: &str) -> Vec<String> {
