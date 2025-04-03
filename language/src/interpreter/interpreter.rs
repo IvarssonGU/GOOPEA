@@ -1,4 +1,5 @@
 use super::iast::*;
+use super::mempeek::MemObj;
 use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
@@ -18,7 +19,7 @@ use std::{fmt, vec};
 use std::fs;
 
 #[derive(Clone, Copy)]
-enum Data {
+pub enum Data {
     Value(i64),
     Pointer(usize),
 }
@@ -336,6 +337,25 @@ impl Interpreter {
         }
     }
 }
+// website interaction
+impl Interpreter {
+    pub fn get_memory_raw(&self) -> Vec<Vec<Data>> {
+        self.heap.clone()
+    }
+
+    pub fn get_variables_raw(&self) -> Vec<(String, Data)> {
+        let mut list = self.local_variables.clone().into_iter().collect_vec();
+        list.sort_by(|(a, _), (b, _)| a.cmp(b));
+        list
+    }
+
+    pub fn get_variable_json(&self, id: &str) -> String {
+        if !self.local_variables.contains_key(id) {
+            return "{}".to_string();
+        }
+        MemObj::from_data(&self.get_local_var(id), &self.heap).as_json()
+    }
+}
 
 fn concat_columns(left: &Vec<String>, right: &Vec<String>, sep: &str) -> Vec<String> {
     let wleft = left.iter().map(|s| s.len()).max().unwrap_or(0);
@@ -376,7 +396,7 @@ impl Debug for Interpreter {
         let mut vars_lines = vec!["Local variables:".to_string()]
             .into_iter()
             .chain(
-                self.local_variables
+                self.get_variables_raw()
                     .iter()
                     .map(|(k, v)| format!("{} = {:?}", k, v)),
             )
@@ -450,6 +470,8 @@ pub fn interpreter_test_time(src: &str) {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test(src: &str) {
+    use crate::interpreter::mempeek::{MemObj, MemPeek};
+
     let code = fs::read_to_string(Path::new(src)).unwrap();
     let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
@@ -495,12 +517,24 @@ pub fn interpreter_test(src: &str) {
             println!("{:?}", interpreter);
             println!("m, r, enter");
             let input: String = input("");
+
             match input.as_str() {
                 "m" => {
                     interpreter.run_until_next_mem();
                 }
                 "r" => {
                     interpreter.run_until_return();
+                }
+                x if x.parse::<usize>().is_ok() => {
+                    let shit = MemObj::from_data(
+                        &Data::Pointer(x.parse::<usize>().unwrap()),
+                        &interpreter.heap,
+                    );
+                    println!("{}", shit.as_json());
+                }
+                x if interpreter.local_variables.contains_key(x) => {
+                    let json = interpreter.get_variable_json(x);
+                    println!("{}", json);
                 }
                 _ => {
                     interpreter.step();
