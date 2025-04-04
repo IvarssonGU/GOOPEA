@@ -10,7 +10,7 @@ var code_field = CodeMirror.fromTextArea(document.getElementById("code-field"), 
 });
 
 //change codemirror editor to fit code heightwise
-// code_field.setSize("100%", "100%");
+code_field.setSize("100%", "100%");
 
 // window.onload = function () {
 document.addEventListener("DOMContentLoaded", () => {
@@ -127,7 +127,7 @@ combine (a, b) = match a {
 
 (): Int
 main = sum(combine(build(), flip(build())));`);
-            output_field.value = "174";
+            output_field.value = "570";
             break;
         case "arithmetic":
             code_field.setValue( 

@@ -103,9 +103,9 @@ async function run_button_clicked() {
     const c_code = wasm_bindgen.get_c_code(code);
     c_textarea.value = c_code;
 
-    // wasm_bindgen.start_interpreter(code);
-
-    // debug_textarea.value = wasm_bindgen.get_state();
+    //show only the final debug print
+    wasm_bindgen.start_interpreter(code);
+    debug_textarea.value = wasm_bindgen.get_run();
 
 	const endTime = performance.now();
 
@@ -243,7 +243,7 @@ install if necessary:
     cargo install wasm-pack
     cargo install basic-http-server
 commands to run first time or when changing rust code:
-    cargo clean
+    cargo clean (optional)
     cargo build
     wasm-pack build --target no-modules
     basic-http-server

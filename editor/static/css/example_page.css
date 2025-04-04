@@ -35,6 +35,7 @@ table {
 #example-diagrams-cell {
     border: 1px solid gray;
     border-radius: 2px;
+    height: 80vh;
 }
 
 /* table, th, td {
@@ -45,13 +46,19 @@ table {
     border: 1px solid gray;
     border-radius: 2px;
     vertical-align: top;
-    height: 100%;
+    /* height: 100%; */
+    height: 70vh;
 }
 .example-output-cell {
     border: 1px solid gray;
     border-radius: 2px;
     vertical-align: top;
+    height: 5vh
 }
+
+/* #code-field {
+    height: 100%;
+} */
 
 #output-title-cell {
     height: min-content;

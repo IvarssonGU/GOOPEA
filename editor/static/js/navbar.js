@@ -67,8 +67,9 @@ function change_theme(opt) {
         // dark_theme = false;
         document.documentElement.setAttribute("theme", "default");
 
-        theme_button.innerHTML = '<p>&#X263E;</p>' //moon
-
+        // theme_button.innerHTML = '<p>&#X263E;</p>' //moon
+        theme_button.innerHTML = '<p>🌙&#Xfe0e;</p>' //moon
+        
         //editors
         if (opt === 0) change_editor_theme(1);
         if (opt === 1) change_example_editor_theme(1);
