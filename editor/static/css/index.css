@@ -64,8 +64,11 @@ textarea {
     border: none;
 }
 
-#code-cell, #output, #debug, #c-code {
+#code-cell, #output, #c-code {
     height:70vh;
+}
+#debug {
+    height:64.4vh;
 }
 
 #display {
@@ -109,14 +112,14 @@ textarea {
     border-top: none;
 }
 
-#output-button {
+#output-tab-button {
     border-top-right-radius: 0px;
 }
 /* #debug-button {
     border-top-left-radius: 0px;
     margin-left: -10px;
 } */
-#c-button, #debug-button {
+#c-tab-button, #debug-tab-button {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
     margin-left: -10px;
@@ -136,6 +139,15 @@ textarea {
     padding-top: -2px;
     margin-left: -4px;
 }
+
+#debug-buttons {
+    /* text-align: right; */
+    margin-left: 4.5px;
+}
+#debug-buttons p{
+    margin-top: -1px;
+}
+
 /* #step-button {
     font-family: "Lucida Sans Unicode", "Arial Unicode MS";
     background-color: var(--small-color);

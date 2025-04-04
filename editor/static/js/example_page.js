@@ -22,7 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if ("theme" in localStorage) {
         if (localStorage.getItem("theme") === "dark") {
-            // change_theme(0);
             document.documentElement.setAttribute("theme", "dark");
             change_theme(1);
         } else {
@@ -294,13 +293,13 @@ function change_example_editor_theme(opt) {
     }
 }
 
-async function copy_code() {
-    // if (copied_ack.classList.contains("appearing")) copied_ack.classList.toggle("appearing");
-    
+async function export_code() {    
     copied_ack.classList.toggle("appearing");
-    // console.log("dfs");
-    navigator.clipboard.writeText(code_field.getValue());
-    // copied_ack.classList.toggle("appearing");
+    // navigator.clipboard.writeText(code_field.getValue());
+    // localStorage.setItem("example_export", code_field.getValue());
+    // localStorage.setItem("new_example_code", true);
+    localStorage.setItem("code", code_field.getValue());
+    setTimeout(function() {copied_ack.classList.toggle("appearing");}, 1000); //untoggles after 1s
 }
 
 function save_example(opt) {

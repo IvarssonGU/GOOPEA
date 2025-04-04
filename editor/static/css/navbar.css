@@ -72,6 +72,7 @@
     width: 25px;
     text-align: center;
     vertical-align: middle;
+    /* font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; */
 }
 #theme-button p{
     margin-top: -3px;
@@ -126,5 +127,6 @@ body:not(.show) {
 }
 
 .hide {
-    visibility: hidden;
+    /* visibility: hidden; */
+    display: none;
 }

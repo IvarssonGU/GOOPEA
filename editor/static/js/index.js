@@ -2,9 +2,9 @@ let output_textarea = document.getElementById("output");
 let debug_textarea = document.getElementById("debug");
 let c_textarea = document.getElementById("c-code");
 
-let output_button = document.getElementById("output-button");
-let c_code_button = document.getElementById("c-button");
-let debug_tab_button = document.getElementById("debug-button");
+let output_button = document.getElementById("output-tab-button");
+let c_code_button = document.getElementById("c-tab-button");
+let debug_tab_button = document.getElementById("debug-tab-button");
 
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     lineNumbers: true,
@@ -34,9 +34,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     debug_textarea.value = "";
 
-    if ("code" in localStorage) {
-        editor.setValue(localStorage.getItem("code"));
-    }
+    // if ("new_example_code" in localStorage) {
+    //     if (localStorage.getItem("new_example_code") === "true") {
+
+    //         editor.setValue(localStorage.getItem("example_export"));
+    //         localStorage.setItem("new_example_code", false);
+    //     }
+    //     else if ("code" in localStorage) {
+    //         editor.setValue(localStorage.getItem("code"));
+    //     }
+    // } else {
+        if ("code" in localStorage) {
+            editor.setValue(localStorage.getItem("code"));
+        }
+    // }
+
+
     if ("theme" in localStorage) {
         if (localStorage.getItem("theme") === "dark") {
             // change_theme(0);
@@ -90,9 +103,9 @@ async function run_button_clicked() {
     const c_code = wasm_bindgen.get_c_code(code);
     c_textarea.value = c_code;
 
-    wasm_bindgen.start_interpreter(code);
+    // wasm_bindgen.start_interpreter(code);
 
-    debug_textarea.value = wasm_bindgen.get_state();
+    // debug_textarea.value = wasm_bindgen.get_state();
 
 	const endTime = performance.now();
 
@@ -110,6 +123,17 @@ function clear_button_clicked() {
     output_textarea.value = "";
     c_textarea.value = "";
     debug_textarea.value = "";
+}
+
+async function debug_button_clicked() {
+    await wasm_bindgen('./pkg/editor_bg.wasm');
+
+    let code = editor.getValue();
+    localStorage.setItem("code", code);
+
+    wasm_bindgen.start_interpreter(code);
+
+    debug_textarea.value = wasm_bindgen.get_state();
 }
 
 function step_back_clicked() {

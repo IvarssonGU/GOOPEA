@@ -74,12 +74,16 @@ select.dark {
     width:max-content;
     opacity: 0;
     cursor: default;
+    height: min-content;
     /* hover:none; */
     /* border: 2px solid black; */
 }
+#copied-ack:hover {
+    background-color: var(--small-color);
+}
 .appearing {
     opacity: 1;
-    animation: temp-appear 1.5s linear;
+    animation: temp-appear 1s linear;
 }
 @keyframes temp-appear {
     0%, 100% { opacity: 0 }
