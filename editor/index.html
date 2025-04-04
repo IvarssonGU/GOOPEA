@@ -29,27 +29,21 @@
 					<button onclick="run_button_clicked()" id="run-button" class="styled-button">Run</button>
 				</th>
 				<td colspan="2" rowspan="2" id="output-cell">
+					<!-- tab buttons -->
 					<button onclick="switch_tab(0)" class="tab-button styled-button current-tab" id="output-tab-button">Output</button>
 					<button onclick="switch_tab(1)" class="tab-button styled-button" id="c-tab-button">C-code</button>
-					<button onclick="switch_tab(2)" class="tab-button styled-button" id="debug-tab-button">Debug</button>
-					<!-- <div id="debug-buttons"> -->
-						<button onclick="step_back_clicked()" title="One step back" id="back-button" class="debug-button styled-button hide"><p>&#X23F4;&#xfe0e;</p></button>
-						<button onclick="step_forward_clicked()" title="One step forward" id="step-button" class="debug-button styled-button hide"><p>&#X23F5;&#xfe0e;</p></button>
-						<button onclick="run_mem_clicked()" title="Run until next memory modification" id="run-mem-button" class="debug-button styled-button hide"><p>&#X23E9;&#xfe0e;</p></button>
-						<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide"><p>&#X23ED;&#xfe0e;</p></button>
-						<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide"><p>&#X23FA;&#xfe0e;</p></button>
-					<!-- </div> -->
+					<button onclick="switch_tab(2)" class="tab-button styled-button" id="debug-tab-button">Debugging</button>
+					<!-- debug buttons -->
+					<button onclick="step_back_clicked()" title="One step back" id="back-button" class="debug-button styled-button hide"><p>&#X23F4;&#xfe0e;</p></button>
+					<button onclick="step_forward_clicked()" title="One step forward" id="step-button" class="debug-button styled-button hide"><p>&#X23F5;&#xfe0e;</p></button>
+					<button onclick="run_mem_clicked()" title="Run until next memory modification" id="run-mem-button" class="debug-button styled-button hide"><p>&#X23E9;&#xfe0e;</p></button>
+					<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide"><p>&#X23ED;&#xfe0e;</p></button>
+					<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide"><p>&#X23FA;&#xfe0e;</p></button>
+					<!-- textfields -->
 					<div class="output-container">
 						<textarea id="output" readonly="true" placeholder="not implemented yet" height="100%"></textarea>
 						<textarea id="c-code" readonly="true" placeholder="click Run to view C-code here" height="100%"></textarea>
 						<textarea id="debug" readonly="true" placeholder="click Debug to start debug view, then use the buttons above" height="100%"></textarea>
-						<!-- <div id="debug-buttons">
-							<button onclick="step_back_clicked()" title="One step back" id="back-button" class="debug-button styled-button hide"><p>&#X23F4;&#xfe0e;</p></button>
-							<button onclick="step_forward_clicked()" title="One step forward" id="step-button" class="debug-button styled-button hide"><p>&#X23F5;&#xfe0e;</p></button>
-							<button onclick="run_mem_clicked()" title="Run until next memory modification" id="run-mem-button" class="debug-button styled-button hide"><p>&#X23E9;&#xfe0e;</p></button>
-							<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide"><p>&#X23ED;&#xfe0e;</p></button>
-							<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide">&#X23FA;&#xfe0e;</button>
-						</div> -->
 					</div>
 				</td>
 			</tr>
@@ -61,11 +55,6 @@
 			<tr>
 				<td colspan="4" id="display">
 					<div id="filler-div"></div>
-					<!-- <button onclick="step_back_clicked()" title="One step back" id="back-button" class="debug-button styled-button hide">&#X23F4;&#xfe0e;</button>
-					<button onclick="step_forward_clicked()" title="One step forward" id="step-button" class="debug-button styled-button hide">&#X23F5;&#xfe0e;</button>
-					<button onclick="run_mem_clicked()" title="Run until next memory modification" id="run-mem-button" class="debug-button styled-button hide">&#X23E9;&#xfe0e;</button>
-					<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide">&#X23ED;&#xfe0e;</button>
-					<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide">&#X23FA;&#xfe0e;</button> -->
 					<div id="runtime">
 						Runtime: N/A
 					</div>

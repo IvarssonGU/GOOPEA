@@ -3,9 +3,6 @@ body {
     background-color: var(--background);
     color: var(--text-color);
 }
-/* #documentation-body {
-    background-color: var(--background);
-} */
 
 p.multiline {
     line-height: 1.5;
@@ -18,13 +15,8 @@ p.multiline {
     padding-bottom: 3%;
 }
 
-/* table, th, td {
-    border:2px solid black;
-} */
-
 .toggle-content {
     padding-left: 5%;
-    /* padding-bottom: 15px; */
 }
 .tabbed {
     padding-left: 2%;
@@ -41,7 +33,6 @@ p.multiline {
     font-weight: bold;
     margin-top: 15px;
     color: var(--text-color);
-    /* margin-top: 5px; */
 }
 
 .toggle-header::before{
@@ -52,29 +43,15 @@ p.multiline {
     margin-top: -3px;
 }
 
-/* .toggle-header.dark {
-    background-color: #090300;
-    color: #d6d6d6;
-} */
-/* .toggle-header.dark::before {
-    color: #d6d6d6;
-} */
-
 .open::before{
     color: var(--text-color);
     content: '\2796\fe0e'; /*minus*/
-    /* float:left; */
 }
 
 .subsection {
     font-size: 18px;
     margin-top: 15px;
 }
-
-/* #button-row {
-    border: 2px solid black;
-    margin-left: 5%;
-} */
 
 .control-button {
     margin-left: 5px;
@@ -95,12 +72,11 @@ p {
 #keywords-header {
     color: var(--keywords);
 }
-/* #keywords-header.dark {
-    color: #db2d20;
-} */
 #constructors-header {
     color: var(--constructors);
 }
-/* #constructors-header.dark {
-    color: #e8bbd0;
+
+/* debugging purposes */
+/* table, th, td {
+    border:2px solid black;
 } */

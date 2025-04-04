@@ -2,6 +2,7 @@ let example_select = document.getElementById("examples");
 let output_field = document.getElementById("output-field");
 let copied_ack = document.getElementById("copied-ack");
 
+// establish codemirror editor
 var code_field = CodeMirror.fromTextArea(document.getElementById("code-field"), {
     lineNumbers: true,
     styleActiveLine: true,
@@ -9,10 +10,9 @@ var code_field = CodeMirror.fromTextArea(document.getElementById("code-field"), 
     mode: "GOOPEA",
 });
 
-//change codemirror editor to fit code heightwise
 code_field.setSize("100%", "100%");
 
-// window.onload = function () {
+//loading and unloading
 document.addEventListener("DOMContentLoaded", () => {
 
     if ("example" in localStorage) {
@@ -38,8 +38,7 @@ window.onbeforeunload = function() {
     }
 };
 
-//change example showed from dropdown
-// example_select.addEventListener(onChange, (event) => {
+//change example showed from dropdown selection
 function example_dropdown_changed() {
     switch(example_select.value) {
         case "reverse":
@@ -293,13 +292,9 @@ function change_example_editor_theme(opt) {
     }
 }
 
-async function export_code() {    
-    copied_ack.classList.toggle("appearing");
-    // navigator.clipboard.writeText(code_field.getValue());
-    // localStorage.setItem("example_export", code_field.getValue());
-    // localStorage.setItem("new_example_code", true);
+async function export_code() {
     localStorage.setItem("code", code_field.getValue());
-    setTimeout(function() {copied_ack.classList.toggle("appearing");}, 1000); //untoggles after 1s
+    save_example(0); //switches to editor page immediately
 }
 
 function save_example(opt) {
@@ -309,34 +304,34 @@ function save_example(opt) {
 }
 
 
-//slideshow
-let slide_index = 0;
-show_slide(slide_index);
+//slideshow -------------unused for now, leaving jic
+// let slide_index = 0;
+// show_slide(slide_index);
 
-function change_slide(n) {
-    show_slide(slide_index += n);
-}
+// function change_slide(n) {
+//     show_slide(slide_index += n);
+// }
 
-function show_slide(i) {
-    let slides = document.getElementsByClassName("slide");
+// function show_slide(i) {
+//     let slides = document.getElementsByClassName("slide");
 
-    //make it circular
-    if (i >= slides.length) {
-        slide_index = 0;
-    }
-    if (i < 0) {
-        slide_index = slides.length - 1;
-    }
+//     //make it circular
+//     if (i >= slides.length) {
+//         slide_index = 0;
+//     }
+//     if (i < 0) {
+//         slide_index = slides.length - 1;
+//     }
 
-    for (x = 0; x < slides.length; x++) {
-        slides[x].style.display = 'none';
-    }
+//     for (x = 0; x < slides.length; x++) {
+//         slides[x].style.display = 'none';
+//     }
 
-    slides[slide_index].style.display = "block";
-}
+//     slides[slide_index].style.display = "block";
+// }
 
-document.addEventListener("keydown", (event) => {
-    if (event.ctrlKey && event.key === 's') {
-        event.preventDefault();
-    }
-});
+// document.addEventListener("keydown", (event) => {
+//     if (event.ctrlKey && event.key === 's') {
+//         event.preventDefault();
+//     }
+// });

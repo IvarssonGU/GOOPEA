@@ -1,12 +1,13 @@
 let toggle_headers = document.getElementsByClassName("toggle-header");
 let toggle_contents = document.getElementsByClassName("toggle-content");
 
+//loading and unloading
 document.addEventListener("DOMContentLoaded", () => {
-// window.onload = function() {
     for (var i = 0; i < toggle_headers.length; i++) {
         toggle_contents[i].style.display = 'block'; //change back to none for starting collapsed p1
         toggle_headers[i].classList.toggle("open"); //remove for starting collapsed p2
 
+        //add on-click function to toggle contents
         toggle_headers[i].addEventListener("click", function() {
             this.classList.toggle("open");
 
@@ -18,7 +19,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if ("theme" in localStorage) {
         if (localStorage.getItem("theme") === "dark") {
-            // change_theme(0);
             document.documentElement.setAttribute("theme", "dark");
             change_theme(-1);
         } else {
@@ -35,12 +35,7 @@ window.onbeforeunload = function() {
     }
 };
 
-document.addEventListener("keydown", (event) => {
-    if (event.ctrlKey && event.key === 's') {
-        event.preventDefault();
-    }
-});
-
+//expand/collapse all headers/content
 function expand_all() {
     for (var i = 0; i < toggle_headers.length; i++) {
         if (!toggle_headers[i].classList.contains("open")) {
@@ -57,3 +52,10 @@ function collapse_all() {
         }
     }
 }
+
+//changes ctrl-s default action
+document.addEventListener("keydown", (event) => {
+    if (event.ctrlKey && event.key === 's') {
+        event.preventDefault();
+    }
+});

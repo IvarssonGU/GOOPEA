@@ -1,3 +1,4 @@
+/* default theme colors */
 :root {
     --background: white;
     --main-color: lightblue;
@@ -7,6 +8,7 @@
     --keywords: #708;
     --constructors: royalblue;
 }
+/* dark theme colors */
 [theme="dark"] {
     --background: #090300;
     --main-color: #006f93;
@@ -39,20 +41,10 @@
     color: var(--text-color);
     cursor: pointer;
 }
-/* .nav.dark a:not(a.logo):hover {
-    background-color: #003f54;
-    color: #d6d6d6;
-    cursor: pointer;
-} */
 .nav a.current-page {
     background-color: var(--main-color);
     color: black;
 }
-/* .nav.dark a.current-page {
-    background-color: #006f93;
-    color: black;
-} */
-
 .nav a.logo {
     vertical-align: middle;
     font-size: 28px;
@@ -63,16 +55,12 @@
     color: var(--text-color);
     margin-top: -3px;
 }
-/* .nav.dark a, .nav.dark a.logo {
-    color: #d6d6d6;
-} */
 
 #theme-button {
     height: 25px;
     width: 25px;
     text-align: center;
     vertical-align: middle;
-    /* font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; */
 }
 #theme-button p{
     margin-top: -3px;
@@ -84,6 +72,7 @@
 
 
 /* other shared styles */
+
 button {
     cursor: pointer;
 }
@@ -103,15 +92,6 @@ button {
     color: var(--text-color);
 }
 
-/* .styled-button.dark {
-    background-color: #003f54;
-    color:#d6d6d6;
-}
-.styled-button.dark:hover {
-    background-color: #006f93;
-    color:#d6d6d6;
-} */
-
 mark {
     background-color: var(--small-color);
     color: var(--text-color);
@@ -120,16 +100,11 @@ mark {
 mark b {
     padding: 0 3px 0 3px;
 }
-/* mark.dark {
-    background-color: #003142;
-    color:#d6d6d6;
-} */
 
 body:not(.show) {
     display: none;
 }
 
 .hide {
-    /* visibility: hidden; */
     display: none;
 }

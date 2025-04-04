@@ -1,14 +1,13 @@
 body {
     font-family: 'Courier New', Courier, monospace;
-}
-#examples-body, #output-field {
     background-color: var(--background);
     color: var(--text-color);
 }
-/* #output-field.dark {
-    background-color: ;
-    color: #d6d6d6;
-} */
+
+#output-field {
+    background-color: var(--background);
+    color: var(--text-color);
+}
 
 .container {
     text-align: left;
@@ -24,8 +23,6 @@ textarea {
     outline: none;
     border: none;
     width: 99%;
-    /* vertical-align: top; */
-    /* font-size: 13px; */
 }
 
 table {
@@ -37,10 +34,6 @@ table {
     border-radius: 2px;
     height: 80vh;
 }
-
-/* table, th, td {
-    border:2px solid black;
-} */
 
 .example-code-cell {
     border: 1px solid gray;
@@ -55,10 +48,6 @@ table {
     vertical-align: top;
     height: 5vh
 }
-
-/* #code-field {
-    height: 100%;
-} */
 
 #output-title-cell {
     height: min-content;
@@ -76,23 +65,7 @@ select.dark {
     color:#d6d6d6;
 }
 
-#copied-ack {
-    transition: opacity 1s;
-    width:max-content;
-    opacity: 0;
-    cursor: default;
-    height: min-content;
-    /* hover:none; */
-    /* border: 2px solid black; */
-}
-#copied-ack:hover {
-    background-color: var(--small-color);
-}
-.appearing {
-    opacity: 1;
-    animation: temp-appear 1s linear;
-}
-@keyframes temp-appear {
-    0%, 100% { opacity: 0 }
-    20%, 80% { opacity: 1 }
-}
+/* debugging purposes */
+/* table, th, td {
+    border:2px solid black;
+} */

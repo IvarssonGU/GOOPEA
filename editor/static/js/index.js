@@ -6,6 +6,8 @@ let output_button = document.getElementById("output-tab-button");
 let c_code_button = document.getElementById("c-tab-button");
 let debug_tab_button = document.getElementById("debug-tab-button");
 
+
+//establish codemirror editor
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     lineNumbers: true,
 	autofocus: true,
@@ -18,8 +20,11 @@ var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
 
 editor.setSize("100%", "100%");
 
-// window.onload = function() {
+
+//loading and unloading
 document.addEventListener("DOMContentLoaded", () => {
+    output_textarea.value = "";
+    c_textarea.value = "";
     debug_textarea.style.display = 'none';
     c_textarea.style.display = 'none';
     if ("tab" in localStorage) {
@@ -34,21 +39,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     debug_textarea.value = "";
 
-    // if ("new_example_code" in localStorage) {
-    //     if (localStorage.getItem("new_example_code") === "true") {
-
-    //         editor.setValue(localStorage.getItem("example_export"));
-    //         localStorage.setItem("new_example_code", false);
-    //     }
-    //     else if ("code" in localStorage) {
-    //         editor.setValue(localStorage.getItem("code"));
-    //     }
-    // } else {
-        if ("code" in localStorage) {
-            editor.setValue(localStorage.getItem("code"));
-        }
-    // }
-
+    if ("code" in localStorage) {
+        editor.setValue(localStorage.getItem("code"));
+    }
 
     if ("theme" in localStorage) {
         if (localStorage.getItem("theme") === "dark") {
@@ -59,24 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.documentElement.setAttribute("theme", "default");
         }
     }
-
 });
-// window.onload = function() {
-//     document.getElementById("editor-body").classList.toggle("hidden");
-//     // output_textarea.classList.toggle("hidden");
-//     // c_textarea.classList.toggle("hidden");
-//     // debug_textarea.classList.toggle("hidden");
-    
-// }
-// document.addEventListener("DOMContentLoaded", function() {
-// document.onreadystatechange = function() {
-//     if ("theme" in localStorage) {
-//         let theme = localStorage.getItem("theme");
-//         if (theme === "dark") {
-//             change_theme(0);
-//         }
-//     }
-// }
 
 window.onbeforeunload = function() {
     localStorage.setItem("code", editor.getValue());
@@ -92,7 +68,11 @@ window.onbeforeunload = function() {
     }
 };
 
+
+//clear-debug-run button functions
 async function run_button_clicked() {
+    output_textarea.value = "";
+
 	const startTime = performance.now();
 
 	await wasm_bindgen('./pkg/editor_bg.wasm');
@@ -100,12 +80,21 @@ async function run_button_clicked() {
     let code = editor.getValue();
     localStorage.setItem("code", code);
 
-    const c_code = wasm_bindgen.get_c_code(code);
-    c_textarea.value = c_code;
+    try {
+        const c_code = wasm_bindgen.get_c_code(code);
+        c_textarea.value = c_code;
 
-    //show only the final debug print
-    wasm_bindgen.start_interpreter(code);
-    debug_textarea.value = wasm_bindgen.get_run();
+        //show only the final debug print
+        wasm_bindgen.start_interpreter(code);
+        debug_textarea.value = wasm_bindgen.get_run();
+
+        switch_tab(0);
+    } catch(error) {
+        output_textarea.value = "doesn't compile"
+        debug_textarea.value = "doesn't compile";
+        c_textarea.value = "error message?";
+        switch_tab(1);
+    }
 
 	const endTime = performance.now();
 
@@ -131,11 +120,24 @@ async function debug_button_clicked() {
     let code = editor.getValue();
     localStorage.setItem("code", code);
 
-    wasm_bindgen.start_interpreter(code);
+    try {
+        c_textarea.value = wasm_bindgen.get_c_code(code);
 
-    debug_textarea.value = wasm_bindgen.get_state();
+        //display starting state
+        wasm_bindgen.start_interpreter(code);
+        debug_textarea.value = wasm_bindgen.get_state();
+
+        switch_tab(2);
+    } catch(error) {
+        output_textarea.value = "doesn't compile"
+        debug_textarea.value = "doesn't compile";
+        c_textarea.value = "error message?";
+        switch_tab(1);
+    }
 }
 
+
+//interpreter functions
 function step_back_clicked() {
     debug_textarea.value = wasm_bindgen.get_back_step();
 }
@@ -152,6 +154,7 @@ function run_done_clicked() {
     debug_textarea.value = wasm_bindgen.get_run();
 }
 
+//saves which tab is active
 function save_state(opt) {
     localStorage.setItem("code", editor.getValue());
 
@@ -159,22 +162,17 @@ function save_state(opt) {
     if (c_code_button.classList.contains("current-tab")) localStorage.setItem("tab", "c_code");
     if (debug_tab_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
 
-    // console.log("ihweorfu");
     change_page(opt);
 }
 
+//switch between the tabs on the right half of page
 function switch_tab(opt) {    
-    
-    // let step_button = document.getElementById("step-button")
-    // let rud_button = document.getElementById("rud-button")
     let debug_buttons = document.getElementsByClassName("debug-button");
 
     if (output_button.classList.contains("current-tab")) output_button.classList.toggle("current-tab");
     if (c_code_button.classList.contains("current-tab")) c_code_button.classList.toggle("current-tab");
     if (debug_tab_button.classList.contains("current-tab")) {
         debug_tab_button.classList.toggle("current-tab");
-        // step_button.classList.toggle("hide");
-        // rud_button.classList.toggle("hide");
         for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
     }
 
@@ -193,8 +191,6 @@ function switch_tab(opt) {
             break;
         case 2: //switch to debug
             debug_tab_button.classList.toggle("current-tab");
-            // step_button.classList.toggle("hide");
-            // rud_button.classList.toggle("hide");
             for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
             debug_textarea.style.display = 'block';
             c_textarea.style.display = 'none';
@@ -208,12 +204,8 @@ function switch_tab(opt) {
 
     }
 }
-// function switch_to_debug() {
-//     document.getElementById("output-button").classList.toggle("current-tab");
-//     document.getElementById("debug-button").classList.toggle("current-tab");
 
-// }
-
+//changes theme of codemirror editor
 function change_editor_theme(opt) {
     switch (opt) {
         case 0: //dark theme
@@ -227,6 +219,7 @@ function change_editor_theme(opt) {
     }
 }
 
+//changes default ctrl-s action
 document.addEventListener("keydown", (event) => {
     if (event.ctrlKey && event.key === 's') {
         event.preventDefault();
