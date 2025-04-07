@@ -3,9 +3,9 @@ let debug_textarea = document.getElementById("debug");
 let c_textarea = document.getElementById("c-code");
 let diff1_textarea = document.getElementById("diff1");
 let diff2_textarea = document.getElementById("diff2");
-let step1_textarea = document.getElementById("step1")
-let step2_textarea = document.getElementById("step2")
-let step3_textarea = document.getElementById("step3")
+let step1_textarea = document.getElementById("step1");
+let step2_textarea = document.getElementById("step2");
+let step3_textarea = document.getElementById("step3");
 
 let output_button = document.getElementById("output-tab-button");
 let code_button = document.getElementById("compiler-tab-button");
@@ -20,9 +20,10 @@ let step3_button = document.getElementById("step3-tab");
 let diff1_select = document.getElementById("diff1-select");
 let diff2_select = document.getElementById("diff2-select");
 
-let step1_value = "Click Run or Debug to view step1";
-let step2_value = "Click Run or Debug to view step2";
-let step3_value = "Click Run or Debug to view step3";
+let ccode_value = "Click Compile, Run, or Debug to view C code";
+let step1_value = "Click Compile, Run, or Debug to view step1";
+let step2_value = "Click Compile, Run, or Debug to view step2";
+let step3_value = "Click Compile, Run, or Debug to view step3";
 
 //establish codemirror editor
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
@@ -49,6 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
     step1_textarea.style.display = 'none';
     step2_textarea.style.display = 'none';
     step3_textarea.style.display = 'none';
+    diff1_selected();
+    diff2_selected();
 
     if ("tab" in localStorage) {
         let current_tab = localStorage.getItem("tab");
@@ -91,6 +94,37 @@ window.onbeforeunload = function() {
     }
 };
 
+async function compile_and_populate() {
+    await wasm_bindgen('./pkg/editor_bg.wasm');
+
+    let code = editor.getValue();
+
+    try {
+        //compilation (get all the steps and assign them to their vars here)
+        ccode_value = wasm_bindgen.get_c_code(code);
+        step1_value = "compiled step1 (not implemented yet)";
+        step2_value = "compiled step2 (not implemented yet)";
+        step3_value = "compiled step3 (not implemented yet)";
+    } catch(error) {
+        //populate error messages
+        ccode_value = "error message?";
+        step1_value = "error step1 (not implemented yet)";
+        step2_value = "error step2 (not implemented yet)";
+        step3_value = "error step3 (not implemented yet)";
+        output_textarea.value = "doesn't compile"
+        debug_textarea.value = "doesn't compile";
+    }
+    
+    //assign to textareas
+    c_textarea.value = ccode_value;
+    step1_textarea.value = step1_value;
+    step2_textarea.value = step2_value;
+    step3_textarea.value = step3_value;
+
+    //populate the different compiler steps here
+    diff1_selected();
+    diff2_selected();
+}
 
 //clear-debug-run button functions
 async function run_button_clicked() {
@@ -103,13 +137,10 @@ async function run_button_clicked() {
     let code = editor.getValue();
     localStorage.setItem("code", code);
 
-    try {
-        const c_code = wasm_bindgen.get_c_code(code);
-        c_textarea.value = c_code;
+    compile_and_populate();
 
-        //populate the different compiler steps here
-        diff1_selected();
-        diff2_selected();
+    try {
+        //get output (not implemented)
 
         //show only the final debug print
         wasm_bindgen.start_interpreter(code);
@@ -138,6 +169,11 @@ function clear_button_clicked() {
     editor.setValue("");
     output_textarea.value = "";
     c_textarea.value = "";
+    diff1_textarea.value = "";
+    diff2_textarea.value = "";
+    step1_textarea.value = "";
+    step2_textarea.value = "";
+    step3_textarea.value = "";
     debug_textarea.value = "";
 }
 
@@ -147,9 +183,9 @@ async function debug_button_clicked() {
     let code = editor.getValue();
     localStorage.setItem("code", code);
 
-    try {
-        c_textarea.value = wasm_bindgen.get_c_code(code);
+    compile_and_populate();
 
+    try {
         //display starting state
         wasm_bindgen.start_interpreter(code);
         debug_textarea.value = wasm_bindgen.get_state();
@@ -161,6 +197,17 @@ async function debug_button_clicked() {
         c_textarea.value = "error message?";
         switch_tab(1);
     }
+}
+
+async function compile_button_clicked() {
+    let code = editor.getValue();
+    localStorage.setItem("code", code);
+
+    compile_and_populate();
+
+    debug_textarea.value = "";
+
+    switch_tab(1);
 }
 
 
@@ -412,18 +459,5 @@ EverythingThatStartsWithCapitalAndOnlyContainsLetters 	//"variable-2"
 the rest //"variable" (black)
 
 enum List = Nil, Cons(Int, List);
-
-fip (List, List): List
-ReverseHelper(list, acc) =
-        match list {
-            Nil: acc,
-            Cons(x, xs): ReverseHelper(xs, Cons(x, acc))
-        };
-
-fip List: List
-ReverseList list = ReverseHelper(list, Nil);
-
-fip (): ()
-Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil))))); 
 
 */
