@@ -31,7 +31,7 @@
 				<td colspan="2" rowspan="2" id="output-cell">
 					<!-- tab buttons -->
 					<button onclick="switch_tab(0)" class="tab-button styled-button current-tab" id="output-tab-button">Output</button>
-					<button onclick="switch_tab(1)" class="tab-button styled-button" id="c-tab-button">C-code</button>
+					<button onclick="switch_tab(1)" class="tab-button styled-button" id="compiler-tab-button">Compiler</button>
 					<button onclick="switch_tab(2)" class="tab-button styled-button" id="debug-tab-button">Debugging</button>
 					<!-- debug buttons -->
 					<button onclick="step_back_clicked()" title="One step back" id="back-button" class="debug-button styled-button hide"><p>&#X23F4;&#xfe0e;</p></button>
@@ -39,10 +39,49 @@
 					<button onclick="run_mem_clicked()" title="Run until next memory modification" id="run-mem-button" class="debug-button styled-button hide"><p>&#X23E9;&#xfe0e;</p></button>
 					<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide"><p>&#X23ED;&#xfe0e;</p></button>
 					<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide"><p>&#X23FA;&#xfe0e;</p></button>
+					<!-- code steps buttons -->
+					<button onclick="switch_code_step(0)" class="code-step-button styled-button hide current-tab" id="ccode-tab">C code</button>
+					<button onclick="switch_code_step(-1)" class="code-step-button styled-button hide" id="diff-tab">Diff view</button>
+					<button onclick="switch_code_step(1)" class="code-step-button styled-button hide" id="step1-tab">step1</button>
+					<button onclick="switch_code_step(2)" class="code-step-button styled-button hide" id="step2-tab">step2</button>
+					<button onclick="switch_code_step(3)" class="code-step-button styled-button hide" id="step3-tab">step3</button>
 					<!-- textfields -->
 					<div class="output-container">
 						<textarea id="output" readonly="true" placeholder="not implemented yet" height="100%"></textarea>
 						<textarea id="c-code" readonly="true" placeholder="click Run to view C-code here" height="100%"></textarea>
+						<div class="diff-container hide" id="diff-container">
+							<table width="100%">
+								<tr>
+									<td>
+										<label for="diff1-select">Select view 1:</label>
+										<select  onchange="diff1_selected()" name="diff1-select" id="diff1-select" class="styled-button" width="100%">
+											<option value="step1">Step1</option>
+											<option value="step2">Step2</option>
+											<option value="step3">Step3</option>
+										</select>
+									</td>
+									<td>
+										<label for="diff2-select">Select view 2:</label>
+										<select  onchange="diff2_selected()" name="diff2-select" id="diff2-select" class="styled-button">
+											<option value="step1">Step1</option>
+											<option value="step2">Step2</option>
+											<option value="step3">Step3</option>
+										</select>
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<textarea id="diff1" readonly="true" placeholder="choose a step from the dropdown to view here" height="100%"></textarea>
+									</td>
+									<td>
+										<textarea id="diff2" readonly="true" placeholder="choose a step from the dropdown to view here" height="100%"></textarea>
+									</td>
+								</tr>
+							</table>
+						</div>
+						<textarea id="step1" readonly="true" placeholder="click Run to view step1 here (not implemented)" height="100%"></textarea>
+						<textarea id="step2" readonly="true" placeholder="click Run to view step2 here (not implemented)" height="100%"></textarea>
+						<textarea id="step3" readonly="true" placeholder="click Run to view step3 here (not implemented)" height="100%"></textarea>
 						<textarea id="debug" readonly="true" placeholder="click Debug to start debug view, then use the buttons above" height="100%"></textarea>
 					</div>
 				</td>

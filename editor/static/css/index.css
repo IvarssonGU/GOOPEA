@@ -6,7 +6,7 @@ body {
 }
 
 /* TextFields */
-#output, #debug, #c-code {
+#output, #debug, #code {
     background-color: var(--background);
     color: var(--text-color);
 }
@@ -55,9 +55,11 @@ textarea {
     resize: none;
     width: 99%;
     border: none;
+    background-color: var(--background);
+    color: var(--text-color);
 }
 
-#code-cell, #output, #debug, #c-code {
+#code-cell, #output, #debug, #c-code, #step1, #step2, #step3 {
     height:75vh;
     vertical-align: top;
 }
@@ -84,7 +86,7 @@ textarea {
 }
 
 /* containing run, clear, and debug buttons */
-#button-cell { 
+#button-cell {
     text-align: right;
 }
 
@@ -92,7 +94,7 @@ textarea {
     margin-right: 12px;
 }
 
-.tab-button, .debug-button {
+.tab-button, .debug-button, .code-step-button {
     margin: -21.75px 0 -0.75px -1.5px;
     border-top: none;
     vertical-align: bottom;
@@ -102,7 +104,7 @@ textarea {
     border-top-right-radius: 0px;
 }
 
-#c-tab-button, #debug-tab-button {
+#compiler-tab-button, #debug-tab-button {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
     margin-left: -10px;
@@ -112,17 +114,16 @@ textarea {
     background-color: var(--main-color);
 }
 
-.debug-button, #back-button, #step-button, #run-mem-button, #run-return-button, #rud-button {
-    border-top-left-radius: 0px;
-    border-top-right-radius: 0px;
-}
-
 .debug-button {
     width: 30px;
     display: inline-block;
     margin-left: -10px;
     height: 20px;
     margin-bottom: 0px;
+}
+#back-button, #step-button, #run-mem-button, #run-return-button, #rud-button {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
 }
 #back-button {
     margin-left: 3px;
@@ -132,6 +133,35 @@ textarea {
 }
 #rud-button p{
     margin-top: -2px;
+}
+
+.code-step-button {
+    display: inline-block;
+    margin-left: -10px;
+    margin-bottom: -0.75px;
+}
+#ccode-tab, #diff-tab, #step1-tab, #step2-tab, #step3-tab {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+}
+#ccode-tab {
+    margin-left: 3px;
+}
+
+#diff-container {
+    vertical-align: top;
+    height: 75.8vh;
+}
+#diff1, #diff2 {
+    border: 1px solid gray;
+    border-radius: 2px;
+    height: 70vh;
+}
+
+label {
+    font-weight: bold;
+    font-size: 15px;
+    vertical-align: bottom; 
 }
 
 /* debugging purposes */
