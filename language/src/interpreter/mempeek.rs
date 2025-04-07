@@ -15,6 +15,7 @@ pub enum MemObj {
 }
 
 impl MemObj {
+    // Infinite loop on cycles
     pub fn from_data(x: &Data, mem: &Vec<Vec<Data>>) -> Self {
         match x {
             Data::Value(i) => MemObj::Value(*i),

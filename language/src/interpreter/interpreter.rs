@@ -336,6 +336,14 @@ impl Interpreter {
             self.step();
         }
     }
+
+    pub fn run_step_over(&mut self) {
+        let s = self.function_names_stack.len();
+        self.step();
+        while self.function_names_stack.len() > s && !self.statements.is_empty() {
+            self.step();
+        }
+    }
 }
 // website interaction
 impl Interpreter {
@@ -512,18 +520,29 @@ pub fn interpreter_test(src: &str) {
 
     fs::write(Path::new(".interpreter_out/i_ast.txt"), i_ast).unwrap();
 
+    let mut history = Vec::new();
     loop {
         if let Some(_) = interpreter.statements.get(0) {
+            print!("{}[2J", 27 as char);
             println!("{:?}", interpreter);
-            println!("m, r, enter");
+            println!("m, r, s, b, enter");
             let input: String = input("");
 
             match input.as_str() {
                 "m" => {
+                    history.push(interpreter.clone());
                     interpreter.run_until_next_mem();
                 }
                 "r" => {
+                    history.push(interpreter.clone());
                     interpreter.run_until_return();
+                }
+                "s" => {
+                    history.push(interpreter.clone());
+                    interpreter.run_step_over();
+                }
+                "b" => {
+                    interpreter = history.pop().unwrap();
                 }
                 x if x.parse::<usize>().is_ok() => {
                     let shit = MemObj::from_data(
@@ -537,6 +556,7 @@ pub fn interpreter_test(src: &str) {
                     println!("{}", json);
                 }
                 _ => {
+                    history.push(interpreter.clone());
                     interpreter.step();
                 }
             }
