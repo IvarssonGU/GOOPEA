@@ -152,14 +152,14 @@ pub enum IStatement {
 
 pub struct Interpreter {
     functions: HashMap<String, IDef>,
-    heap: Vec<Vec<i64>>
+    heap: Vec<Vec<i64>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             functions: HashMap::new(),
-            heap: Vec::new()
+            heap: Vec::new(),
         }
     }
 
@@ -190,11 +190,12 @@ impl Interpreter {
                 IStatement::InitConstructor(name, width) => {
                     let pointer = self.malloc(*width as usize);
                     local_vars.insert(name.clone(), pointer as i64);
-                },
+                }
                 IStatement::AssignField(name, index, operand) => {
                     let pointer = local_vars.get(&name).unwrap();
-                    self.heap[*pointer as usize][*index as usize] = self.eval_op(&operand, &local_vars);
-                },
+                    self.heap[*pointer as usize][*index as usize] =
+                        self.eval_op(&operand, &local_vars);
+                }
                 IStatement::Assign(name, operand) => {
                     local_vars.insert(name.clone(), self.eval_op(&operand, &local_vars));
                 }
@@ -205,7 +206,7 @@ impl Interpreter {
                             break;
                         }
                     }
-                },
+                }
                 IStatement::Return(operand) => return self.eval_op(&operand, &local_vars),
                 IStatement::Print(operand) => println!("{}", self.eval_op(&operand, &local_vars)),
             }
@@ -216,9 +217,10 @@ impl Interpreter {
 
     fn eval_op(&mut self, op: &Operand, local_variables: &HashMap<String, i64>) -> i64 {
         match op {
-            Operand::Identifier(name) => *local_variables
-                .get(name)
-                .expect(&format!("Identifier '{}' should be in scope but is not", name)),
+            Operand::Identifier(name) => *local_variables.get(name).expect(&format!(
+                "Identifier '{}' should be in scope but is not",
+                name
+            )),
             Operand::BinOp(operator, operand, operand1) => {
                 let left = self.eval_op(operand, local_variables);
                 let right = self.eval_op(operand1, local_variables);
@@ -262,4 +264,3 @@ pub fn interpreter_test() {
 
     println!("hello test");
 }
-

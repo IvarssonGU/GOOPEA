@@ -1,43 +1,56 @@
 #![feature(formatting_options)]
 
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 use lalrpop_util::lalrpop_mod;
 use lexer::Lexer;
-use scoped_ast::ScopedProgram;
 
-mod code;
-mod ir;
-mod simple_ast;
-mod scoped_ast;
 mod ast;
-mod lexer;
+mod core;
 mod error;
+mod lexer;
+mod scoped;
+mod score;
+mod simple_ast;
+mod stir;
+
 lalrpop_mod!(pub grammar);
-use simple_ast::*;
+use stir::*;
 fn main() {
-    let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
-
-    let program = grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
-
-    let scoped_program = ScopedProgram::new(&program).unwrap();
+    let code = fs::read_to_string(Path::new("examples/reuse_different_type.goo")).unwrap();
+    let program = grammar::ProgramParser::new()
+        .parse(Lexer::new(&code))
+        .unwrap();
+    let scoped_program = scoped::ScopedProgram::new(&program).unwrap();
     scoped_program.validate().unwrap();
-    let simple_program = from_scoped(&scoped_program);
-    let with_ref_count = add_refcounts(&simple_program);
-    let code = code::Compiler::new().compile(&with_ref_count);
-    println!("{}", ir::output(&code, true).join("\n"));
+    let pure_ir = from_scoped(&scoped_program);
+    for fun in &pure_ir {
+        println!("{}", fun);
+    }
+    let pure_reuse = add_reuse(&pure_ir);
+    let pure_rc = add_rc(&pure_ir, false);
+    let core = score::translate(&pure_rc);
+    let result = core::output(&core);
+    for line in result {
+        println!("{}", line);
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-    use std::fs;
     use crate::grammar;
     use crate::lexer::{Lexer, Token, lexer};
+    use std::fs;
+    use std::path::Path;
 
     fn parse_example(path: &Path) -> () {
         let code = fs::read_to_string(path).unwrap();
-        println!("{}", grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap());
+        println!(
+            "{}",
+            grammar::ProgramParser::new()
+                .parse(Lexer::new(&code))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -54,13 +67,13 @@ mod tests {
     fn parse_integer() {
         parse_example(Path::new("examples/integer.goo"));
     }
-    
+
     fn lexer_test(file: &Path) -> Vec<Token> {
         let src = std::fs::read_to_string(file).unwrap();
         let tokens = lexer(src.as_str());
 
         tokens.iter().for_each(|token| println!("{:#?}", token));
-        
+
         tokens
     }
 

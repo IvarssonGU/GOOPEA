@@ -1,7 +1,23 @@
 enum List = Nil, Cons(Int, List);
 
-(List, List): List
-RevH(xs, acc) = match xs {
-    Nil: acc,
-    Cons(x,xx): RevH(xx, Cons(x, acc))
+List : List
+Inc xs = match xs {
+    Nil: Nil,
+    Cons(x,xx): Cons(1+x, xx)
 };
+
+() : List
+Build = Cons(19, Cons(7, Cons(4, Cons(32, Cons(18, Cons(7, Cons(7, Cons(93, Cons(63, Cons(100, Nil))))))))));
+
+
+List : Int 
+Sum xs = match xs {
+    Nil: 0,
+    Cons(x,xx): x + Sum(xx)
+};
+
+List: List 
+Fun xs = Inc(xs);
+
+() : Int
+Main = Sum(Fun(Build));
