@@ -1,59 +1,56 @@
-use std::{error::Error, fmt::Display};
-
 use crate::ast::ast::{Type, UTuple, AID, FID, VID};
+use color_eyre::{eyre, Section, SectionExt};
+use thiserror::Error;
 
-pub type CompileResult = Result<(), CompileError>;
+impl CompileError {
+    pub fn make_report(self, snippet: &str) -> eyre::Report {
+        eyre::Report::new(self).with_section(|| snippet.to_string().header("Code snippet:"))
+    }
+}
 
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
+#[derive(Debug, Clone, Error)]
 pub enum CompileError {
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     UnknownFunction,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     UnknownVariable(VID),
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     UnknownConstructor,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     MultipleFunctionDefinitions(FID),
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     MultipleADTDefinitions(AID),
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     InconsistentVariableCountInFunctionDefinition,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     WrongVariableCountInLetStatement,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     WrongVariableCountInMatchCase,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     WrongVariableCountInFunctionCall,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     UnknownADTInType,
-    LetHasNoFunctionCall,
 
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     MissmatchedTypes,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     UnexpectedUTuple,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     WrongArgumentType(FID, UTuple<Type>, UTuple<Type>),
-    InvalidOperationTypes,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     InvalidPatternInMatchCase,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     MultipleOccurencesOfConstructorInMatch,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     MultipleOccurencesOfIntInMatch,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     NonExhaustiveMatch,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     WrongReturnType,
-    InvalidPattern,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     MatchHasMultipleWildcards,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     MatchHasCaseAfterWildcard,
+    #[error("THIS A TEMPORARY ERROR DESCRIPTION. TODO: Write better")]
     MatchingOnTuple,
-    InternalError,
-
-    FIPFunctionHasUnusedVar(VID),
-    FIPFunctionHasMultipleUsedVar(VID),
-}
-
-impl<'a> Display for CompileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TODO: Better compile errors")
-    }
-}
-
-impl Error for CompileError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
-
-    fn description(&self) -> &str {
-        "description() is deprecated; use Display"
-    }
-
-    fn cause(&self) -> Option<&dyn Error> {
-        self.source()
-    }
 }

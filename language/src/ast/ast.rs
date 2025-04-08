@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::{Display, Formatter}, iter, ops::{Deref, Range}};
 
-use crate::error::{CompileError, CompileResult};
+use crate::error::CompileError;
+use color_eyre::Result;
 
 use super::{scoped::Scope, typed::ExpressionType};
 
@@ -130,7 +131,7 @@ impl<D : Any, P : Any, T: 'static> ChainedDataTrait<T> for ChainedData<D, P> {
 impl<D, E> Program<D, E>
     where for<'a> &'a E: Into<FullExpression<'a, D, E>>
 {
-    pub fn validate_expressions_by(&self, validate: impl Fn(&ExpressionNode<D, E>) -> CompileResult) -> CompileResult {
+    pub fn validate_expressions_by(&self, validate: impl Fn(&ExpressionNode<D, E>) -> Result<()>) -> Result<()> {
         for body in self.function_bodies.values() {
             body.validate_recursively_by(&validate)?;
         }
@@ -160,7 +161,7 @@ impl<D, E> Program<D, E> {
         )
     }
 
-    pub fn transform_functions<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>, &FunctionData, &ProgramData) -> Result<ExpressionNode<D2, E2>, CompileError>) -> Result<Program<D2, E2>, CompileError> {
+    pub fn transform_functions<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>, &FunctionData, &ProgramData) -> Result<ExpressionNode<D2, E2>>) -> Result<Program<D2, E2>> {
         let (program_data, mut function_bodies) = self.split_data_and_bodies();
 
         let function_bodies = program_data.function_datas.keys()
@@ -183,7 +184,7 @@ impl<D, E> ExpressionNode<D, E> {
         }
     }
 
-    pub fn transform<E2>(self, func: impl Fn(E) -> Result<E2, CompileError>) -> Result<ExpressionNode<D, E2>, CompileError> {
+    pub fn transform<E2>(self, func: impl Fn(E) -> Result<E2>) -> Result<ExpressionNode<D, E2>> {
         Ok(ExpressionNode { 
             expr: func(self.expr)?,
             data: self.data 
@@ -196,11 +197,11 @@ impl<D, E> UTuple<ExpressionNode<D, E>> {
         UTuple(map_expr_vec(self.0))
     }
 
-    pub fn transform_expressions<E2>(self, func: impl Fn(E) -> Result<E2, CompileError> + Clone) -> Result<UTuple<ExpressionNode<D, E2>>, CompileError> {
+    pub fn transform_expressions<E2>(self, func: impl Fn(E) -> Result<E2> + Clone) -> Result<UTuple<ExpressionNode<D, E2>>> {
         Ok(UTuple(self.0.into_iter().map(|x| x.transform(func.clone())).collect::<Result<_, _>>()?))
     }
     
-    pub fn transform_nodes<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>) -> Result<ExpressionNode<D2, E2>, CompileError>) -> Result<UTuple<ExpressionNode<D2, E2>>, CompileError> {
+    pub fn transform_nodes<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>) -> Result<ExpressionNode<D2, E2>>) -> Result<UTuple<ExpressionNode<D2, E2>>> {
         Ok(UTuple(self.0.into_iter().map(|x| func(x)).collect::<Result<_, _>>()?))
     }
 }
@@ -213,7 +214,7 @@ pub fn map_expr_box<D, E, E2: From<E>>(x: Box<ExpressionNode<D, E>>) -> Box<Expr
     Box::new(x.map())
 }
 
-pub fn transform_box<D, E, E2>(x: Box<ExpressionNode<D, E>>, func: impl Fn(E) -> Result<E2, CompileError>) -> Result<Box<ExpressionNode<D, E2>>, CompileError> {
+pub fn transform_box<D, E, E2>(x: Box<ExpressionNode<D, E>>, func: impl Fn(E) -> Result<E2>) -> Result<Box<ExpressionNode<D, E2>>> {
     Ok(Box::new(x.transform(func)?))
 }
 
@@ -235,7 +236,7 @@ impl<D, E> ExpressionNode<D, E>
         }
     }
 
-    pub fn validate_recursively_by(&self, validate: &impl Fn(&Self) -> CompileResult) -> CompileResult {
+    pub fn validate_recursively_by(&self, validate: &impl Fn(&Self) -> Result<()>) -> Result<()> {
         validate(&self)?;
 
         for child in self.children() {
