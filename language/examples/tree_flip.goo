@@ -41,13 +41,13 @@ build =
     );
 
 Tree: Int
-sum tree = match tree {
+Sum tree = match tree {
     Empty: 0,
-    Node(left, value, right): sum(left) + value + sum(right)
+    Node(left, value, right): Sum(left) + value + Sum(right)
 };
 
 Tree: Tree
-flip tree = match tree {
+Flip tree = match tree {
     Empty: Empty,
     Node(left, value, right): Node(flip(right), value, flip(left))
 };

@@ -1,18 +1,17 @@
 #![feature(formatting_options)]
 
 pub mod ast;
-mod code;
+//mod code;
 mod error;
 mod interpreter;
-mod ir;
 mod lexer;
-mod simple_ast;
+//mod simple_ast;
 lalrpop_mod!(pub grammar);
 
 use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
+use color_eyre::Result;
 use interpreter::Interpreter;
 use ir::Prog;
-use color_eyre::Result;
 use lalrpop_util::lalrpop_mod;
 use simple_ast::{add_refcounts, from_scoped};
 use std::cell::RefCell;
@@ -32,19 +31,19 @@ pub fn compile(code: &str) -> Result<Prog> {
     Ok(code::Compiler::new().compile(&with_ref_count))
 }
 
-pub fn c_code(program: &Prog) -> String {
+/* pub fn c_code(program: &Prog) -> String {
     ir::output(program).join("\n")
-}
+} */
 
 // Interpreter stuff
 //         store  store  store store
 // restore return memory step1 finish
 // state   state  state  state state
 
-pub fn load_interpreter(program: &Prog) {
+/* pub fn load_interpreter(program: &Prog) {
     let interpreter = Interpreter::from_program(program);
     INTERPRETER.set(interpreter);
-}
+} */
 
 pub fn step_interpreter() {
     INTERPRETER.with_borrow_mut(|interpreter| {
