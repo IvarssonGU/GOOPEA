@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 
-use crate::error::{CompileError, CompileResult};
+use crate::error::CompileError;
+use color_eyre::Result;
 
 use super::{ast::{ChainedData, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseSliceNode, BaseSliceProgram, SyntaxExpression}};
 
@@ -38,15 +39,15 @@ fn extended_scope(base: &Scope, new_vars: impl Iterator<Item = VariableDefinitio
 impl<'i> ScopedProgram<'i> {
     // Creates a new program with scope information
     // Performs minimum required validation, such as no top level symbol collisions
-    pub fn new(program: BaseSliceProgram) -> Result<ScopedProgram, CompileError> {
-        let program = program.transform_functions(|body, _, _| Ok(body.into())).unwrap();
+    pub fn new(program: BaseSliceProgram) -> Result<ScopedProgram> {
+        let program = program.transform_functions(|_, body, _, _| Ok(body.into())).unwrap();
 
         let counter = RefCell::new(0);
 
         let atom_constructors = program.constructors.iter().filter_map(|(fid, cons)| (cons.args.0.len() == 0).then_some(fid.clone())).collect();
         let zero_argument_functions = program.function_datas.iter().filter_map(|(fid, sig)| (sig.vars.0.len() == 0).then_some(fid.clone())).collect();
 
-        let program = program.transform_functions(|body, func, _| {
+        let program = program.transform_functions(|_, body, func, _| {
             let base_scope = func.vars.0.iter().map(
                 |vid| {
                     (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), internal_id: counter.replace_with(|&mut x| x + 1) }))
@@ -62,11 +63,11 @@ impl<'i> ScopedProgram<'i> {
     }
 
     // This should be redundant
-    fn validate_variable_occurences(&self) -> CompileResult {
+    fn validate_variable_occurences(&self) -> Result<()> {
         self.validate_expressions_by(
             |node| {
                 let SimplifiedExpression::Variable(vid) = &node.expr else { return Ok(()) };
-                if !node.data.contains_key(vid) { return Err(CompileError::UnknownVariable(vid.clone())) }
+                if !node.data.contains_key(vid) { return Err(CompileError::UnknownVariable(vid.clone()).make_report(node.data.next)) }
 
                 Ok(())
             }
@@ -80,7 +81,7 @@ pub fn scope_expression<'i>(
     counter: &RefCell<usize>,
     atom_constructors: &HashSet<FID>,
     zero_argument_functions: &HashSet<FID>
-) -> Result<ScopedNode<'i>, CompileError> 
+) -> Result<ScopedNode<'i>> 
 {
     let new_expr = match expr.expr {
         SimplifiedExpression::UTuple(children) => {

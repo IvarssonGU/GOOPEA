@@ -70,7 +70,7 @@ pub fn run_interpreter() {
 }
 
 pub fn get_interpreter_state() -> String {
-    INTERPRETER.with_borrow_mut(|interpreter| format!("{:?}", interpreter))
+    INTERPRETER.with_borrow(|interpreter| format!("{:?}", interpreter))
 }
 
 pub fn store_interpreter() {

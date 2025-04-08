@@ -6,9 +6,11 @@ use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
+use color_eyre::eyre::Result;
 use lalrpop_util::lalrpop_mod;
 use ast::{scoped::ScopedProgram, typed::TypedProgram};
 use simple_ast::{add_refcounts, from_scoped};
+use ast::base::BaseSliceProgram;
 
 mod code;
 mod ir;
@@ -25,24 +27,26 @@ lalrpop_mod!(pub grammar);
 fn main() {}
 
 #[cfg(not(target_arch = "wasm32"))]
-fn main() {
-    use ast::base::BaseSliceProgram;
+fn main() -> Result<()> {
+    color_eyre::install()?;
 
-    let code = fs::read_to_string(Path::new("examples/bools.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/type_error.goo"))?;
 
-    let base_program = BaseSliceProgram::new(&code).unwrap();
+    let base_program = BaseSliceProgram::new(&code)?;
     println!("{base_program}");
 
-    let scoped_program = ScopedProgram::new(base_program).unwrap();
+    let scoped_program = ScopedProgram::new(base_program)?;
     println!("{scoped_program}");
 
-    let typed_program = TypedProgram::new(scoped_program).unwrap();
+    let typed_program = TypedProgram::new(scoped_program)?;
     println!("{typed_program}");
 
     let simple_program = from_scoped(&typed_program);
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
     println!("{}", ir::output(&code).join("\n"));
+
+    Ok(())
 }
 
 #[cfg(test)]

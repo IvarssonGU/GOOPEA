@@ -1,6 +1,7 @@
 use std::{collections::{HashMap, HashSet}, ops::Range};
 
-use crate::{error::{CompileError, CompileResult}, grammar, lexer::Lexer};
+use crate::{error::CompileError, grammar, lexer::Lexer};
+use color_eyre::Result;
 
 use super::ast::{Constructor, ExpressionNode, FullExpression, FunctionData, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
 
@@ -17,7 +18,7 @@ pub enum Definition {
 }
 
 impl<'i> BaseSliceProgram<'i> {
-    pub fn new(code: &'i str) -> Result<BaseSliceProgram<'i>, CompileError> {
+    pub fn new(code: &'i str) -> Result<BaseSliceProgram<'i>> {
         let program: Vec<Definition> = grammar::ProgramParser::new().parse(Lexer::new(code)).unwrap();
 
         let builtin_defs = vec![
@@ -31,47 +32,38 @@ impl<'i> BaseSliceProgram<'i> {
         for def in program.into_iter().chain(builtin_defs.into_iter()) {
             match def {
                 Definition::ADT(aid, constructors) => {
-                    adts.insert(aid.clone(), constructors.iter().map(|(fid, _)| fid.clone()).collect());
+                    if adts.insert(aid.clone(), constructors.iter().map(|(fid, _)| fid.clone()).collect()).is_some() {
+                        return Err(CompileError::MultipleADTDefinitions(aid.clone()).into())
+                    }
+
     
                     for (sibling_index, (fid, args)) in constructors.into_iter().enumerate() {    
-                        all_constructors.insert(fid, Constructor { sibling_index, adt: aid.clone(), args });
+                        if all_constructors.insert(fid.clone(), Constructor { sibling_index, adt: aid.clone(), args }).is_some() {
+                            return Err(CompileError::MultipleFunctionDefinitions(fid).into())
+                        }
                     }
                 },
                 Definition::Function(fid, (data, body)) => {    
-                    function_datas.insert(fid.clone(), data);
+                    if function_datas.insert(fid.clone(), data).is_some() {
+                        return Err(CompileError::MultipleFunctionDefinitions(fid).into())
+                    }
                     function_bodies.insert(fid, body.make_slice(code));
                 }
             }
         }
 
+        if let Some(fid) = function_datas.keys().collect::<HashSet<_>>().intersection(&all_constructors.keys().collect()).next() {
+            return Err(CompileError::MultipleFunctionDefinitions((*fid).clone()).into())
+        }
+
         let program = BaseSliceProgram { adts, constructors: all_constructors, function_datas, function_bodies };
-        program.validate_top_level_ids()?;
         program.validate_all_types()?;
 
         Ok(program)
     }
 
-    // Checks that there are no top level id conflicts
-    fn validate_top_level_ids(&self) -> CompileResult {
-        let mut top_level_fids = HashSet::new();
-        for fid in self.function_datas.keys().chain(self.constructors.keys()) {
-            if !top_level_fids.insert(fid.clone()) {
-                return Err(CompileError::MultipleFunctionDefinitions(fid.clone()))
-            }
-        }
-
-        let mut top_level_aids = HashSet::new();
-        for aid in self.adts.keys() {
-            if !top_level_aids.insert(aid.clone()) {
-                return Err(CompileError::MultipleADTDefinitions(aid.clone()))
-            }
-        }
-
-        Ok(())
-    }
-
     // Checks so that all types use defined ADT names
-    fn validate_all_types(&self) -> CompileResult {
+    fn validate_all_types(&self) -> Result<()> {
         for cons in self.constructors.values() {
             cons.args.validate_in(self)?;
         }
@@ -141,12 +133,12 @@ impl BaseRangeNode {
 }
 
 impl Type {
-    fn validate_in(&self, program: &BaseSliceProgram) -> CompileResult {
+    fn validate_in(&self, program: &BaseSliceProgram) -> Result<()> {
         match self {
             Type::Int => Ok(()),
             Type::ADT(aid) => {
                 if !program.adts.contains_key(aid) { 
-                    Err(CompileError::UnknownADTInType) 
+                    Err(CompileError::UnknownADTInType(aid.to_string()).into()) 
                 } else { 
                     Ok(()) 
                 }
@@ -156,7 +148,7 @@ impl Type {
 }
 
 impl UTuple<Type> {
-    fn validate_in(&self, program: &BaseSliceProgram) -> CompileResult {
+    fn validate_in(&self, program: &BaseSliceProgram) -> Result<()> {
         for tp in &self.0 { tp.validate_in(program)?; }
         Ok(())
     }
