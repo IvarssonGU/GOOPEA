@@ -59,7 +59,7 @@ textarea {
     color: var(--text-color);
 }
 
-#code-cell, #output, #debug, #c-code, #step1, #step2, #step3, #messages {
+#code-cell, #output, #debug, #steps, #messages {
     height:75vh;
     vertical-align: top;
 }
@@ -140,7 +140,7 @@ textarea {
     margin-left: -10px;
     margin-bottom: -0.75px;
 }
-#ccode-tab, #diff-tab, #step1-tab, #step2-tab, #step3-tab, #messages-tab {
+#steps-tab, #diff-tab, #messages-tab {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
 }
@@ -148,14 +148,14 @@ textarea {
     margin-left: 3px;
 }
 
-#diff-container {
+#diff-container, #steps-container {
     vertical-align: top;
     height: 75.8vh;
 }
-#diff1, #diff2 {
+#diff1, #diff2, #steps {
     border: 1px solid gray;
     border-radius: 2px;
-    height: 70vh;
+    height: 70.5vh;
 }
 
 label {

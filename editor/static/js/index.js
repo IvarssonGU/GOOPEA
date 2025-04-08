@@ -1,26 +1,27 @@
 let output_textarea = document.getElementById("output");
 let debug_textarea = document.getElementById("debug");
 let messages_textarea = document.getElementById("messages");
-let c_textarea = document.getElementById("c-code");
+let steps_textarea = document.getElementById("steps");
 let diff1_textarea = document.getElementById("diff1");
 let diff2_textarea = document.getElementById("diff2");
-let step1_textarea = document.getElementById("step1");
-let step2_textarea = document.getElementById("step2");
-let step3_textarea = document.getElementById("step3");
+// let step1_textarea = document.getElementById("step1");
+// let step2_textarea = document.getElementById("step2");
+// let step3_textarea = document.getElementById("step3");
 
 let output_button = document.getElementById("output-tab-button");
 let compiler_button = document.getElementById("compiler-tab-button");
 let debug_tab_button = document.getElementById("debug-tab-button");
 
 let messages_button = document.getElementById("messages-tab");
-let ccode_button = document.getElementById("ccode-tab");
 let diff_button = document.getElementById("diff-tab");
-let step1_button = document.getElementById("step1-tab");
-let step2_button = document.getElementById("step2-tab");
-let step3_button = document.getElementById("step3-tab");
+let steps_button = document.getElementById("steps-tab");
+// let step1_button = document.getElementById("step1-tab");
+// let step2_button = document.getElementById("step2-tab");
+// let step3_button = document.getElementById("step3-tab");
 
-let diff1_select = document.getElementById("diff1-select");
-let diff2_select = document.getElementById("diff2-select");
+// let diff1_select = document.getElementById("diff1-select");
+// let diff2_select = document.getElementById("diff2-select");
+// let step_select = document.getElementById("step-select");
 
 let compiler_message = "Click Compile, Run, or Debug to get a compiler message"
 let ccode_value = "Click Compile, Run, or Debug to view C code";
@@ -46,16 +47,10 @@ editor.setSize("100%", "100%");
 document.addEventListener("DOMContentLoaded", () => {
     output_textarea.value = "";
     c_textarea.value = "";
-    // messages_textarea.style.display = 'none';
-    // debug_textarea.style.display = 'none';
-    // c_textarea.style.display = 'none';
-    // diff1_textarea.style.display = 'none';
-    // diff2_textarea.style.display = 'none';
-    // step1_textarea.style.display = 'none';
-    // step2_textarea.style.display = 'none';
-    // step3_textarea.style.display = 'none';
+    messages_textarea.value = "";
     diff1_selected();
     diff2_selected();
+    step_selected();
     
     if ("tab" in localStorage) {
         let current_tab = localStorage.getItem("tab");
@@ -107,14 +102,15 @@ async function compile_and_populate() {
 
     try {
         //compilation (get all the steps and assign them to their vars here)
-        compiler_message = "looks good";
         ccode_value = wasm_bindgen.get_c_code(code);
+        compiler_message = "looks good";
         step1_value = "compiled step1 (not implemented yet)";
         step2_value = "compiled step2 (not implemented yet)";
         step3_value = "compiled step3 (not implemented yet)";
     } catch(error) {
         //populate error messages
-        compiler_message = "error message";
+        compiler_message = error;
+        // console.log(error);
         ccode_value = "error C code";
         step1_value = "error step1 (not implemented yet)";
         step2_value = "error step2 (not implemented yet)";
@@ -133,6 +129,7 @@ async function compile_and_populate() {
     //populate the different compiler steps here
     diff1_selected();
     diff2_selected();
+    step_selected();
 }
 
 //clear-debug-run button functions
@@ -160,7 +157,7 @@ async function run_button_clicked() {
     } catch(error) {
         output_textarea.value = "doesn't compile"
         debug_textarea.value = "doesn't compile";
-        c_textarea.value = "error message?";
+        messages_textarea.value = "error message?";
         switch_tab(1);
     }
 
@@ -204,7 +201,7 @@ async function debug_button_clicked() {
     } catch(error) {
         output_textarea.value = "doesn't compile"
         debug_textarea.value = "doesn't compile";
-        c_textarea.value = "error message?";
+        messages_textarea.value = "error message?";
         switch_tab(1);
     }
 }
@@ -296,28 +293,28 @@ function switch_compiler_tab(opt) {
     if (messages_button.classList.contains("current-tab")) {
         messages_button.classList.toggle("current-tab");
         messages_textarea.classList.toggle("hide");
-        if (messages_textarea.classList.contains("hide")) console.log("hidden");
     }
-    if (ccode_button.classList.contains("current-tab")) {
-        ccode_button.classList.toggle("current-tab");
-        c_textarea.classList.toggle("hide");
+    if (steps_button.classList.contains("current-tab")) {
+        steps_button.classList.toggle("current-tab");
+        document.getElementById("steps-container").classList.toggle("hide");
+        // steps_textarea_textarea.classList.toggle("hide");
     }
     if (diff_button.classList.contains("current-tab")) {
         diff_button.classList.toggle("current-tab");
         document.getElementById("diff-container").classList.toggle("hide");
     }
-    if (step1_button.classList.contains("current-tab")) {
-        step1_button.classList.toggle("current-tab");
-        step1_textarea.classList.toggle("hide");
-    }
-    if (step2_button.classList.contains("current-tab")) {
-        step2_button.classList.toggle("current-tab");
-        step2_textarea.classList.toggle("hide");
-    }
-    if (step3_button.classList.contains("current-tab")) {
-        step3_button.classList.toggle("current-tab");
-        step3_textarea.classList.toggle("hide");
-    }
+    // if (step1_button.classList.contains("current-tab")) {
+    //     step1_button.classList.toggle("current-tab");
+    //     step1_textarea.classList.toggle("hide");
+    // }
+    // if (step2_button.classList.contains("current-tab")) {
+    //     step2_button.classList.toggle("current-tab");
+    //     step2_textarea.classList.toggle("hide");
+    // }
+    // if (step3_button.classList.contains("current-tab")) {
+    //     step3_button.classList.toggle("current-tab");
+    //     step3_textarea.classList.toggle("hide");
+    // }
 
     switch (opt) {
         case -2: //switch to messages
@@ -329,31 +326,32 @@ function switch_compiler_tab(opt) {
             document.getElementById("diff-container").classList.toggle("hide");
             break;
         case 0: //switch to c code
-            ccode_button.classList.toggle("current-tab");
-            c_textarea.classList.toggle("hide");
+            steps_button.classList.toggle("current-tab");
+            document.getElementById("steps-container").classList.toggle("hide");
+            // steps_textarea.classList.toggle("hide");
             break;
-        case 1: //switch to step1
-            step1_button.classList.toggle("current-tab");
-            step1_textarea.classList.toggle("hide");
-            break;
-        case 2: //switch to step2
-            step2_button.classList.toggle("current-tab");
-            step2_textarea.classList.toggle("hide");
-            break;
-        case 3: //switch to step3
-            step3_button.classList.toggle("current-tab");
-            step3_textarea.classList.toggle("hide");
-            break;
+        // case 1: //switch to step1
+        //     step1_button.classList.toggle("current-tab");
+        //     step1_textarea.classList.toggle("hide");
+        //     break;
+        // case 2: //switch to step2
+        //     step2_button.classList.toggle("current-tab");
+        //     step2_textarea.classList.toggle("hide");
+        //     break;
+        // case 3: //switch to step3
+        //     step3_button.classList.toggle("current-tab");
+        //     step3_textarea.classList.toggle("hide");
+        //     break;
         default:
-            ccode_button.classList.toggle("current-tab");
-            c_textarea.classList.toggle("hide");
+            messages_button.classList.toggle("current-tab");
+            messages_textarea.classList.toggle("hide");
 
     }
 }
 
 //dropdowns under compiler->diff view
 function diff1_selected() {
-    switch(diff1_select.value) {
+    switch(document.getElementById("diff1-select").value) {
         case "c":
             diff1_textarea.value = ccode_value;
             break;
@@ -371,7 +369,7 @@ function diff1_selected() {
     }
 }
 function diff2_selected() {
-    switch(diff2_select.value) {
+    switch(document.getElementById("diff2-select").value) {
         case "c":
             diff2_textarea.value = ccode_value;
             break;
@@ -386,6 +384,24 @@ function diff2_selected() {
             break;
         default:
             diff2_textarea.value = step1_value;
+    }
+}
+function step_selected() {
+    switch(document.getElementById("step-select").value) {
+        case "c":
+            steps_textarea.value = ccode_value;
+            break;
+        case "step1":
+            steps_textarea.value = step1_value;
+            break;
+        case "step2":
+            steps_textarea.value = step2_value;
+            break;
+        case "step3":
+            steps_textarea.value = step3_value;
+            break;
+        default:
+            steps_textarea.value = step1_value;
     }
 }
 

@@ -43,15 +43,34 @@
 					<!-- compiler buttons -->
 					<button onclick="switch_compiler_tab(-2)" class="compiler-button styled-button hide current-tab" id="messages-tab">Messages</button>
 					<button onclick="switch_compiler_tab(-1)" class="compiler-button styled-button hide" id="diff-tab">Diff view</button>
-					<button onclick="switch_compiler_tab(0)" class="compiler-button styled-button hide" id="ccode-tab">C code</button>
-					<button onclick="switch_compiler_tab(1)" class="compiler-button styled-button hide" id="step1-tab">step1</button>
+					<button onclick="switch_compiler_tab(0)" class="compiler-button styled-button hide" id="steps-tab">Intermediate</button>
+					<!-- <button onclick="switch_compiler_tab(1)" class="compiler-button styled-button hide" id="step1-tab">step1</button>
 					<button onclick="switch_compiler_tab(2)" class="compiler-button styled-button hide" id="step2-tab">step2</button>
-					<button onclick="switch_compiler_tab(3)" class="compiler-button styled-button hide" id="step3-tab">step3</button>
+					<button onclick="switch_compiler_tab(3)" class="compiler-button styled-button hide" id="step3-tab">step3</button> -->
 					<!-- textfields -->
 					<div class="output-container">
 						<textarea id="output" readonly="true" placeholder="not implemented yet" height="100%"></textarea>
-						<textarea id="messages" readonly="true" placeholder="click compile, run, or debug to view compiler message here" height="100%" class="compiler-view hide"></textarea>
-						<textarea id="c-code" readonly="true" placeholder="click compile, run, or debug to view C-code here" height="100%" class="compiler-view hide"></textarea>
+						<textarea id="messages" readonly="true" placeholder="click compile, run, or debug to view compiler message here" height="100%" class="hide"></textarea>
+						<div class="steps-container hide" id="steps-container">
+							<table width="100%">
+								<tr>
+									<td>
+										<label for="step-select">Step:</label>
+										<select onchange="step_selected()" name="step-select" id="step-select" class="styled-button" width="100%">
+											<option value="c">C code</option>
+											<option value="step1">Step1</option>
+											<option value="step2">Step2</option>
+											<option value="step3">Step3</option>
+										</select>
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<textarea id="steps" readonly="true" placeholder="select which step to view here" height="100%"></textarea>
+									</td>
+								</tr>
+							</table>
+						</div>
 						<div class="diff-container hide" id="diff-container">
 							<table width="100%">
 								<tr>
@@ -84,9 +103,9 @@
 								</tr>
 							</table>
 						</div>
-						<textarea id="step1" readonly="true" placeholder="Click Compile, Run, or Debug to view step1 (not implemented)" height="100%" class="compiler-view hide"></textarea>
-						<textarea id="step2" readonly="true" placeholder="Click Compile, Run, or Debug to view step2 (not implemented)" height="100%" class="compiler-view hide"></textarea>
-						<textarea id="step3" readonly="true" placeholder="Click Compile, Run, or Debug to view step3 (not implemented)" height="100%" class="compiler-view hide"></textarea>
+						<!-- <textarea id="step1" readonly="true" placeholder="Click Compile, Run, or Debug to view step1 (not implemented)" height="100%" class="hide"></textarea>
+						<textarea id="step2" readonly="true" placeholder="Click Compile, Run, or Debug to view step2 (not implemented)" height="100%" class="hide"></textarea>
+						<textarea id="step3" readonly="true" placeholder="Click Compile, Run, or Debug to view step3 (not implemented)" height="100%" class="hide"></textarea> -->
 						<textarea id="debug" readonly="true" placeholder="click Debug to start debug view, then use the buttons above" height="100%" class="hide"></textarea>
 					</div>
 				</td>
