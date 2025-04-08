@@ -21,7 +21,7 @@ thread_local! {
     static INT_HISTORY: RefCell<Vec<Interpreter>> = RefCell::new(Vec::new());
 }
 
-pub fn compile(code: &str) -> Result<Prog> {
+/* pub fn compile(code: &str) -> Result<Prog> {
     let base_program = BaseSliceProgram::new(&code)?;
     let scoped_program = ScopedProgram::new(base_program)?;
     let typed_program = TypedProgram::new(scoped_program)?;
@@ -29,7 +29,7 @@ pub fn compile(code: &str) -> Result<Prog> {
     let simple_program = from_scoped(&typed_program);
     let with_ref_count = add_refcounts(&simple_program);
     Ok(code::Compiler::new().compile(&with_ref_count))
-}
+} */
 
 /* pub fn c_code(program: &Prog) -> String {
     ir::output(program).join("\n")
