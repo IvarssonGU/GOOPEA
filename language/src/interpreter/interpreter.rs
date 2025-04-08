@@ -1,10 +1,13 @@
+use super::iast::*;
+use super::mempeek::MemObj;
 use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
 use crate::ir::Prog;
-use crate::lexer::Lexer;
 use crate::simple_ast::{Operator, add_refcounts, from_scoped};
-use crate::{code, grammar, ir};
+use crate::{code, ir};
+use input::*;
+use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
@@ -15,10 +18,8 @@ use std::{fmt, vec};
 #[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 
-use super::iast::*;
-
 #[derive(Clone, Copy)]
-enum Data {
+pub enum Data {
     Value(i64),
     Pointer(usize),
 }
@@ -81,6 +82,7 @@ impl Data {
     }
 }
 
+#[derive(Clone)]
 pub struct Interpreter {
     functions: HashMap<String, IDef>,
     heap: Vec<Vec<Data>>,
@@ -90,8 +92,9 @@ pub struct Interpreter {
     local_variables: HashMap<String, Data>,
     variable_stack: Vec<HashMap<String, Data>>,
     return_value: Option<Data>,
+    steps: u64,
 }
-
+// init
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
@@ -103,15 +106,16 @@ impl Interpreter {
             local_variables: HashMap::new(),
             variable_stack: Vec::new(),
             return_value: None,
+            steps: 0,
         }
     }
 
-    pub fn from_program(prog: &Prog) -> Self {
+    pub fn from_program(program: &Prog) -> Self {
         let mut interpreter = Interpreter::new();
-        for def in prog.0.clone() {
+        for def in program.0.clone() {
             interpreter = interpreter.with_fn(IDef::from_def(&def));
         }
-        interpreter = interpreter.with_entry_point("Main");
+        interpreter = interpreter.with_entry_point("main");
         interpreter
     }
 
@@ -124,7 +128,9 @@ impl Interpreter {
         self.enter_fn(function_name, vec![]);
         self
     }
-
+}
+// running
+impl Interpreter {
     fn eval_op(&self, op: &IOperand) -> i64 {
         match op {
             IOperand::Ident(id) => self.get_local_var(id).unwrap_val(),
@@ -162,6 +168,12 @@ impl Interpreter {
         self.heap[ptr][2].inc();
     }
 
+    fn clean_memory(&mut self) {
+        // could make much more clean
+        let i = self.heap.iter().rposition(|x| !x.is_empty()).unwrap_or(0);
+        self.heap.truncate(i + 1);
+    }
+
     fn dec(&mut self, ptr: usize) {
         self.heap[ptr][2].dec();
         if self.heap[ptr][2].unwrap_val() == 0 {
@@ -175,9 +187,29 @@ impl Interpreter {
         }
     }
 
-    pub fn step(&mut self) -> Result<(), ()> {
+    fn enter_fn(&mut self, name: &str, passed_args: Vec<Data>) {
+        let f = self.functions.get(name).expect(&format!(
+            "Function '{}' should be in functions but is not",
+            name
+        ));
+        self.function_names_stack.push(f.id.clone());
+        // std::mem::take could make it faster
+        self.statement_stack.push(self.statements.clone());
+        self.variable_stack.push(self.local_variables.clone());
+
+        self.statements = f.body.clone().into();
+        // beautiful code🦀
+        self.local_variables.clear();
+        self.local_variables
+            .extend(f.args.clone().into_iter().zip(passed_args));
+
+        ()
+    }
+
+    pub fn step(&mut self) -> Option<IStatement> {
         let s = self.statements.pop_front();
-        if let Some(statement) = s {
+        if let Some(statement) = s.clone() {
+            self.steps += 1;
             match statement {
                 IStatement::Decl(_) => (), // does nothing
                 IStatement::IfExpr(items) => {
@@ -203,7 +235,7 @@ impl Interpreter {
                         self.variable_stack.pop().expect("this should not happen");
                     self.function_names_stack.pop();
                 }
-                IStatement::Print(ioperand) => println!("> {:?}", ioperand),
+                IStatement::Print(ioperand) => println!("> {}", self.eval_op(&ioperand)),
                 IStatement::Inc(ioperand) => {
                     let id = ioperand.unwrap_id();
                     let data = self.get_local_var(&id);
@@ -217,6 +249,7 @@ impl Interpreter {
                     if let Data::Pointer(ptr) = data {
                         self.dec(ptr);
                     }
+                    self.clean_memory();
                 }
                 IStatement::Assign(id, ioperand) => {
                     let val = self.op_to_data(&ioperand);
@@ -250,16 +283,6 @@ impl Interpreter {
                     };
                     self.local_variables.insert(id, Data::Value(val));
                 }
-                /*
-                Statement::AssignConditional(id, b, op, tag) => {
-                    let result = operand_to_string(op);
-                    if *b {
-                        format!("Value {} = !(1 & {}) && {} == ((void** {})[0];", id, result, tag, result)
-                    } else {
-                        format!("Value {} = {} == {};", id, tag, result)
-                    }
-                }
-                */
                 IStatement::AssignConditional(id, b, iop, i) => {
                     let i = i >> 1; // bruh
                     let val = if b {
@@ -279,85 +302,131 @@ impl Interpreter {
                     self.return_value = None;
                 }
             }
-
-            Ok(())
-        } else {
-            Err(())
+        }
+        s
+    }
+}
+// running until
+impl Interpreter {
+    pub fn run_until_next_mem(&mut self) {
+        self.step();
+        while let Some(s) = self.statements.get(0) {
+            match s {
+                IStatement::InitConstructor(..)
+                | IStatement::Inc(_)
+                | IStatement::Dec(_)
+                | IStatement::AssignToField(..) => {
+                    break;
+                }
+                _ => {
+                    self.step();
+                }
+            }
         }
     }
 
-    fn run_until_return(&mut self) -> Result<(), ()> {
+    pub fn run_until_done(&mut self) {
+        while let Some(_) = self.step() {}
+    }
+
+    pub fn run_until_return(&mut self) {
         let s = self.function_names_stack.len();
 
-        while self.function_names_stack.len() >= s {
-            self.step()?;
-        }
-
-        Ok(())
-    }
-
-    fn enter_fn(&mut self, name: &str, passed_args: Vec<Data>) {
-        let f = self.functions.get(name).expect(&format!(
-            "Function '{}' should be in functions but is not",
-            name
-        ));
-        self.function_names_stack.push(f.id.clone());
-        // std::mem::take could make it faster
-        self.statement_stack.push(self.statements.clone());
-        self.variable_stack.push(self.local_variables.clone());
-
-        self.statements = f.body.clone().into();
-        // beautiful code🦀
-        self.local_variables.clear();
-        self.local_variables
-            .extend(f.args.clone().into_iter().zip(passed_args));
-
-        ()
-    }
-
-    fn _yolo(&mut self) {
-        loop {
-            println!("{:?}", self);
-            use std::io::{Write, stdin, stdout};
-            let mut s = String::new();
-            let _ = stdout().flush();
-            stdin()
-                .read_line(&mut s)
-                .expect("Did not enter a correct string");
-            self.step().unwrap();
+        while self.function_names_stack.len() >= s && !self.statements.is_empty() {
+            self.step();
         }
     }
+
+    pub fn run_step_over(&mut self) {
+        let s = self.function_names_stack.len();
+        self.step();
+        while self.function_names_stack.len() > s && !self.statements.is_empty() {
+            self.step();
+        }
+    }
+}
+// website interaction
+impl Interpreter {
+    pub fn get_memory_raw(&self) -> Vec<Vec<Data>> {
+        self.heap.clone()
+    }
+
+    pub fn get_variables_raw(&self) -> Vec<(String, Data)> {
+        let mut list = self.local_variables.clone().into_iter().collect_vec();
+        list.sort_by(|(a, _), (b, _)| a.cmp(b));
+        list
+    }
+
+    pub fn get_variable_json(&self, id: &str) -> String {
+        if !self.local_variables.contains_key(id) {
+            return "{}".to_string();
+        }
+        MemObj::from_data(&self.get_local_var(id), &self.heap).as_json()
+    }
+}
+
+fn concat_columns(left: &Vec<String>, right: &Vec<String>, sep: &str) -> Vec<String> {
+    let wleft = left.iter().map(|s| s.len()).max().unwrap_or(0);
+    let wright = right.iter().map(|s| s.len()).max().unwrap_or(0);
+
+    left.iter()
+        .zip_longest(right.iter())
+        .map(|e| match e {
+            itertools::EitherOrBoth::Both(a, b) => format!("{:<wleft$}{sep}{:<wright$}", a, b),
+            itertools::EitherOrBoth::Left(a) => format!("{:<wleft$}{sep}{:<wright$}", a, ""),
+            itertools::EitherOrBoth::Right(b) => format!("{:<wleft$}{sep}{:<wright$}", "", b),
+        })
+        .collect_vec()
 }
 
 impl Debug for Interpreter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{:=^50}", " Interpreter Debug Print ")?;
+        writeln!(
+            f,
+            "{:=^50}",
+            format!(
+                " Interpreter Debug Print | Inside '{}' ",
+                self.function_names_stack.last().unwrap_or(&"".to_string())
+            )
+        )?;
 
-        writeln!(f, "Heap:")?;
         let bruh = format!("{}", self.heap.len()).len();
-        for (i, m) in self.heap.clone().iter().enumerate() {
-            writeln!(f, "{:>bruh$}  {:?}", i, m)?;
-        }
-        writeln!(f, "")?;
+        let heap_lines = vec!["Heap data:".to_string()]
+            .into_iter()
+            .chain(
+                self.heap
+                    .iter()
+                    .enumerate()
+                    .map(|(i, m)| format!("{:>bruh$}  {:?}", i, m)),
+            )
+            .collect_vec();
 
-        writeln!(f, "Local Variables:")?;
-        for (k, v) in self.local_variables.clone().iter() {
-            writeln!(f, "  {} = {:?}", k, v)?;
+        let mut vars_lines = vec!["Local variables:".to_string()]
+            .into_iter()
+            .chain(
+                self.get_variables_raw()
+                    .iter()
+                    .map(|(k, v)| format!("{} = {:?}", k, v)),
+            )
+            .collect_vec();
+        if let Some(v) = self.return_value {
+            vars_lines.push(format!("Return value: {:?}", v));
         }
-        writeln!(f, "")?;
-        writeln!(f, "Return value: {:?}\n", self.return_value)?;
 
-        if !self.function_names_stack.is_empty() {
-            writeln!(
-                f,
-                "Inside Function '{}'",
-                self.function_names_stack.last().unwrap()
-            )?;
-            writeln!(f, "Current Statements:")?;
-            for s in self.statements.clone() {
-                writeln!(f, "  {}", s)?;
-            }
-            writeln!(f, "")?;
+        let combined = concat_columns(&heap_lines, &vars_lines, " | ");
+
+        let statements_lines = self
+            .statements
+            .iter()
+            .map(|s| format!("{}", s))
+            .chain(vec!["...".to_string()].into_iter().cycle())
+            .take(15)
+            .collect_vec();
+
+        let combined = concat_columns(&combined, &statements_lines, " | ");
+
+        for line in &combined {
+            writeln!(f, "{}", line).unwrap();
         }
 
         writeln!(f, "Statement stack:")?;
@@ -394,25 +463,27 @@ pub fn interpreter_test_time(src: &str) {
     println!("Starting!");
     let now = std::time::Instant::now();
 
-    interpreter.run_until_return().unwrap();
+    interpreter.run_until_done();
 
     let elapsed = now.elapsed().as_micros();
-    println!("Done! ({} us)", elapsed);
+    let steps = interpreter.steps;
+    println!(
+        "Done!\n{} steps in {} us\n{} sps",
+        steps,
+        elapsed,
+        1_000_000 * steps / elapsed as u64
+    );
     println!("{:?}", interpreter);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test(src: &str) {
+    use crate::interpreter::mempeek::{MemObj, MemPeek};
+
     let code = fs::read_to_string(Path::new(src)).unwrap();
-
-    let program = grammar::ProgramParser::new()
-        .parse(Lexer::new(&code))
-        .unwrap();
-
     let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
-
     let simple_program = from_scoped(&typed_program);
     let with_ref_count = add_refcounts(&simple_program);
     let code = code::Compiler::new().compile(&with_ref_count);
@@ -420,32 +491,77 @@ pub fn interpreter_test(src: &str) {
     let c_code = ir::output(&code).join("\n");
     fs::write(Path::new(".interpreter_out/c_code.c"), c_code).unwrap();
 
-    let c_ast = code
-        .0
+    let mut c_ast = code.0.clone();
+    c_ast.sort_by(|a, b| a.id.cmp(&b.id));
+    let c_ast = c_ast
         .iter()
         .map(|def| {
             let statements = def
                 .body
                 .iter()
                 .map(|s| format!("    {:?}", s))
-                .collect::<Vec<_>>()
+                .collect_vec()
                 .join("\n");
             format!("function {}{:?}:\n{}\n", def.id, def.args, statements)
         })
-        .collect::<Vec<_>>()
+        .collect_vec()
         .join("\n");
     fs::write(Path::new(".interpreter_out/c_ast.txt"), c_ast).unwrap();
 
-    let interpreter = Interpreter::from_program(&code);
+    let mut interpreter = Interpreter::from_program(&code);
 
-    let i_ast = interpreter
-        .functions
+    let mut i_ast = interpreter.functions.values().collect_vec().clone();
+    i_ast.sort_by(|a, b| a.id.cmp(&b.id));
+    let i_ast = i_ast
         .iter()
-        .map(|(_, idef)| {
-            format!("{}\n", idef)
-        })
-        .collect::<Vec<_>>()
+        .map(|idef| format!("{}\n", idef))
+        .collect_vec()
         .join("\n");
-    
+
     fs::write(Path::new(".interpreter_out/i_ast.txt"), i_ast).unwrap();
+
+    let mut history = Vec::new();
+    loop {
+        if let Some(_) = interpreter.statements.get(0) {
+            print!("{}[2J", 27 as char);
+            println!("{:?}", interpreter);
+            println!("m, r, s, b, enter");
+            let input: String = input("");
+
+            match input.as_str() {
+                "m" => {
+                    history.push(interpreter.clone());
+                    interpreter.run_until_next_mem();
+                }
+                "r" => {
+                    history.push(interpreter.clone());
+                    interpreter.run_until_return();
+                }
+                "s" => {
+                    history.push(interpreter.clone());
+                    interpreter.run_step_over();
+                }
+                "b" => {
+                    interpreter = history.pop().unwrap();
+                }
+                x if x.parse::<usize>().is_ok() => {
+                    let shit = MemObj::from_data(
+                        &Data::Pointer(x.parse::<usize>().unwrap()),
+                        &interpreter.heap,
+                    );
+                    println!("{}", shit.as_json());
+                }
+                x if interpreter.local_variables.contains_key(x) => {
+                    let json = interpreter.get_variable_json(x);
+                    println!("{}", json);
+                }
+                _ => {
+                    history.push(interpreter.clone());
+                    interpreter.step();
+                }
+            }
+        } else {
+            break;
+        }
+    }
 }
