@@ -40,14 +40,14 @@ impl<'i> ScopedProgram<'i> {
     // Creates a new program with scope information
     // Performs minimum required validation, such as no top level symbol collisions
     pub fn new(program: BaseSliceProgram) -> Result<ScopedProgram> {
-        let program = program.transform_functions(|body, _, _| Ok(body.into())).unwrap();
+        let program = program.transform_functions(|_, body, _, _| Ok(body.into())).unwrap();
 
         let counter = RefCell::new(0);
 
         let atom_constructors = program.constructors.iter().filter_map(|(fid, cons)| (cons.args.0.len() == 0).then_some(fid.clone())).collect();
         let zero_argument_functions = program.function_datas.iter().filter_map(|(fid, sig)| (sig.vars.0.len() == 0).then_some(fid.clone())).collect();
 
-        let program = program.transform_functions(|body, func, _| {
+        let program = program.transform_functions(|_, body, func, _| {
             let base_scope = func.vars.0.iter().map(
                 |vid| {
                     (vid.clone(), Rc::new(VariableDefinition { id: vid.clone(), internal_id: counter.replace_with(|&mut x| x + 1) }))

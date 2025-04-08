@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fmt::{Display, Formatter}, iter, ops::{Deref, Range}};
 
-use crate::error::CompileError;
 use color_eyre::Result;
 
 use super::{scoped::Scope, typed::ExpressionType};
@@ -69,7 +68,8 @@ pub enum Operator {
     Add,
     Sub,
     Mul,
-    Div
+    Div,
+    Mod
 }
 
 #[derive(Debug)]
@@ -161,11 +161,11 @@ impl<D, E> Program<D, E> {
         )
     }
 
-    pub fn transform_functions<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>, &FunctionData, &ProgramData) -> Result<ExpressionNode<D2, E2>>) -> Result<Program<D2, E2>> {
+    pub fn transform_functions<D2, E2>(self, func: impl Fn(&FID, ExpressionNode<D, E>, &FunctionData, &ProgramData) -> Result<ExpressionNode<D2, E2>>) -> Result<Program<D2, E2>> {
         let (program_data, mut function_bodies) = self.split_data_and_bodies();
 
         let function_bodies = program_data.function_datas.keys()
-            .map(|fid| func(function_bodies.remove(fid).unwrap(), &program_data.function_datas[fid], &program_data).map(|body| (fid.clone(), body))).collect::<Result<_, _>>()?;
+            .map(|fid| func(fid, function_bodies.remove(fid).unwrap(), &program_data.function_datas[fid], &program_data).map(|body| (fid.clone(), body))).collect::<Result<_, _>>()?;
 
         Ok(Program { 
             adts: program_data.adts,
@@ -255,7 +255,7 @@ impl<T> UTuple<T> {
 
 impl Operator {
     pub const COMPERATORS: [Self; 6] = [Operator::Equal, Operator::NotEqual, Operator::Less, Operator::LessOrEq, Operator::Greater, Operator::GreaterOrEqual ];
-    pub const NUMERICAL: [Self; 4] = [Operator::Add, Operator::Div, Operator::Sub, Operator::Mul];
+    pub const NUMERICAL: [Self; 5] = [Operator::Add, Operator::Div, Operator::Sub, Operator::Mul, Operator::Mod];
 }
 
 // ==== PRETTY PRINT CODE ====
@@ -586,6 +586,7 @@ impl From<&Operator> for &'static str {
             Operator::Sub => "-",
             Operator::Mul => "*",
             Operator::Div => "/",
+            Operator::Mod => "%",
         }
     }
 }

@@ -86,12 +86,12 @@ impl<'i> TypedProgram<'i> {
             all_function_signatures.insert(fid.clone(), func.signature.clone());
         }
 
-        let program = program.transform_functions(|body, func, _| {
+        let program = program.transform_functions(|fid, body, func, _| {
             let func_vars = &func.vars.0;
             let func_types = &func.signature.argument_type.0;
 
             if func_vars.len() != func_types.len() {
-                return Err(CompileError::InconsistentVariableCountInFunctionDefinition.into());
+                return Err(CompileError::InconsistentVariableCountInFunctionDefinition { fid: fid.clone(), signature: func_types.len(), definition: func_vars.len() }.into());
             }
 
             let base_var_types = func_vars.iter().zip(func_types.iter()).map(
@@ -112,14 +112,14 @@ impl<'i> TypedProgram<'i> {
     }
 
     fn validate_return_types(&self) -> Result<()> {
-        for (_, func, body) in self.function_iter() {
+        for (fid, func, body) in self.function_iter() {
             let return_type = match &body.data.data {
                 ExpressionType::UTuple(utuple) => utuple.clone(),
                 ExpressionType::Type(tp) => UTuple(vec![tp.clone()]),
             };
 
             if return_type != func.signature.result_type {
-                return Err(CompileError::WrongReturnType.make_report(body.snippet()))
+                return Err(CompileError::WrongReturnType {fid: fid.clone(), expected: func.signature.result_type.clone(), actual: return_type}.make_report(body.snippet()))
             }
         }
 
@@ -148,15 +148,15 @@ impl<'i> TypedProgram<'i> {
     fn validate_function_call(&self, node: &TypedNode, all_signatures: &HashMap<FID, FunctionSignature>) -> Result<()> {
         let SimplifiedExpression::FunctionCall(fid, args) = &node.expr else { return Ok(()) };
 
-        let expected_arg_type = &all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction.make_report(node.snippet()))?.argument_type;
+        let expected_arg_type = &all_signatures.get(fid).ok_or_else(|| CompileError::UnknownFunction(fid.clone()).make_report(node.snippet()))?.argument_type;
 
         if args.0.len() != expected_arg_type.0.len() {
-            return Err(CompileError::WrongVariableCountInFunctionCall.make_report(node.snippet()));
+            return Err(CompileError::WrongVariableCountInFunctionCall {fid: fid.clone(), expected: expected_arg_type.0.len(), actual: args.0.len()}.make_report(node.snippet()));
         }
 
         let arg_type: UTuple<Type> = UTuple(node.children().map(|child| child.data.expect_tp(child.snippet()).map(|x| x.clone())).collect::<Result<_, _>>()?);
         if &arg_type != expected_arg_type {
-            return Err(CompileError::WrongArgumentType(fid.clone(), arg_type, expected_arg_type.clone()).make_report(node.snippet()))
+            return Err(CompileError::WrongArgumentType{ fid: fid.clone(), actual: arg_type, expected: expected_arg_type.clone()}.make_report(node.snippet()))
         }
 
         Ok(())
@@ -165,7 +165,8 @@ impl<'i> TypedProgram<'i> {
     fn validate_match_pattern(&self, node: &TypedNode) -> Result<()> {
         let SimplifiedExpression::Match(match_on, cases) = &node.expr else { return Ok(()) };
 
-        get_children_same_type(cases.iter().map(|t| &t.1)).ok_or_else(|| CompileError::MissmatchedTypes.make_report(node.snippet()))?;
+        get_children_same_type(cases.iter().map(|t| &t.1))
+            .ok_or_else(|| CompileError::MissmatchedTypesInMatchCases.make_report(node.snippet()))?;
     
         let mut has_wildcard = false;
         for (pattern, _) in cases {
@@ -174,7 +175,7 @@ impl<'i> TypedProgram<'i> {
 
             if has_wildcard {
                 if !case_is_wildcard {
-                    return Err(CompileError::MatchHasCaseAfterWildcard.make_report(node.snippet()))
+                    return Err(CompileError::MatchHasCaseAfterWildcard(pattern.clone()).make_report(node.snippet()))
                 } else {
                     return Err(CompileError::MatchHasMultipleWildcards.make_report(node.snippet()))
                 }
@@ -194,10 +195,10 @@ impl<'i> TypedProgram<'i> {
                     match pattern {
                         Pattern::Integer(i) => {
                             if !used_ints.insert(i) {
-                                return Err(CompileError::MultipleOccurencesOfIntInMatch.make_report(node.snippet()));
+                                return Err(CompileError::MultipleOccurencesOfIntInMatch(i.clone()).make_report(node.snippet()));
                             }
                         },
-                        Pattern::Constructor(_, _) => return Err(CompileError::InvalidPatternInMatchCase.make_report(node.snippet())),
+                        Pattern::Constructor(_, _) => return Err(CompileError::InvalidPatternInMatchCase{ pattern: pattern.clone(), match_on_type: tp.clone() }.make_report(node.snippet())),
                         Pattern::Variable(_) => (),
                     }
                 }
@@ -210,20 +211,20 @@ impl<'i> TypedProgram<'i> {
                 let mut used_constructors = HashSet::new();
                 for (pattern, _) in cases {
                     match pattern {
-                        Pattern::Integer(_) => return Err(CompileError::InvalidPatternInMatchCase.make_report(node.snippet())),
+                        Pattern::Integer(_) => return Err(CompileError::InvalidPatternInMatchCase { match_on_type: tp.clone(), pattern: pattern.clone() }.make_report(node.snippet())),
                         Pattern::Variable(_) => (),
                         Pattern::Constructor(fid, vars) => {
-                            let cons = self.constructors.get(fid).ok_or_else(|| CompileError::UnknownConstructor.make_report(node.snippet()))?;
+                            let cons = self.constructors.get(fid).ok_or_else(|| CompileError::UnknownConstructor(fid.clone()).make_report(node.snippet()))?;
                             if &cons.adt != aid {
-                                return Err(CompileError::InvalidPatternInMatchCase.make_report(node.snippet()));
+                                return Err(CompileError::InvalidPatternInMatchCase { match_on_type: tp.clone(), pattern: pattern.clone() }.make_report(node.snippet()));
                             }
         
                             if vars.0.len() != cons.args.0.len() {
-                                return Err(CompileError::WrongVariableCountInMatchCase.make_report(node.snippet()))
+                                return Err(CompileError::WrongVariableCountInMatchCase { fid: fid.clone(), actual: vars.0.len(), expected: cons.args.0.len() }.make_report(node.snippet()))
                             }
         
                             if !used_constructors.insert(fid) {
-                                return Err(CompileError::MultipleOccurencesOfConstructorInMatch.make_report(node.snippet()));
+                                return Err(CompileError::MultipleOccurencesOfConstructorInMatch(fid.clone()).make_report(node.snippet()));
                             }
                         }
                     }
@@ -329,7 +330,8 @@ pub fn type_expression<'i>(
         SimplifiedExpression::FunctionCall(fid, args) => {
                 let typed_args = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?;
             
-                let return_type = &function_signatures.get(&fid).ok_or_else(|| CompileError::UnknownFunction.make_report(expr.data.next))?.result_type;
+                let return_type = &function_signatures.get(&fid)
+                    .ok_or_else(|| CompileError::UnknownFunction(fid.clone()).make_report(expr.data.next))?.result_type;
                 let tp = if return_type.0.len() == 1 { ExpressionType::Type(return_type.0[0].clone()) } else { ExpressionType::UTuple(return_type.clone()) };
                 (SimplifiedExpression::FunctionCall(fid, UTuple(typed_args)), tp)
             },
@@ -355,7 +357,7 @@ pub fn type_expression<'i>(
                             type_expression( child, new_var_types, function_signatures)
                         },
                         Pattern::Constructor(fid, vars) => {
-                            let cons_sig = &function_signatures.get(fid).ok_or(CompileError::UnknownConstructor.make_report(expr.data.next))?.argument_type;
+                            let cons_sig = &function_signatures.get(fid).ok_or(CompileError::UnknownConstructor(fid.clone()).make_report(expr.data.next))?.argument_type;
                             if cons_sig.0.len() != vars.0.len() {
                                 panic!("Wrong number of arguments in match statement of case {}", fid);
                             }
@@ -373,7 +375,7 @@ pub fn type_expression<'i>(
                     }.map(move |new_expr| (pattern, new_expr))
                 }).collect::<Result<_, _>>()?;
 
-                let tp = get_children_same_type(new_cases.iter().map(|(_, e)| e)).ok_or_else(|| CompileError::MissmatchedTypes.make_report(expr.data.next))?;
+                let tp = get_children_same_type(new_cases.iter().map(|(_, e)| e)).ok_or_else(|| CompileError::MissmatchedTypesInMatchCases.make_report(expr.data.next))?;
 
                 let new_expr = SimplifiedExpression::Match(
                     var_node,
@@ -391,7 +393,7 @@ pub fn type_expression<'i>(
             };
 
             if vt.len() != vars.0.len() {
-                return Err(CompileError::WrongVariableCountInLetStatement.make_report(expr.data.next))
+                return Err(CompileError::WrongVariableCountInLetStatement { actual: vars.0.len(), expected: vt.len() }.make_report(expr.data.next))
             }
 
             let mut new_var_types = var_types;

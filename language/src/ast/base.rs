@@ -138,7 +138,7 @@ impl Type {
             Type::Int => Ok(()),
             Type::ADT(aid) => {
                 if !program.adts.contains_key(aid) { 
-                    Err(CompileError::UnknownADTInType.into()) 
+                    Err(CompileError::UnknownADTInType(aid.to_string()).into()) 
                 } else { 
                     Ok(()) 
                 }
