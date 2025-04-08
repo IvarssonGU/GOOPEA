@@ -3,23 +3,21 @@
 pub mod ast;
 //mod code;
 mod error;
-mod interpreter;
+//mod interpreter;
 mod lexer;
 //mod simple_ast;
 lalrpop_mod!(pub grammar);
 
 use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
 use color_eyre::Result;
-use interpreter::Interpreter;
-use ir::Prog;
+//use interpreter::Interpreter;
 use lalrpop_util::lalrpop_mod;
-use simple_ast::{add_refcounts, from_scoped};
 use std::cell::RefCell;
 
-thread_local! {
+/* thread_local! {
     static INTERPRETER: RefCell<Interpreter> = RefCell::new(Interpreter::new());
     static INT_HISTORY: RefCell<Vec<Interpreter>> = RefCell::new(Vec::new());
-}
+} */
 
 /* pub fn compile(code: &str) -> Result<Prog> {
     let base_program = BaseSliceProgram::new(&code)?;
@@ -45,7 +43,7 @@ thread_local! {
     INTERPRETER.set(interpreter);
 } */
 
-pub fn step_interpreter() {
+/* pub fn step_interpreter() {
     INTERPRETER.with_borrow_mut(|interpreter| {
         interpreter.step();
     });
@@ -85,4 +83,4 @@ pub fn restore_interpreter() {
             INTERPRETER.set(i);
         }
     });
-}
+} */

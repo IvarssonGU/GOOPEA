@@ -1,11 +1,12 @@
 //stir = Sequentially-Transformed-Intermediate-Representation
-
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter, Result};
 
-use crate::ast;
-use crate::scoped;
+use crate::ast::{
+    ast, scoped,
+    typed::{TypedNode, TypedProgram},
+};
 
 pub type Stir = Vec<Function>;
 
@@ -232,93 +233,90 @@ fn next_var() -> Var {
     format!("fresh{}", current)
 }
 
-pub fn from_scoped(ast: &scoped::ScopedProgram) -> Stir {
-    ast.functions
-        .iter()
-        .map(|(id, scoped_fun)| Function {
+pub fn from_typed(typed: &TypedProgram) -> Stir {
+    let mut program = vec![];
+
+    for (id, func, body) in typed.function_iter() {
+        program.push(Function {
             id: id.clone(),
-            args: scoped_fun.def.variables.0.clone(),
-            body: remove_dead_bindings(from_simple(
-                &from_scoped_expr(scoped_fun.body.expr, ast),
-                &|var| Body::Ret(var),
-            )),
-        })
-        .collect()
+            args: func.vars.0.clone(),
+            body: remove_dead_bindings(from_simple(&from_typed_expr(&body, typed), &|var| {
+                Body::Ret(var)
+            })),
+        });
+    }
+    program
 }
 
-fn from_scoped_expr(expr: &ast::Expression, ast: &scoped::ScopedProgram) -> Simple {
-    match expr {
-        ast::Expression::FunctionCall(id, args) => match id.as_str() {
+fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
+    match &expr.expr {
+        scoped::SimplifiedExpression::FunctionCall(id, args) => match id.as_str() {
             "+" => Simple::Operation(
                 Operator::Add,
-                from_scoped_expr(&args.0[0], ast).into(),
-                from_scoped_expr(&args.0[1], ast).into(),
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
             ),
             "-" => Simple::Operation(
                 Operator::Sub,
-                from_scoped_expr(&args.0[0], ast).into(),
-                from_scoped_expr(&args.0[1], ast).into(),
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
             ),
             "*" => Simple::Operation(
                 Operator::Mul,
-                from_scoped_expr(&args.0[0], ast).into(),
-                from_scoped_expr(&args.0[1], ast).into(),
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
             ),
             "/" => Simple::Operation(
                 Operator::Div,
-                from_scoped_expr(&args.0[0], ast).into(),
-                from_scoped_expr(&args.0[1], ast).into(),
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
             ),
-            _ => match ast.get_constructor(id) {
-                Ok(cons) => {
+            _ => match context.constructors.get(id) {
+                Some(cons) => {
                     if args.0.is_empty() {
-                        Simple::Int(cons.internal_id as i64)
+                        Simple::Int(cons.sibling_index as i64)
                     } else {
                         Simple::Constructor(
-                            cons.internal_id as i64,
+                            cons.sibling_index as i64,
                             args.0
                                 .iter()
-                                .map(|arg| from_scoped_expr(arg, ast))
+                                .map(|arg| from_typed_expr(arg, context))
                                 .collect(),
                         )
                     }
                 }
-                _ => Simple::App(
+                None => Simple::App(
                     id.clone(),
                     args.0
                         .iter()
-                        .map(|arg| from_scoped_expr(arg, ast))
+                        .map(|arg| from_typed_expr(arg, context))
                         .collect(),
                 ),
             },
         },
-        ast::Expression::Integer(i) => Simple::Int(*i),
-        ast::Expression::Variable(id) => match ast.get_constructor(id) {
-            Ok(cons) if cons.constructor.arguments.0.is_empty() => {
-                Simple::Constructor(cons.internal_id as i64, Vec::new())
-            }
-            _ => Simple::Ident(id.clone()),
-        },
-        ast::Expression::Match(match_exp) => Simple::Match(
-            from_scoped_expr(&match_exp.expr, ast).into(),
-            match_exp
-                .cases
+        scoped::SimplifiedExpression::Integer(i) => Simple::Int(i.clone()),
+        scoped::SimplifiedExpression::Variable(id) => Simple::Ident(id.clone()),
+        scoped::SimplifiedExpression::Match(var_node, cases) => Simple::Match(
+            Simple::Ident(var_node.expr.clone()).into(),
+            cases
                 .iter()
-                .map(|case| {
+                .map(|(pattern, exp)| {
                     (
                         {
-                            match &case.pattern {
+                            match pattern {
                                 ast::Pattern::Integer(_) => todo!(),
-                                ast::Pattern::UTuple(_) => todo!(),
+                                ast::Pattern::Variable(_) => todo!(),
                                 ast::Pattern::Constructor(fid, vars) => {
                                     if vars.0.is_empty() {
                                         (
-                                            ast.get_constructor(fid).unwrap().internal_id as i64,
+                                            context.constructors.get(fid).unwrap().sibling_index
+                                                as i64,
                                             vec![],
                                         )
                                     } else {
                                         (
-                                            ast.get_constructor(fid).unwrap().internal_id as i64,
+                                            context.constructors.get(fid).unwrap().sibling_index
+                                                as i64,
                                             vars.0
                                                 .iter()
                                                 .map(|var| Binder::Variable(var.clone()))
@@ -328,7 +326,7 @@ fn from_scoped_expr(expr: &ast::Expression, ast: &scoped::ScopedProgram) -> Simp
                                 }
                             }
                         },
-                        from_scoped_expr(&case.body, ast),
+                        from_typed_expr(exp, context),
                     )
                 })
                 .collect(),
