@@ -14,12 +14,12 @@ use color_eyre::Result;
 use lalrpop_util::lalrpop_mod;
 use std::cell::RefCell;
 
-/* thread_local! {
+thread_local! {
     static INTERPRETER: RefCell<Interpreter> = RefCell::new(Interpreter::new());
     static INT_HISTORY: RefCell<Vec<Interpreter>> = RefCell::new(Vec::new());
-} */
+}
 
-/* pub fn compile(code: &str) -> Result<Prog> {
+pub fn compile(code: &str) -> Result<Prog> {
     let base_program = BaseSliceProgram::new(&code)?;
     let scoped_program = ScopedProgram::new(base_program)?;
     let typed_program = TypedProgram::new(scoped_program)?;
@@ -27,23 +27,23 @@ use std::cell::RefCell;
     let simple_program = from_scoped(&typed_program);
     let with_ref_count = add_refcounts(&simple_program);
     Ok(code::Compiler::new().compile(&with_ref_count))
-} */
+}
 
-/* pub fn c_code(program: &Prog) -> String {
+pub fn c_code(program: &Prog) -> String {
     ir::output(program).join("\n")
-} */
+}
 
 // Interpreter stuff
 //         store  store  store store
 // restore return memory step1 finish
 // state   state  state  state state
 
-/* pub fn load_interpreter(program: &Prog) {
+pub fn load_interpreter(program: &Prog) {
     let interpreter = Interpreter::from_program(program);
     INTERPRETER.set(interpreter);
-} */
+}
 
-/* pub fn step_interpreter() {
+pub fn step_interpreter() {
     INTERPRETER.with_borrow_mut(|interpreter| {
         interpreter.step();
     });
@@ -83,4 +83,4 @@ pub fn restore_interpreter() {
             INTERPRETER.set(i);
         }
     });
-} */
+}
