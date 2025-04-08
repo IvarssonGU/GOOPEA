@@ -13,7 +13,7 @@ thread_local! {
 #[wasm_bindgen]
 pub fn compile(arg: &str) {
     console_error_panic_hook::set_once();
-    COMPILATION_RESULT.replace(Some(language::compile(arg)));
+    COMPILATION_RESULT.set(Some(language::compile(arg)));
 }
 
 #[wasm_bindgen]
