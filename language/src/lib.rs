@@ -3,8 +3,8 @@
 pub mod ast;
 mod code;
 mod error;
-mod interpreter;
-mod ir;
+pub mod interpreter;
+pub mod ir;
 mod lexer;
 mod simple_ast;
 lalrpop_mod!(pub grammar);

@@ -2,19 +2,46 @@ extern crate console_error_panic_hook;
 // use std::panic;
 
 use wasm_bindgen::prelude::wasm_bindgen;
-use language;
+use language::{self, ir::Prog};
+use color_eyre::Result;
+use std::cell::RefCell;
 
-#[wasm_bindgen]
-pub fn get_c_code(arg: &str) -> String {
-    console_error_panic_hook::set_once();
-    
-    // let compiled = language::compile(arg);
-    language::c_code(&language::compile(arg))
+thread_local! {
+    static COMPILATION_RESULT: RefCell<Option<Result<Prog>>> = RefCell::new(None);
 }
 
 #[wasm_bindgen]
-pub fn start_interpreter(arg: &str) {
-    language::load_interpreter(&language::compile(arg));
+pub fn compile(arg: &str) {
+    console_error_panic_hook::set_once();
+    COMPILATION_RESULT.replace(Some(language::compile(arg)));
+}
+
+#[wasm_bindgen]
+pub fn get_c_code() -> String {
+    COMPILATION_RESULT.with_borrow(|x| {
+        language::c_code(x.as_ref().unwrap().as_ref().unwrap())
+    })
+}
+
+#[wasm_bindgen]
+pub fn get_error() -> String {
+    COMPILATION_RESULT.with_borrow(|x| {
+        x.as_ref().unwrap().as_ref().map_err(|e| e.to_string()).err().unwrap()
+    })
+}
+
+#[wasm_bindgen]
+pub fn has_error() -> bool {
+    COMPILATION_RESULT.with_borrow(|x| {
+        x.as_ref().unwrap().is_err()
+    })
+}
+
+#[wasm_bindgen]
+pub fn start_interpreter() {
+    COMPILATION_RESULT.with_borrow(|x| {
+        language::load_interpreter(x.as_ref().unwrap().as_ref().unwrap());
+    })
 }
 
 #[wasm_bindgen]
