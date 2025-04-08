@@ -108,3 +108,6 @@ body:not(.show) {
 .hide {
     display: none;
 }
+textarea:not(.hide) {
+    display: block;
+}

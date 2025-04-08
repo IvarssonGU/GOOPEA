@@ -59,7 +59,7 @@ textarea {
     color: var(--text-color);
 }
 
-#code-cell, #output, #debug, #c-code, #step1, #step2, #step3 {
+#code-cell, #output, #debug, #c-code, #step1, #step2, #step3, #messages {
     height:75vh;
     vertical-align: top;
 }
@@ -94,7 +94,7 @@ textarea {
     margin-right: 12px;
 }
 
-.tab-button, .debug-button, .code-step-button {
+.tab-button, .debug-button, .compiler-button {
     margin: -21.75px 0 -0.75px -1.5px;
     border-top: none;
     vertical-align: bottom;
@@ -135,16 +135,16 @@ textarea {
     margin-top: -2px;
 }
 
-.code-step-button {
+.compiler-button {
     display: inline-block;
     margin-left: -10px;
     margin-bottom: -0.75px;
 }
-#ccode-tab, #diff-tab, #step1-tab, #step2-tab, #step3-tab {
+#ccode-tab, #diff-tab, #step1-tab, #step2-tab, #step3-tab, #messages-tab {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
 }
-#ccode-tab {
+#messages-tab {
     margin-left: 3px;
 }
 
