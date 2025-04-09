@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 
-use crate::error::CompileError;
-use color_eyre::Result;
+use crate::error::{AttachSource, CompileError};
+use color_eyre::{eyre::Report, Result};
 
 use super::{ast::{ChainedData, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseSliceNode, BaseSliceProgram, SyntaxExpression}};
 
@@ -67,7 +67,7 @@ impl<'i> ScopedProgram<'i> {
         self.validate_expressions_by(
             |node| {
                 let SimplifiedExpression::Variable(vid) = &node.expr else { return Ok(()) };
-                if !node.data.contains_key(vid) { return Err(CompileError::UnknownVariable(vid.clone()).make_report(node.data.next)) }
+                if !node.data.contains_key(vid) { return Err(Report::new(CompileError::UnknownVariable(vid.clone())).attach_source(node.data.next)) }
 
                 Ok(())
             }

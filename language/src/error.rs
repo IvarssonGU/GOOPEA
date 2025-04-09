@@ -2,9 +2,13 @@ use crate::ast::ast::{Pattern, Type, UTuple, AID, FID, VID};
 use color_eyre::{eyre, Section, SectionExt};
 use thiserror::Error;
 
-impl CompileError {
-    pub fn make_report(self, snippet: &str) -> eyre::Report {
-        eyre::Report::new(self).with_section(|| snippet.to_string().header("Code snippet:"))
+pub trait AttachSource {
+    fn attach_source(self, snippet: &str) -> Self;
+}
+
+impl AttachSource for eyre::Report {
+    fn attach_source(self, snippet: &str) -> Self {
+        self.with_section(|| snippet.to_string().header("Code snippet:"))
     }
 }
 
@@ -30,6 +34,8 @@ pub enum CompileError {
     WrongVariableCountInFunctionCall { fid: FID, expected: usize, actual: usize },
     #[error("Use of undeclared ADT '{0}'")]
     UnknownADTInType(AID),
+    #[error("The program is missing a main function")]
+    MissingMainFunction,
 
     #[error("Missmatched return types of match statement")]
     MissmatchedTypesInMatchCases,
