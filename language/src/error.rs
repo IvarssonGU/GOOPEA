@@ -1,14 +1,16 @@
-use crate::ast::ast::{Pattern, Type, UTuple, AID, FID, VID};
+use crate::ast::{ast::{Pattern, Type, UTuple, AID, FID, VID}, base::SourceReference};
 use color_eyre::{eyre, Section, SectionExt};
+use itertools::Itertools;
 use thiserror::Error;
 
 pub trait AttachSource {
-    fn attach_source(self, snippet: &str) -> Self;
+    fn attach_source(self, snippet: &SourceReference<'_>) -> Self;
 }
 
 impl AttachSource for eyre::Report {
-    fn attach_source(self, snippet: &str) -> Self {
-        self.with_section(|| snippet.to_string().header("Code snippet:"))
+    fn attach_source(self, source: &SourceReference<'_>) -> Self {
+        self.with_section(|| source.snippet.to_string().lines().enumerate().map(|(i, line)| format!("{}. {line}", source.start.line+i)).join("\n")
+            .header(format!("Source location {}:{}-{}:{}", source.start.line, source.start.char_offset, source.end.line, source.end.char_offset)))
     }
 }
 

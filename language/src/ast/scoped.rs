@@ -3,10 +3,10 @@ use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 use crate::error::{AttachSource, CompileError};
 use color_eyre::{eyre::Report, Result};
 
-use super::{ast::{ChainedData, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseSliceNode, BaseSliceProgram, SyntaxExpression}};
+use super::{ast::{ChainedData, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseSliceNode, BaseSliceProgram, SourceReference, SyntaxExpression}};
 
 pub type Scope = HashMap<VID, Rc<VariableDefinition>>;
-pub type ScopedData<'i> = ChainedData<Scope, &'i str>;
+pub type ScopedData<'i> = ChainedData<Scope, SourceReference<'i>>;
 
 pub type ScopedNode<'i> = ExpressionNode<ScopedData<'i>, SimplifiedExpression<ScopedData<'i>>>;
 
@@ -67,7 +67,7 @@ impl<'i> ScopedProgram<'i> {
         self.validate_expressions_by(
             |node| {
                 let SimplifiedExpression::Variable(vid) = &node.expr else { return Ok(()) };
-                if !node.data.contains_key(vid) { return Err(Report::new(CompileError::UnknownVariable(vid.clone())).attach_source(node.data.next)) }
+                if !node.data.contains_key(vid) { return Err(Report::new(CompileError::UnknownVariable(vid.clone())).attach_source(&node.data.next)) }
 
                 Ok(())
             }
@@ -76,7 +76,7 @@ impl<'i> ScopedProgram<'i> {
 }
 
 pub fn scope_expression<'i>(
-    expr: ExpressionNode<&'i str, SimplifiedExpression<&'i str>>, 
+    expr: ExpressionNode<SourceReference<'i>, SimplifiedExpression<SourceReference<'i>>>, 
     scope: Scope,
     counter: &RefCell<usize>,
     atom_constructors: &HashSet<FID>,
@@ -187,7 +187,7 @@ impl<'a, D> From<&'a SimplifiedExpression<D>> for FullExpression<'a, D, Simplifi
     }
 }
 
-impl<'i> From<BaseSliceNode<'i>> for ExpressionNode<&'i str, SimplifiedExpression<&'i str>> {
+impl<'i> From<BaseSliceNode<'i>> for ExpressionNode<SourceReference<'i>, SimplifiedExpression<SourceReference<'i>>> {
     fn from(node: BaseSliceNode<'i>) -> Self {
         let new_expr = match node.expr {
             SyntaxExpression::UTuple(x) => SimplifiedExpression::UTuple(x.transform_nodes(|e| Ok(e.into())).unwrap()),
@@ -198,14 +198,14 @@ impl<'i> From<BaseSliceNode<'i>> for ExpressionNode<&'i str, SimplifiedExpressio
                 let new_cases = cases.into_iter().map(|(a, b)| (a, b.into())).collect();
 
                 match &expr.expr {
-                    SyntaxExpression::Variable(vid) => SimplifiedExpression::Match(ExpressionNode { expr: vid.clone(), data: node.data }, new_cases),
+                    SyntaxExpression::Variable(vid) => SimplifiedExpression::Match(ExpressionNode { expr: vid.clone(), data: node.data.clone() }, new_cases),
                     _ => SimplifiedExpression::LetEqualIn(
                         UTuple(vec!["<temp>".to_string()]), 
                         Box::new((*expr).into()),
                         Box::new(ExpressionNode { 
-                            data: node.data, 
+                            data: node.data.clone(), 
                             expr: SimplifiedExpression::Match(
-                                ExpressionNode { expr: "<temp>".to_string(), data: node.data },
+                                ExpressionNode { expr: "<temp>".to_string(), data: node.data.clone() },
                                 new_cases
                             ) 
                         })

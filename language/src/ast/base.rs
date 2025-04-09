@@ -5,8 +5,8 @@ use color_eyre::Result;
 
 use super::ast::{Constructor, ExpressionNode, FullExpression, FunctionData, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
 
-pub type BaseSliceNode<'i> = ExpressionNode<&'i str, SyntaxExpression<&'i str>>;
-pub type BaseSliceProgram<'i> = Program<&'i str, SyntaxExpression<&'i str>>;
+pub type BaseSliceNode<'i> = ExpressionNode<SourceReference<'i>, SyntaxExpression<SourceReference<'i>>>;
+pub type BaseSliceProgram<'i> = Program<SourceReference<'i>, SyntaxExpression<SourceReference<'i>>>;
 
 pub type BaseRangeNode = ExpressionNode<Range<usize>, SyntaxExpression<Range<usize>>>;
 pub type BaseRangeProgram = Program<Range<usize>, SyntaxExpression<Range<usize>>>;
@@ -17,11 +17,13 @@ pub enum Definition {
     Function(FID, (FunctionData, BaseRangeNode))
 }
 
+#[derive(Clone, Debug)]
 pub struct SourceLocation {
     pub line: usize,
     pub char_offset: usize
 }
 
+#[derive(Clone, Debug)]
 pub struct SourceReference<'i> {
     pub start: SourceLocation,
     pub end: SourceLocation,
@@ -30,7 +32,7 @@ pub struct SourceReference<'i> {
 
 impl<'i> BaseSliceProgram<'i> {
     pub fn new(code: &'i str) -> Result<BaseSliceProgram<'i>> {
-        let linebreaks = code.bytes().enumerate().filter_map(|(i, c)| (c == b'\n').then(|| i as isize)).chain(once(-1)).enumerate().map(|(i, c)| (c, i+1)).collect::<BTreeMap<_, _>>();
+        let linebreaks = code.bytes().enumerate().filter_map(|(i, c)| (c == b'\n').then(|| i as isize)).chain(once(-1)).enumerate().map(|(i, c)| (c, i+2)).collect::<BTreeMap<_, _>>();
 
         let program: Vec<Definition> = grammar::ProgramParser::new().parse(Lexer::new(code)).unwrap();
 
@@ -126,7 +128,7 @@ impl BaseRangeNode {
 
         BaseSliceNode {
             expr: new_expr,
-            data: snippet
+            data: reference
         }
     }
 }
