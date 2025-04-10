@@ -4,11 +4,12 @@ use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
 use crate::core::{Def, Operand, Prog, Statement};
-use crate::stir::Operator;
+use crate::stir::{self, Operator};
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
+use crate::score;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
@@ -471,37 +472,17 @@ pub fn interpreter_test_time(src: &str) {
 pub fn interpreter_test(src: &str) {
     use crate::interpreter::mempeek::{MemObj, MemPeek};
 
-    /*
-    fs::write(Path::new(".interpreter_out/c_code.c"), c_code).unwrap();
+    let code = fs::read_to_string(Path::new(src)).unwrap();
+    let base_program = BaseSliceProgram::new(&code).unwrap();
+    let scoped_program = ScopedProgram::new(base_program).unwrap();
+    let typed_program = TypedProgram::new(scoped_program).unwrap();
 
-    let mut c_ast = code.clone();
-    c_ast.sort_by(|a, b| a.id.cmp(&b.id));
-    let c_ast = c_ast
-        .iter()
-        .map(|def| {
-            let statements = def
-                .body
-                .iter()
-                .map(|s| format!("    {:?}", s))
-                .collect_vec()
-                .join("\n");
-            format!("function {}{:?}:\n{}\n", def.id, def.args, statements)
-        })
-        .collect_vec()
-        .join("\n");
-    fs::write(Path::new(".interpreter_out/c_ast.txt"), c_ast).unwrap();
+    let pure_ir = stir::from_typed(&typed_program);
+    let pure_reuse = stir::add_reuse(&pure_ir);
+    let pure_rc = stir::add_rc(&pure_reuse, true);
+    let core_ir = score::translate(&pure_rc);
 
-    let mut interpreter = Interpreter::from_program(&code);
-
-    let mut i_ast = interpreter.functions.values().collect_vec().clone();
-    i_ast.sort_by(|a, b| a.id.cmp(&b.id));
-    let i_ast = i_ast
-        .iter()
-        .map(|idef| format!("{}\n", idef))
-        .collect_vec()
-        .join("\n");
-
-    fs::write(Path::new(".interpreter_out/i_ast.txt"), i_ast).unwrap();
+    let mut interpreter = Interpreter::from_program(&core_ir);
 
     let mut history = Vec::new();
     loop {
@@ -547,5 +528,4 @@ pub fn interpreter_test(src: &str) {
             break;
         }
     }
-    */
 }
