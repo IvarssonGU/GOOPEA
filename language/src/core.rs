@@ -5,7 +5,7 @@ use crate::stir::Operator;
 
 //Warning this is currently not correct, we will look deeper into this later.
 
-type Prog = Vec<Def>;
+pub type Prog = Vec<Def>;
 
 #[derive(Debug, Clone)]
 pub struct Def {
