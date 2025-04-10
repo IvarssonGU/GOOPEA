@@ -15,9 +15,6 @@ pub mod ast;
 mod error;
 mod lexer;
 
-mod interpreter;
-use interpreter::*;
-
 mod core;
 mod score;
 mod stir;
@@ -29,9 +26,11 @@ fn main() {}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<()> {
+    use core::Def;
+
     color_eyre::install()?;
 
-    let code = fs::read_to_string(Path::new("examples/tree_flip.goo"))?;
+    let code = fs::read_to_string(Path::new("examples/reuse_different_type.goo"))?;
 
     let base_program = BaseSliceProgram::new(&code)?;
 
@@ -40,11 +39,12 @@ fn main() -> Result<()> {
     let typed_program = TypedProgram::new(scoped_program)?;
 
     let pure_ir = stir::from_typed(&typed_program);
-
     let pure_reuse = stir::add_reuse(&pure_ir);
-
     let pure_rc = stir::add_rc(&pure_reuse, true);
 
+    for def in &pure_rc {
+        println!("{}", def);
+    }
     let core_ir = score::translate(&pure_rc);
     let result = core::output(&core_ir);
     println!("{}", result.join("\n"));

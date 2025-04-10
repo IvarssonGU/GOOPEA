@@ -52,6 +52,7 @@ pub enum Statement {
     AssignTagCheck(String, bool, Operand, i64),
     AssignFunctionCall(String, String, Vec<Operand>),
     AssignDropReuse(String, String),
+    AssignUTuple(u8, String, Vec<String>),
     Inc(String),
     Dec(String),
 }
@@ -103,7 +104,10 @@ pub fn output(prog: &Prog) -> Vec<String> {
         "\t\t}".to_string(),
         "\t\treturn ref;".to_string(),
         "\t}".to_string(),
-        "\treturn NULL;".to_string(),
+        "\telse {".to_string(),
+        "\t\t((void**) ref)[2]--;".to_string(),
+        "\t\treturn NULL;".to_string(),
+        "\t}".to_string(),
         "}".to_string(),
         String::new(),
     ]);
@@ -165,9 +169,12 @@ fn statement_to_string(stmt: &Statement, depth: usize) -> String {
         }
         Statement::IfElse(branches) => {
             let mut lines = vec![];
+
             for (i, (cond, stmts)) in branches.iter().enumerate() {
                 if i == 0 {
                     lines.push(format!("{}if ({}) {{", tab, operand_to_string(cond)));
+                } else if i == branches.len() - 1 {
+                    lines.push(format!("{}else {{", tab));
                 } else {
                     lines.push(format!("{}else if ({}) {{", tab, operand_to_string(cond)));
                 }
@@ -231,6 +238,10 @@ fn statement_to_string(stmt: &Statement, depth: usize) -> String {
         Statement::AssignDropReuse(var, reset_var) => {
             format!("{}void** {} = drop_reuse({});", tab, var, reset_var)
         }
+        Statement::AssignUTuple(size, var, args) => {
+            format!("{}Value{} {} = {{{}}};", tab, size, var, args.join(", "))
+        }
+
         Statement::Inc(var) => format!("{}inc({});", tab, var),
         Statement::Dec(var) => format!("{}dec({});", tab, var),
     }

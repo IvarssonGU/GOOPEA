@@ -91,6 +91,7 @@ pub enum Exp {
     App(Constant, Vec<Var>),
     Ctor(Tag, Vec<Var>),
     Proj(u8, Var),
+    UTuple(Vec<Var>),
     Int(i64),
     Op(Operator, Var, Var),
     Reset(Var),
@@ -111,10 +112,9 @@ impl Exp {
             Exp::Proj(_, v) => v == var,
             Exp::Op(_, v1, v2) => v1 == var || v2 == var,
             Exp::Int(_) => false,
-            Exp::Reset(_) => false, //Not sure if this should be like this or as below
-            Exp::Reuse(_, _, _) => false, //Not sure if this should be like this or as below
-                                     //Exp::Reset(v) => v == var,
-                                     //Exp::Reuse(v, _, args) => v == var || args.iter().any(|a| a == var),
+            Exp::Reset(_) => false,
+            Exp::Reuse(_, _, _) => false,
+            Exp::UTuple(vars) => vars.iter().any(|v| v == var),
         }
     }
 }
@@ -166,6 +166,18 @@ impl Display for Exp {
                         .join(", ")
                 }
             ),
+            Exp::UTuple(vars) => write!(
+                f,
+                "UTuple({})",
+                if vars.is_empty() {
+                    "[]".to_string()
+                } else {
+                    vars.iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                }
+            ),
         }
     }
 }
@@ -209,9 +221,9 @@ pub enum Simple {
     Constructor(i64, Vec<Simple>),
     App(String, Vec<Simple>),
     Match(Box<Simple>, Vec<(Pattern, Simple)>),
-    //Let(String, Box<Simple>, Box<Simple>),
-    //UTuple(Vec<Simple>),
-    //LetApp(Vec<String>, Box<Simple>, Box<Simple>),
+    Let(String, Box<Simple>, Box<Simple>),
+    UTuple(Vec<Simple>),
+    LetApp(Vec<String>, Box<Simple>, Box<Simple>),
 }
 
 type Pattern = (i64, Vec<Binder>);
@@ -331,7 +343,24 @@ fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
                 })
                 .collect(),
         ),
-        _ => todo!(),
+        scoped::SimplifiedExpression::UTuple(args) => Simple::UTuple(
+            args.0
+                .iter()
+                .map(|arg| from_typed_expr(arg, context))
+                .collect(),
+        ),
+        scoped::SimplifiedExpression::LetEqualIn(bindings, exp, next) if bindings.0.len() == 1 => {
+            Simple::Let(
+                bindings.0[0].clone(),
+                from_typed_expr(exp, context).into(),
+                from_typed_expr(next, context).into(),
+            )
+        }
+        scoped::SimplifiedExpression::LetEqualIn(bindings, exp, next) => Simple::LetApp(
+            bindings.0.clone(),
+            from_typed_expr(exp, context).into(),
+            from_typed_expr(next, context).into(),
+        ),
     }
 }
 
@@ -360,6 +389,10 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
             let fresh = next_var();
             Body::Let(fresh.clone(), Exp::Ctor(*tag as u8, vars), k(fresh).into())
         }),
+        Simple::UTuple(inner) => translate_list(inner.clone(), &move |vars| {
+            let fresh = next_var();
+            Body::Let(fresh.clone(), Exp::UTuple(vars), k(fresh).into())
+        }),
         Simple::Match(expr, branches) => {
             let mut branches = branches.clone();
             branches.sort_by_key(|((tag, _), _)| *tag);
@@ -384,6 +417,17 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
                 Body::Match(var, new_bodies)
             })
         }
+        Simple::Let(var, exp, next) => from_simple(exp, &move |var1| {
+            replace_var_body(var1, var, from_simple(next, &move |var2| k(var2).into()))
+        }),
+        Simple::LetApp(vars, exp, next) => from_simple(exp, &move |var1| {
+            vars.iter().enumerate().rev().fold(
+                from_simple(next, &move |var2| k(var2).into()),
+                |acc, (i, var)| {
+                    Body::Let(var.clone(), Exp::Proj(i as u8, var1.clone()), acc.into())
+                },
+            )
+        }),
     }
 }
 
@@ -401,6 +445,59 @@ fn translate_list(exprs: Vec<Simple>, k: &dyn Fn(Vec<Var>) -> Body) -> Body {
             })
         })
     }
+}
+
+fn replace_var_body(replacing: String, replacee: &String, body: Body) -> Body {
+    match body {
+        Body::Ret(var) => Body::Ret(replace_var(var, replacing.clone(), replacee)),
+        Body::Let(var, exp, next) => Body::Let(
+            replace_var(var, replacing.clone(), replacee),
+            replace_var_exp(replacing.clone(), replacee, exp),
+            replace_var_body(replacing.clone(), replacee, *next).into(),
+        ),
+        Body::Match(var, branches) => Body::Match(
+            replace_var(var, replacing.clone(), replacee),
+            branches
+                .iter()
+                .map(|(cons_len, branch)| {
+                    (
+                        *cons_len,
+                        replace_var_body(replacing.clone(), replacee, branch.clone()),
+                    )
+                })
+                .collect(),
+        ),
+        _ => panic!("Does not exist at this stage"),
+    }
+}
+
+fn replace_var_exp(replacing: String, replacee: &String, exp: Exp) -> Exp {
+    match exp {
+        Exp::App(id, args) => Exp::App(
+            id,
+            args.iter()
+                .map(|arg| replace_var(arg.clone(), replacing.clone(), replacee))
+                .collect(),
+        ),
+        Exp::Ctor(tag, args) => Exp::Ctor(
+            tag,
+            args.iter()
+                .map(|arg| replace_var(arg.clone(), replacing.clone(), replacee))
+                .collect(),
+        ),
+        Exp::Proj(tag, var) => Exp::Proj(tag, replace_var(var, replacing.clone(), replacee)),
+        Exp::Int(i) => Exp::Int(i),
+        Exp::Op(op, var1, var2) => Exp::Op(
+            op,
+            replace_var(var1, replacing.clone(), replacee),
+            replace_var(var2, replacing.clone(), replacee),
+        ),
+        _ => panic!("Does not exist at this stage"),
+    }
+}
+
+fn replace_var(var: String, replacing: String, replacee: &String) -> String {
+    if var == *replacee { replacing } else { var }
 }
 
 fn remove_dead_bindings(body: Body) -> Body {
@@ -569,6 +666,7 @@ fn collect(body: &Body, map: &HashMap<Constant, Vec<Status>>) -> HashSet<Var> {
                 }
                 set
             }
+            Exp::UTuple(_) => collect(next, map),
         },
         Body::Ret(_) => HashSet::new(),
         Body::Match(_, branches) => {
@@ -675,6 +773,16 @@ fn insert_rc_body(
                 betal,
             ),
             Exp::Ctor(_, args) => cappy(
+                args.clone(),
+                vec![Status::Owned; args.len()],
+                &Body::Let(
+                    var.clone(),
+                    exp.clone(),
+                    insert_rc_body(next, betal, beta_map).into(),
+                ),
+                betal,
+            ),
+            Exp::UTuple(args) => cappy(
                 args.clone(),
                 vec![Status::Owned; args.len()],
                 &Body::Let(
@@ -844,6 +952,15 @@ fn free_vars_exp(exp: &Exp, bound: &HashSet<Var>) -> HashSet<Var> {
             set
         }
         Exp::Int(_) => HashSet::new(),
+        Exp::UTuple(args) => {
+            let mut set = HashSet::new();
+            for arg in args {
+                if !bound.contains(arg) {
+                    set.insert(arg.clone());
+                }
+            }
+            set
+        }
     }
 }
 

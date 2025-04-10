@@ -93,6 +93,11 @@ fn translate_body(body: &Body, mut stmts: Vec<Statement>) -> Vec<Statement> {
                         }
                     }
                 }
+                Exp::UTuple(vars) => stmts.push(Statement::AssignUTuple(
+                    vars.len() as u8,
+                    var.clone(),
+                    vars.clone(),
+                )),
                 Exp::Op(op, left, right) => {
                     stmts.push(Statement::AssignBinaryOperation(
                         var.clone(),
@@ -114,7 +119,6 @@ fn translate_body(body: &Body, mut stmts: Vec<Statement>) -> Vec<Statement> {
                 Exp::Reuse(reuse_var, tag, args) => {
                     let if_stmts = vec![
                         Statement::AssignMalloc(Type::None, reuse_var.clone(), args.len() as u8),
-                        Statement::AssignToField(reuse_var.clone(), 0, Operand::Int(*tag as i64)),
                         Statement::AssignToField(
                             reuse_var.clone(),
                             1,
@@ -126,7 +130,11 @@ fn translate_body(body: &Body, mut stmts: Vec<Statement>) -> Vec<Statement> {
                         Operand::Negate(reuse_var.clone()),
                         if_stmts,
                     )]));
-
+                    stmts.push(Statement::AssignToField(
+                        reuse_var.clone(),
+                        0,
+                        Operand::Int(*tag as i64),
+                    ));
                     for (i, arg) in args.iter().enumerate() {
                         stmts.push(Statement::AssignToField(
                             reuse_var.clone(),

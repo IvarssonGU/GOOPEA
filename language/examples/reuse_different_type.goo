@@ -1,18 +1,16 @@
 enum Pair = Pair(Int, Int);
 enum List = Nil, Cons(Int, List);
 
-
-
 List: Pair
-From_List xs = match xs {
+from_List xs = match xs {
     Nil: Pair(0, 0),
     Cons(x, xx): Pair(x, x)
 };
 
 Pair: Int
-ToInt(p) = match p {
+toInt(p) = match p {
     Pair(x, y): x * y
 };
 
 () : Int
-Main = ToInt(From_List(Cons(7, Cons(2, Cons(3, Nil)))));
+main = toInt(from_List(Cons(7, Cons(2, Cons(3, Nil)))));

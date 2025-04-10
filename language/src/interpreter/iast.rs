@@ -108,6 +108,7 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
             Statement::AssignDropReuse(_, _) => todo!(),
             Statement::Inc(operand) => IStatement::Inc(IOperand::Ident(operand)),
             Statement::Dec(operand) => IStatement::Dec(IOperand::Ident(operand)),
+            Statement::AssignUTuple(_, _, _) => todo!(),
         };
         istatements.push(s);
     }
