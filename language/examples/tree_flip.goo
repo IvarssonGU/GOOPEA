@@ -47,22 +47,10 @@ sum tree = match tree {
 };
 
 Tree: Tree
-flip tree = match tree {
+flip tree = match id(tree) {
     Empty: Empty,
     Node(left, value, right): Node(flip(right), value, flip(left))
 };
 
-(Tree, Tree): Tree
-combine (a, b) = match a {
-    Empty: match b {
-        Empty: Empty,
-        Node(left, value, right): Node(left, value, right)
-    },
-    Node(left, value, right): match b {
-        Empty: Node(left, value, right),
-        Node(left2, value2, right2): Node(combine(left, left2), value + value2, combine(right, right2))
-    }
-};
-
 (): Int
-main = sum(combine(build(), flip(build())));
+main = sum(flip(build()));

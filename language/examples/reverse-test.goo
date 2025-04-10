@@ -1,17 +1,24 @@
 enum List = Nil, Cons(Int, List);
 
 (List, List): List
-reverseHelper(list, acc) = 
+ReverseHelper(list, acc) = 
         match list {
             Nil: acc,
-            Cons(y, ys): reverseHelper(ys, Cons(y, acc))
+            Cons(y, ys): ReverseHelper(ys, Cons(y, acc))
         };
 
 List: List
-reverse xs = reverseHelper(xs, Nil);
+Reverse xs = ReverseHelper(xs, Nil);
+
+
+() : Int
+Main = F(Cons(1, Cons(2, Cons(3, Nil))));
 
 List: Int
-sum xs = match xs {
-            Nil: 0,
-            Cons(y, ys): y + sum(ys)
-        };
+F xs = Sum(Reverse(xs)) + Sum(xs);
+
+List: Int
+Sum xs = match xs {
+    Nil: 0,
+    Cons(x, xx): x + Sum(xx)
+};

@@ -3,9 +3,8 @@ use super::mempeek::MemObj;
 use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
-use crate::ir::Prog;
-use crate::simple_ast::{Operator, add_refcounts, from_scoped};
-use crate::{code, ir};
+use crate::core::{Def, Operand, Prog, Statement};
+use crate::stir::Operator;
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
@@ -112,7 +111,7 @@ impl Interpreter {
 
     pub fn from_program(program: &Prog) -> Self {
         let mut interpreter = Interpreter::new();
-        for def in program.0.clone() {
+        for def in program.clone() {
             interpreter = interpreter.with_fn(IDef::from_def(&def));
         }
         interpreter = interpreter.with_entry_point("main");
@@ -211,7 +210,6 @@ impl Interpreter {
         if let Some(statement) = s.clone() {
             self.steps += 1;
             match statement {
-                IStatement::Decl(_) => (), // does nothing
                 IStatement::IfExpr(items) => {
                     for (operand, statements) in items {
                         if self.eval_op(&operand) == 1 {
@@ -224,7 +222,7 @@ impl Interpreter {
                         }
                     }
                 }
-                IStatement::InitConstructor(id, w) => {
+                IStatement::AssignMalloc(id, w) => {
                     let ptr = self.malloc(w as usize);
                     self.local_variables.insert(id.clone(), ptr);
                 }
@@ -283,7 +281,7 @@ impl Interpreter {
                     };
                     self.local_variables.insert(id, Data::Value(val));
                 }
-                IStatement::AssignConditional(id, b, iop, i) => {
+                IStatement::AssignTagCheck(id, b, iop, i) => {
                     let i = i >> 1; // bruh
                     let val = if b {
                         let name = iop.unwrap_id();
@@ -301,6 +299,7 @@ impl Interpreter {
                     self.local_variables.insert(id, self.return_value.unwrap());
                     self.return_value = None;
                 }
+                IStatement::AssignDropReuse(_, _) => todo!(),
             }
         }
         s
@@ -312,7 +311,7 @@ impl Interpreter {
         self.step();
         while let Some(s) = self.statements.get(0) {
             match s {
-                IStatement::InitConstructor(..)
+                IStatement::AssignMalloc(..)
                 | IStatement::Inc(_)
                 | IStatement::Dec(_)
                 | IStatement::AssignToField(..) => {
@@ -450,15 +449,7 @@ impl Debug for Data {
 pub fn interpreter_test_time(src: &str) {
     let code = fs::read_to_string(Path::new(src)).unwrap();
 
-    let base_program = BaseSliceProgram::new(&code).unwrap();
-    let scoped_program = ScopedProgram::new(base_program).unwrap();
-    let typed_program = TypedProgram::new(scoped_program).unwrap();
-
-    let simple_program = from_scoped(&typed_program);
-    let with_ref_count = add_refcounts(&simple_program);
-    let code = code::Compiler::new().compile(&with_ref_count);
-
-    let mut interpreter = Interpreter::from_program(&code);
+    let mut interpreter = Interpreter::new();
 
     println!("Starting!");
     let now = std::time::Instant::now();
@@ -480,18 +471,10 @@ pub fn interpreter_test_time(src: &str) {
 pub fn interpreter_test(src: &str) {
     use crate::interpreter::mempeek::{MemObj, MemPeek};
 
-    let code = fs::read_to_string(Path::new(src)).unwrap();
-    let base_program = BaseSliceProgram::new(&code).unwrap();
-    let scoped_program = ScopedProgram::new(base_program).unwrap();
-    let typed_program = TypedProgram::new(scoped_program).unwrap();
-    let simple_program = from_scoped(&typed_program);
-    let with_ref_count = add_refcounts(&simple_program);
-    let code = code::Compiler::new().compile(&with_ref_count);
-
-    let c_code = ir::output(&code).join("\n");
+    /*
     fs::write(Path::new(".interpreter_out/c_code.c"), c_code).unwrap();
 
-    let mut c_ast = code.0.clone();
+    let mut c_ast = code.clone();
     c_ast.sort_by(|a, b| a.id.cmp(&b.id));
     let c_ast = c_ast
         .iter()
@@ -564,4 +547,5 @@ pub fn interpreter_test(src: &str) {
             break;
         }
     }
+    */
 }

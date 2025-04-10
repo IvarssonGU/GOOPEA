@@ -1,6 +1,5 @@
-use super::load::extract_body;
-use crate::ir::*;
-use crate::simple_ast::Operator;
+use crate::core::{Def, Operand, Statement};
+use crate::stir::Operator;
 use itertools::Itertools;
 use std::fmt::{Debug, Display, Formatter, Result};
 
@@ -10,13 +9,13 @@ pub enum IOperand {
     Int(i64),
 }
 
-#[allow(unused)]
 impl IOperand {
     pub fn from_op(operand: &Operand) -> Self {
         match operand {
             Operand::Ident(id) => Self::Ident(id.clone()),
             Operand::Int(i) => Self::Int(*i),
             Operand::NonShifted(i) => Self::Int(*i),
+            Operand::Negate(_) => todo!(),
         }
     }
 
@@ -44,23 +43,76 @@ impl Display for IOperand {
     }
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum IStatement {
-    Decl(String),
     IfExpr(Vec<(IOperand, Vec<IStatement>)>),
-    InitConstructor(String, i64),
     Return(IOperand),
     Print(IOperand),
-    Inc(IOperand),
-    Dec(IOperand),
+    AssignMalloc(String, u32),
     Assign(String, IOperand),
     AssignToField(String, i64, IOperand),
     AssignFromField(String, i64, IOperand),
     AssignBinaryOperation(String, Operator, IOperand, IOperand),
-    AssignConditional(String, bool, IOperand, i64),
+    AssignTagCheck(String, bool, IOperand, i64),
     FunctionCall(String, Vec<IOperand>),
     AssignReturnvalue(String),
+    AssignDropReuse(String, String),
+    Inc(IOperand),
+    Dec(IOperand),
+}
+
+fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
+    let mut istatements = Vec::new();
+    for statement in statements {
+        let s = match statement {
+            Statement::IfElse(items) => IStatement::IfExpr(
+                items
+                    .into_iter()
+                    .map(|(operand, _statements)| {
+                        (IOperand::from_op(&operand), from_statements(_statements))
+                    })
+                    .collect(),
+            ),
+            Statement::Return(operand) => IStatement::Return(IOperand::from_op(&operand)),
+            Statement::Print(operand) => IStatement::Print(IOperand::from_op(&operand)),
+            Statement::AssignMalloc(_, id, n) => IStatement::AssignMalloc(id, n as u32),
+            Statement::Assign(_, id, operand) => {
+                IStatement::Assign(id, IOperand::from_op(&operand))
+            }
+            Statement::AssignToField(id, i, operand) => {
+                IStatement::AssignToField(id, i, IOperand::from_op(&operand))
+            }
+            Statement::AssignFromField(id, i, operand) => {
+                IStatement::AssignFromField(id, i, IOperand::from_op(&operand))
+            }
+            Statement::AssignBinaryOperation(id, operator, operand, operand1) => {
+                IStatement::AssignBinaryOperation(
+                    id.clone(),
+                    operator.clone(),
+                    IOperand::from_op(&operand),
+                    IOperand::from_op(&operand1),
+                )
+            }
+            Statement::AssignTagCheck(id, b, operand, i) => {
+                IStatement::AssignTagCheck(id, b, IOperand::from_op(&operand), i)
+            }
+            Statement::AssignFunctionCall(id, fid, operands) => {
+                // first add a function call that puts the returned value in a register
+                istatements.push(IStatement::FunctionCall(
+                    fid.clone(),
+                    operands.iter().map(IOperand::from_op).collect(),
+                ));
+                // then assign the value to the identifier
+                IStatement::AssignReturnvalue(id.clone())
+            }
+            Statement::AssignDropReuse(_, _) => todo!(),
+            Statement::Inc(operand) => IStatement::Inc(IOperand::Ident(operand)),
+            Statement::Dec(operand) => IStatement::Dec(IOperand::Ident(operand)),
+            Statement::AssignUTuple(_, _, _) => todo!(),
+        };
+        istatements.push(s);
+    }
+    istatements
 }
 
 impl Display for IStatement {
@@ -74,8 +126,7 @@ impl Display for IStatement {
                     .map(|(operand, _)| format!("{operand}"))
                     .collect_vec()
             ),
-            IStatement::Decl(id) => write!(f, "Declare({id})"),
-            IStatement::InitConstructor(id, s) => write!(f, "{id} = malloc({s})"),
+            IStatement::AssignMalloc(id, s) => write!(f, "{id} = malloc({s})"),
             IStatement::Return(ioperand) => write!(f, "Return({ioperand})"),
             IStatement::Print(ioperand) => write!(f, "Print({})", ioperand),
             IStatement::Inc(ioperand) => write!(f, "Inc({})", ioperand),
@@ -86,13 +137,14 @@ impl Display for IStatement {
             IStatement::AssignBinaryOperation(id, operator, ioperand, ioperand1) => {
                 write!(f, "{id} = {} {operator} {}", ioperand, ioperand1)
             }
-            IStatement::AssignConditional(id, _, _, _) => write!(f, "{id} = if else bruhmagic"),
+            IStatement::AssignTagCheck(id, _, _, _) => write!(f, "{id} = if else bruhmagic"),
             IStatement::FunctionCall(id, ioperands) => write!(
                 f,
                 "call {id}{:?}",
                 ioperands.iter().map(|iop| format!("{iop}")).collect_vec()
             ),
             IStatement::AssignReturnvalue(id) => write!(f, "{id} = _ret_"),
+            IStatement::AssignDropReuse(_, _) => write!(f, "DropReuse"),
         }
     }
 }
@@ -106,19 +158,10 @@ pub struct IDef {
 
 impl IDef {
     pub fn from_def(def: &Def) -> Self {
-        let mut iter = def
-            .body
-            .iter()
-            .filter(|&s| !matches!(s, Statement::Decl(_)))
-            .filter(|&s| !matches!(s, Statement::Inc(Operand::Int(_))))
-            .peekable();
-
-        let body = extract_body(&mut iter);
-
         IDef {
             id: def.id.clone(),
             args: def.args.clone(),
-            body: body,
+            body: from_statements(def.body.clone()),
         }
     }
 }

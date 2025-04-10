@@ -3,20 +3,20 @@
 #![feature(mixed_integer_ops_unsigned_sub)]
 
 pub mod ast;
-mod code;
+mod core;
 mod error;
 mod interpreter;
-mod ir;
 mod lexer;
-mod simple_ast;
+mod score;
+mod stir;
+
 lalrpop_mod!(pub grammar);
 
 use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
-use interpreter::Interpreter;
-use ir::Prog;
 use color_eyre::Result;
+use core::Prog;
+use interpreter::Interpreter;
 use lalrpop_util::lalrpop_mod;
-use simple_ast::{add_refcounts, from_scoped};
 use std::cell::RefCell;
 
 thread_local! {
@@ -29,13 +29,15 @@ pub fn compile(code: &str) -> Result<Prog> {
     let scoped_program = ScopedProgram::new(base_program)?;
     let typed_program = TypedProgram::new(scoped_program)?;
 
-    let simple_program = from_scoped(&typed_program);
-    let with_ref_count = add_refcounts(&simple_program);
-    Ok(code::Compiler::new().compile(&with_ref_count))
+    let pure_ir = stir::from_typed(&typed_program);
+    let pure_reuse = stir::add_reuse(&pure_ir);
+    let pure_rc = stir::add_rc(&pure_reuse, true);
+    let core = score::translate(&pure_rc);
+    Ok(core)
 }
 
 pub fn c_code(program: &Prog) -> String {
-    ir::output(program).join("\n")
+    core::output(program).join("\n")
 }
 
 // Interpreter stuff
