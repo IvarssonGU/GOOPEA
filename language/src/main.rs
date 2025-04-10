@@ -6,7 +6,9 @@ use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
+use ast::base::BaseSliceProgram;
 use ast::{scoped::ScopedProgram, typed::TypedProgram};
+use color_eyre::eyre::Result;
 use lalrpop_util::lalrpop_mod;
 
 pub mod ast;
@@ -15,6 +17,11 @@ mod lexer;
 
 mod interpreter;
 use interpreter::*;
+
+mod core;
+mod score;
+mod stir;
+
 lalrpop_mod!(pub grammar);
 
 #[cfg(target_arch = "wasm32")]
@@ -24,17 +31,23 @@ fn main() {}
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let code = fs::read_to_string(Path::new("examples/type_error.goo"))?;
+    let code = fs::read_to_string(Path::new("examples/tree_flip.goo"))?;
 
     let base_program = BaseSliceProgram::new(&code)?;
-    println!("{base_program}");
 
     let scoped_program = ScopedProgram::new(base_program)?;
-    println!("{scoped_program}");
 
     let typed_program = TypedProgram::new(scoped_program)?;
-    println!("{typed_program}");
 
+    let pure_ir = stir::from_typed(&typed_program);
+
+    let pure_reuse = stir::add_reuse(&pure_ir);
+
+    let pure_rc = stir::add_rc(&pure_reuse, true);
+
+    let core_ir = score::translate(&pure_rc);
+    let result = core::output(&core_ir);
+    println!("{}", result.join("\n"));
     Ok(())
 }
 

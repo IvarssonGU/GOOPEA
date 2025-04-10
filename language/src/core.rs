@@ -95,17 +95,6 @@ pub fn output(prog: &Prog) -> Vec<String> {
         "}".to_string(),
         String::new(),
     ]);
-
-    /* void** drop_reuse(Value ref) {
-      if (((void**) ref)[2] == 1) {
-        for (int i = 3; i < ((void**) ref)[1] + 3; i++) {
-          dec(((void**) ref)[i]);
-        }
-        return ref;
-      }
-      return NULL;
-    } */
-
     lines.extend(vec![
         "void** drop_reuse(Value ref) {".to_string(),
         "\tif (((void**) ref)[2] == 1) {".to_string(),
