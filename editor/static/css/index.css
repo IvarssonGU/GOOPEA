@@ -59,7 +59,7 @@ textarea {
     color: var(--text-color);
 }
 
-#code-cell, #output, #debug, #steps, #messages {
+#code-cell, #output, #debug, #steps, #info {
     height:75vh;
     vertical-align: top;
 }
@@ -140,11 +140,11 @@ textarea {
     margin-left: -10px;
     margin-bottom: -0.75px;
 }
-#steps-tab, #diff-tab, #messages-tab {
+#steps-tab, #diff-tab, #info-tab {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
 }
-#messages-tab {
+#info-tab {
     margin-left: 3px;
 }
 
@@ -162,6 +162,13 @@ label {
     font-weight: bold;
     font-size: 15px;
     vertical-align: bottom; 
+}
+
+.CodeMirror-selected {
+    background-color: var(--text-selected) !important;
+}
+.error-highlight {
+    background-color: var(--error);
 }
 
 /* debugging purposes */

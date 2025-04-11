@@ -24,8 +24,8 @@
 .cm-s-3024-night span.cm-number { color: #a16a94; }
 
 .cm-s-3024-night span.cm-property, .cm-s-3024-night span.cm-attribute { color: #01a252; }
-.cm-s-3024-night span.cm-keyword { color: #db2d20; }
-.cm-s-3024-night span.cm-string { color: #fded02; }
+.cm-s-3024-night span.cm-keyword { color: #fded02; } /* previous: { color: #db2d20; }*/
+.cm-s-3024-night span.cm-string { color: #db2d20; } /* previous: { color: #fded02; }*/
 
 .cm-s-3024-night span.cm-variable { color: #01a252; }
 .cm-s-3024-night span.cm-variable-2 { color: #01a0e4; }
