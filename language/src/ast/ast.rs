@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::{Display, Formatter}, iter, ops::{Deref, Ra
 
 use color_eyre::Result;
 
-use super::{scoped::Scope, typed::ExpressionType};
+use super::{base::SourceReference, scoped::Scope, typed::ExpressionType};
 
 pub type FID = String; // Function ID, (also including ADT constructors)
 pub type VID = String; // Variable ID
@@ -448,6 +448,12 @@ impl DisplayData for &'_ str {
         } else {
             writeln!(f, "// Source: \"{}\" ... \"{}\"", self[..end_length].escape_default(), self[self.len() - end_length..].escape_default())
         }
+    }
+}
+
+impl DisplayData for SourceReference<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
+        self.snippet.fmt(f)
     }
 }
 

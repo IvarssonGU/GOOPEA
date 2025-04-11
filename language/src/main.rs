@@ -1,4 +1,6 @@
 #![feature(formatting_options)]
+#![feature(btree_cursors)]
+#![feature(mixed_integer_ops_unsigned_sub)]
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::fs;
@@ -20,7 +22,6 @@ mod error;
 pub mod ast;
 
 mod interpreter;
-use interpreter::*;
 lalrpop_mod!(pub grammar);
 
 #[cfg(target_arch = "wasm32")]

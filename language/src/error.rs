@@ -1,10 +1,16 @@
-use crate::ast::ast::{Pattern, Type, UTuple, AID, FID, VID};
+use crate::ast::{ast::{Pattern, Type, UTuple, AID, FID, VID}, base::SourceReference};
 use color_eyre::{eyre, Section, SectionExt};
+use itertools::Itertools;
 use thiserror::Error;
 
-impl CompileError {
-    pub fn make_report(self, snippet: &str) -> eyre::Report {
-        eyre::Report::new(self).with_section(|| snippet.to_string().header("Code snippet:"))
+pub trait AttachSource {
+    fn attach_source(self, snippet: &SourceReference<'_>) -> Self;
+}
+
+impl AttachSource for eyre::Report {
+    fn attach_source(self, source: &SourceReference<'_>) -> Self {
+        self.with_section(|| source.snippet.to_string().lines().enumerate().map(|(i, line)| format!("{}. {line}", source.start.line+i)).join("\n")
+            .header(format!("Source location {}:{}-{}:{}", source.start.line, source.start.char_offset, source.end.line, source.end.char_offset)))
     }
 }
 
@@ -30,6 +36,8 @@ pub enum CompileError {
     WrongVariableCountInFunctionCall { fid: FID, expected: usize, actual: usize },
     #[error("Use of undeclared ADT '{0}'")]
     UnknownADTInType(AID),
+    #[error("The program is missing a main function")]
+    MissingMainFunction,
 
     #[error("Missmatched return types of match statement")]
     MissmatchedTypesInMatchCases,

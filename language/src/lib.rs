@@ -1,4 +1,6 @@
 #![feature(formatting_options)]
+#![feature(btree_cursors)]
+#![feature(mixed_integer_ops_unsigned_sub)]
 
 pub mod ast;
 mod code;

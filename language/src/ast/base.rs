@@ -1,12 +1,12 @@
-use std::{collections::{HashMap, HashSet}, ops::Range};
+use std::{collections::{BTreeMap, HashMap, HashSet}, iter::once, ops::{Bound, Range}};
 
 use crate::{error::CompileError, grammar, lexer::Lexer};
 use color_eyre::Result;
 
 use super::ast::{Constructor, ExpressionNode, FullExpression, FunctionData, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
 
-pub type BaseSliceNode<'i> = ExpressionNode<&'i str, SyntaxExpression<&'i str>>;
-pub type BaseSliceProgram<'i> = Program<&'i str, SyntaxExpression<&'i str>>;
+pub type BaseSliceNode<'i> = ExpressionNode<SourceReference<'i>, SyntaxExpression<SourceReference<'i>>>;
+pub type BaseSliceProgram<'i> = Program<SourceReference<'i>, SyntaxExpression<SourceReference<'i>>>;
 
 pub type BaseRangeNode = ExpressionNode<Range<usize>, SyntaxExpression<Range<usize>>>;
 pub type BaseRangeProgram = Program<Range<usize>, SyntaxExpression<Range<usize>>>;
@@ -17,8 +17,23 @@ pub enum Definition {
     Function(FID, (FunctionData, BaseRangeNode))
 }
 
+#[derive(Clone, Debug)]
+pub struct SourceLocation {
+    pub line: usize,
+    pub char_offset: usize
+}
+
+#[derive(Clone, Debug)]
+pub struct SourceReference<'i> {
+    pub start: SourceLocation,
+    pub end: SourceLocation,
+    pub snippet: &'i str
+}
+
 impl<'i> BaseSliceProgram<'i> {
     pub fn new(code: &'i str) -> Result<BaseSliceProgram<'i>> {
+        let linebreaks = code.bytes().enumerate().filter_map(|(i, c)| (c == b'\n').then(|| i as isize)).chain(once(-1)).enumerate().map(|(i, c)| (c, i+2)).collect::<BTreeMap<_, _>>();
+
         let program: Vec<Definition> = grammar::ProgramParser::new().parse(Lexer::new(code)).unwrap();
 
         let builtin_defs = vec![
@@ -47,13 +62,17 @@ impl<'i> BaseSliceProgram<'i> {
                     if function_datas.insert(fid.clone(), data).is_some() {
                         return Err(CompileError::MultipleFunctionDefinitions(fid).into())
                     }
-                    function_bodies.insert(fid, body.make_slice(code));
+                    function_bodies.insert(fid, body.make_slice(code, &linebreaks));
                 }
             }
         }
 
         if let Some(fid) = function_datas.keys().collect::<HashSet<_>>().intersection(&all_constructors.keys().collect()).next() {
             return Err(CompileError::MultipleFunctionDefinitions((*fid).clone()).into())
+        }
+
+        if !function_datas.contains_key("main") {
+            return Err(CompileError::MissingMainFunction.into())
         }
 
         let program = BaseSliceProgram { adts, constructors: all_constructors, function_datas, function_bodies };
@@ -78,30 +97,38 @@ impl<'i> BaseSliceProgram<'i> {
 }
 
 impl BaseRangeNode {
-    pub fn make_slice<'i>(self, code: &'i str) -> BaseSliceNode<'i> {
+    pub fn make_slice<'i>(self, code: &'i str, linebreaks: &BTreeMap<isize, usize>) -> BaseSliceNode<'i> {
         let new_expr = match self.expr {
             SyntaxExpression::UTuple(tup) => 
-                SyntaxExpression::UTuple(tup.transform_nodes(|e| Ok(e.make_slice(code))).unwrap()),
+                SyntaxExpression::UTuple(tup.transform_nodes(|e| Ok(e.make_slice(code, linebreaks))).unwrap()),
             SyntaxExpression::FunctionCall(fid, tup) => 
-                SyntaxExpression::FunctionCall(fid, tup.transform_nodes(|e| Ok(e.make_slice(code))).unwrap()),
+                SyntaxExpression::FunctionCall(fid, tup.transform_nodes(|e| Ok(e.make_slice(code, linebreaks))).unwrap()),
             SyntaxExpression::Integer(x) => SyntaxExpression::Integer(x),
             SyntaxExpression::Variable(vid) => SyntaxExpression::Variable(vid),
             SyntaxExpression::Match(expr, cases) => 
                 SyntaxExpression::Match(
-                    Box::new(expr.make_slice(code)), 
-                    cases.into_iter().map(|(pattern, e)| (pattern, e.make_slice(code))).collect()
+                    Box::new(expr.make_slice(code, linebreaks)), 
+                    cases.into_iter().map(|(pattern, e)| (pattern, e.make_slice(code, linebreaks))).collect()
                 ),
             SyntaxExpression::LetEqualIn(tup, e1, e2) => 
-                SyntaxExpression::LetEqualIn(tup, Box::new(e1.make_slice(code)), Box::new(e2.make_slice(code))),
+                SyntaxExpression::LetEqualIn(tup, Box::new(e1.make_slice(code, linebreaks)), Box::new(e2.make_slice(code, linebreaks))),
             SyntaxExpression::Operation(e1, operator, e2) => 
-                SyntaxExpression::Operation(Box::new(e1.make_slice(code)), operator, Box::new(e2.make_slice(code))),
+                SyntaxExpression::Operation(Box::new(e1.make_slice(code, linebreaks)), operator, Box::new(e2.make_slice(code, linebreaks))),
         };
 
-        let slice = &code[self.data];
+        let snippet = &code[self.data.clone()];
+
+        let (start_line_start_char, start_line) = linebreaks.lower_bound(Bound::Included(&(self.data.start as isize))).prev().unwrap();
+        let (end_line_start_char, end_line) = linebreaks.lower_bound(Bound::Included(&(self.data.end as isize))).prev().unwrap();
+
+        let start = SourceLocation { line: *start_line, char_offset: self.data.start.checked_sub_signed(*start_line_start_char).unwrap() };
+        let end = SourceLocation { line: *end_line, char_offset: self.data.end.checked_sub_signed(*end_line_start_char).unwrap() };
+
+        let reference = SourceReference { end, start, snippet };
 
         BaseSliceNode {
             expr: new_expr,
-            data: slice
+            data: reference
         }
     }
 }
