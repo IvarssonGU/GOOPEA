@@ -68,7 +68,6 @@ pub enum IStatement {
 fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
     let mut istatements = Vec::new();
     for statement in statements {
-        println!("{:?}", statement);
         let s = match statement {
             Statement::IfElse(items) => IStatement::IfExpr(
                 items

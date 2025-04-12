@@ -13,6 +13,8 @@ use std::fmt::Debug;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
+use std::thread::sleep;
+use std::time::Duration;
 use std::{fmt, vec};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -169,6 +171,7 @@ impl Interpreter {
         }
 
         self.heap.push(vec![Data::Value(0); width]);
+        sleep(Duration::from_micros(15));
         Data::Pointer(self.heap.len() - 1)
     }
 
@@ -190,7 +193,7 @@ impl Interpreter {
                     self.dec(ptr);
                 }
             }
-
+            sleep(Duration::from_micros(5));
             self.heap[ptr] = Vec::new();
         }
     }
@@ -490,40 +493,58 @@ impl Debug for Data {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_time(src: &str) {
-    let code = fs::read_to_string(Path::new(src)).unwrap();
+fn _compile(path: &str, fip: bool) -> Prog {
+    let code = fs::read_to_string(Path::new(path)).unwrap();
+    let base_program = BaseSliceProgram::new(&code).unwrap();
+    let scoped_program = ScopedProgram::new(base_program).unwrap();
+    let typed_program = TypedProgram::new(scoped_program).unwrap();
+    let mut program = stir::from_typed(&typed_program);
+    if fip {
+        program = stir::add_reuse(&program);
+    }
+    let program = stir::add_rc(&program, true);
+    let core_ir = score::translate(&program);
+    core_ir
+}
 
-    let mut interpreter = Interpreter::new();
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_test_time(src: &str) {
+    println!("fip?");
+    let core_ir = match input::<String>("").as_str() {
+        "fip" => {
+            println!("fip!");
+            _compile(src, true)
+        }
+        _ => {
+            println!("not fip =(");
+            _compile(src, false)
+        }
+    };
 
     println!("Starting!");
     let now = std::time::Instant::now();
+    for _ in 0..1000 {
+        let mut interpreter = Interpreter::from_program(&core_ir);
+        interpreter.run_until_done();
+    }
 
-    interpreter.run_until_done();
-
-    let elapsed = now.elapsed().as_micros();
-    let steps = interpreter.steps;
-    println!(
-        "Done!\n{} steps in {} us\n{} sps",
-        steps,
-        elapsed,
-        1_000_000 * steps / elapsed as u64
-    );
-    println!("{:?}", interpreter);
+    let elapsed = now.elapsed().as_millis();
+    println!("Done!\n{} ms", elapsed,);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test(src: &str) {
-    use crate::interpreter::mempeek::{MemObj, MemPeek};
-
-    let code = fs::read_to_string(Path::new(src)).unwrap();
-    let base_program = BaseSliceProgram::new(&code).unwrap();
-    let scoped_program = ScopedProgram::new(base_program).unwrap();
-    let typed_program = TypedProgram::new(scoped_program).unwrap();
-
-    let program = stir::from_typed(&typed_program);
-    let program = stir::add_reuse(&program);
-    let program = stir::add_rc(&program, true);
-    let core_ir = score::translate(&program);
+    println!("fip?");
+    let core_ir = match input::<String>("").as_str() {
+        "fip" => {
+            println!("fip!");
+            _compile(src, true)
+        }
+        _ => {
+            println!("not fip =(");
+            _compile(src, false)
+        }
+    };
 
     let mut interpreter = Interpreter::from_program(&core_ir);
 
