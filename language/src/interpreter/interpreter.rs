@@ -4,12 +4,12 @@ use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
 use crate::core::{Def, Operand, Prog, Statement};
+use crate::score;
 use crate::stir::{self, Operator};
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
-use crate::score;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
@@ -135,6 +135,13 @@ impl Interpreter {
         match op {
             IOperand::Ident(id) => self.get_local_var(id).unwrap_val(),
             IOperand::Int(i) => *i,
+            IOperand::Negate(id) => {
+                if self.get_local_var(id)._unwrap_raw() == 0 {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
 
@@ -142,6 +149,7 @@ impl Interpreter {
         match op {
             IOperand::Ident(id) => self.get_local_var(id),
             IOperand::Int(i) => Data::Value(*i),
+            IOperand::Negate(id) => panic!("Hoppsan"),
         }
     }
 
@@ -300,7 +308,21 @@ impl Interpreter {
                     self.local_variables.insert(id, self.return_value.unwrap());
                     self.return_value = None;
                 }
-                IStatement::AssignDropReuse(_, _) => todo!(),
+                IStatement::AssignDropReuse(id, id1) => {
+                    let reff = self.get_local_var(&id1);
+                    let ptr = reff.unwrap_ptr();
+                    if self.heap[ptr][2].unwrap_val() == 1 {
+                        for i in 3..self.heap[ptr].len() {
+                            if self.heap[ptr][i].is_ptr() {
+                                self.dec(self.heap[ptr][i].unwrap_ptr());
+                            }
+                        }
+                        self.local_variables.insert(id, Data::Pointer(ptr));
+                    } else {
+                        self.heap[ptr][2].dec();
+                        self.local_variables.insert(id, Data::Value(0));
+                    }
+                }
             }
         }
         s
@@ -322,6 +344,27 @@ impl Interpreter {
                     self.step();
                 }
             }
+        }
+    }
+
+    pub fn run_until_next_ptr(&mut self) {
+        self.step();
+        while let Some(s) = self.statements.get(0) {
+            if let IStatement::AssignMalloc(_, _) = s {
+                break;
+            } else if let IStatement::Dec(op) = s {
+                match *op {
+                    IOperand::Int(i) if i == 1 => {
+                        break;
+                    }
+                    _ => (),
+                }
+            } else if let IStatement::AssignToField(_, _, op) = s {
+                if self.op_to_data(&op).is_ptr() {
+                    break;
+                }
+            }
+            self.step();
         }
     }
 
@@ -376,7 +419,7 @@ fn concat_columns(left: &Vec<String>, right: &Vec<String>, sep: &str) -> Vec<Str
             itertools::EitherOrBoth::Left(a) => format!("{:<wleft$}{sep}{:<wright$}", a, ""),
             itertools::EitherOrBoth::Right(b) => format!("{:<wleft$}{sep}{:<wright$}", "", b),
         })
-        .collect_vec()
+        .collect()
 }
 
 impl Debug for Interpreter {
@@ -477,55 +520,55 @@ pub fn interpreter_test(src: &str) {
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
 
-    let pure_ir = stir::from_typed(&typed_program);
-    let pure_reuse = stir::add_reuse(&pure_ir);
-    let pure_rc = stir::add_rc(&pure_reuse, true);
-    let core_ir = score::translate(&pure_rc);
+    let program = stir::from_typed(&typed_program);
+    let program = stir::add_reuse(&program);
+    let program = stir::add_rc(&program, true);
+    let core_ir = score::translate(&program);
 
     let mut interpreter = Interpreter::from_program(&core_ir);
 
     let mut history = Vec::new();
     loop {
-        if let Some(_) = interpreter.statements.get(0) {
-            print!("{}[2J", 27 as char);
-            println!("{:?}", interpreter);
-            println!("m, r, s, b, enter");
-            let input: String = input("");
+        print!("{}[2J", 27 as char);
+        println!("{:?}", interpreter);
+        println!("m, r, s, b, p, enter");
+        let input: String = input("");
 
-            match input.as_str() {
-                "m" => {
-                    history.push(interpreter.clone());
-                    interpreter.run_until_next_mem();
-                }
-                "r" => {
-                    history.push(interpreter.clone());
-                    interpreter.run_until_return();
-                }
-                "s" => {
-                    history.push(interpreter.clone());
-                    interpreter.run_step_over();
-                }
-                "b" => {
-                    interpreter = history.pop().unwrap();
-                }
-                x if x.parse::<usize>().is_ok() => {
-                    let shit = MemObj::from_data(
-                        &Data::Pointer(x.parse::<usize>().unwrap()),
-                        &interpreter.heap,
-                    );
-                    println!("{}", shit.as_json());
-                }
-                x if interpreter.local_variables.contains_key(x) => {
-                    let json = interpreter.get_variable_json(x);
-                    println!("{}", json);
-                }
-                _ => {
-                    history.push(interpreter.clone());
-                    interpreter.step();
-                }
+        match input.as_str() {
+            "m" => {
+                history.push(interpreter.clone());
+                interpreter.run_until_next_mem();
             }
-        } else {
-            break;
+            "r" => {
+                history.push(interpreter.clone());
+                interpreter.run_until_return();
+            }
+            "s" => {
+                history.push(interpreter.clone());
+                interpreter.run_step_over();
+            }
+            "b" => {
+                interpreter = history.pop().unwrap();
+            }
+            "p" => {
+                history.push(interpreter.clone());
+                interpreter.run_until_next_ptr();
+            }
+            x if x.parse::<usize>().is_ok() => {
+                let shit = MemObj::from_data(
+                    &Data::Pointer(x.parse::<usize>().unwrap()),
+                    &interpreter.heap,
+                );
+                println!("{}", shit.as_json());
+            }
+            x if interpreter.local_variables.contains_key(x) => {
+                let json = interpreter.get_variable_json(x);
+                println!("{}", json);
+            }
+            _ => {
+                history.push(interpreter.clone());
+                interpreter.step();
+            }
         }
     }
 }

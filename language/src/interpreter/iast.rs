@@ -6,6 +6,7 @@ use std::fmt::{Debug, Display, Formatter, Result};
 #[derive(Debug, Clone)]
 pub enum IOperand {
     Ident(String),
+    Negate(String),
     Int(i64),
 }
 
@@ -15,7 +16,7 @@ impl IOperand {
             Operand::Ident(id) => Self::Ident(id.clone()),
             Operand::Int(i) => Self::Int(*i),
             Operand::NonShifted(i) => Self::Int(*i),
-            Operand::Negate(_) => todo!(),
+            Operand::Negate(id) => IOperand::Negate(id.clone()),
         }
     }
 
@@ -23,6 +24,7 @@ impl IOperand {
         match self {
             IOperand::Ident(s) => s.clone(),
             IOperand::Int(_) => panic!("Not an identifier"),
+            IOperand::Negate(_) => panic!("Not an identifier"),
         }
     }
 
@@ -30,6 +32,7 @@ impl IOperand {
         match self {
             IOperand::Ident(_) => panic!("Not an int"),
             IOperand::Int(i) => *i,
+            IOperand::Negate(_) => panic!("Not an int"),
         }
     }
 }
@@ -39,6 +42,7 @@ impl Display for IOperand {
         match self {
             IOperand::Ident(id) => write!(f, "{id}"),
             IOperand::Int(i) => write!(f, "{i}"),
+            IOperand::Negate(id) => write!(f, "!{id}"),
         }
     }
 }
@@ -64,6 +68,7 @@ pub enum IStatement {
 fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
     let mut istatements = Vec::new();
     for statement in statements {
+        println!("{:?}", statement);
         let s = match statement {
             Statement::IfElse(items) => IStatement::IfExpr(
                 items
@@ -75,7 +80,7 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
             ),
             Statement::Return(operand) => IStatement::Return(IOperand::from_op(&operand)),
             Statement::Print(operand) => IStatement::Print(IOperand::from_op(&operand)),
-            Statement::AssignMalloc(_, id, n) => IStatement::AssignMalloc(id, n as u32),
+            Statement::AssignMalloc(_, id, n) => IStatement::AssignMalloc(id, n as u32 + 3),
             Statement::Assign(_, id, operand) => {
                 IStatement::Assign(id, IOperand::from_op(&operand))
             }
@@ -105,7 +110,7 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
                 // then assign the value to the identifier
                 IStatement::AssignReturnvalue(id.clone())
             }
-            Statement::AssignDropReuse(_, _) => todo!(),
+            Statement::AssignDropReuse(a, b) => IStatement::AssignDropReuse(a, b),
             Statement::Inc(operand) => IStatement::Inc(IOperand::Ident(operand)),
             Statement::Dec(operand) => IStatement::Dec(IOperand::Ident(operand)),
             Statement::AssignUTuple(_, _, _) => todo!(),
