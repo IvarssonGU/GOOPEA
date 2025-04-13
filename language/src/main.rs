@@ -61,7 +61,7 @@ mod tests {
     fn parse_example(path: &Path) -> () {
         let code = fs::read_to_string(path).unwrap();
         println!(
-            "{}",
+            "{:?}",
             grammar::ProgramParser::new()
                 .parse(Lexer::new(&code))
                 .unwrap()

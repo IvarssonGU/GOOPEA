@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::wasm_bindgen;
-use language::{self, ir::Prog, error::Result};
+use language::{self, error::Result, core::Prog};
 use std::cell::RefCell;
 
 thread_local! {

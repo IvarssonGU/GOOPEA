@@ -3,12 +3,12 @@
 #![feature(mixed_integer_ops_unsigned_sub)]
 
 pub mod ast;
-mod core;
+pub mod core;
 pub mod error;
 mod interpreter;
 mod lexer;
 mod score;
-mod stir;
+pub mod stir;
 
 lalrpop_mod!(pub grammar);
 
