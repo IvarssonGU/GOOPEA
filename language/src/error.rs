@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ErrorSource {
     pub start: SourceLocation,
     pub end: SourceLocation,

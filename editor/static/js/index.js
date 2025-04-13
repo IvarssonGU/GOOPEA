@@ -106,18 +106,22 @@ async function compile_and_populate() {
 
     let code = editor.getValue();
 
-    wasm_bindgen.compile(code);
+    let result = wasm_bindgen.compile(code);
 
-    if (!wasm_bindgen.has_error()) {
+    if (result.is_ok()) {
+        let prog = result.unwrap()
+
         //compilation (get all the steps and assign them to their vars here)
-        ccode_value = wasm_bindgen.get_c_code();
+        ccode_value = prog.get_c_code();
         compiler_message = "looks good";
         step1_value = "compiled step1 (not implemented yet)";
         step2_value = "compiled step2 (not implemented yet)";
         step3_value = "compiled step3 (not implemented yet)";
     } else {
+        let err = result.unwrap_err();
+
         //populate error messages
-        compiler_message = wasm_bindgen.get_error();
+        compiler_message = err.get_error_string();
         ccode_value = "error C code";
         step1_value = "error step1 (not implemented yet)";
         step2_value = "error step2 (not implemented yet)";
@@ -126,7 +130,16 @@ async function compile_and_populate() {
         debug_textarea.value = "doesn't compile";
 
         //get error char, search for string, highlight string (not implemented)
-        error_text = editor.markText({line: 0, ch:0}, {line: 0, ch: 100}, {className: "error-highlight"});
+        if (err.has_source()) {
+            let source = err.get_source()
+            let from = {line: source.start_line-1, ch: source.start_line_char-1};
+            let to = {line: source.end_line-1, ch: source.end_line_char-1};
+
+            console.log(from)
+            console.log(to)
+
+            error_text = editor.markText(from, to, {className: "error-highlight"});
+        }
     }
     
     //assign to textarea
