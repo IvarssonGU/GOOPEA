@@ -1,7 +1,6 @@
 use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, rc::Rc};
 
-use crate::error::{AttachSource, CompileError};
-use color_eyre::{eyre::Report, Result};
+use crate::error::{Error, ErrorReason, Result};
 
 use super::{ast::{ChainedData, ExpressionNode, FullExpression, Pattern, Program, UTuple, FID, VID}, base::{BaseSliceNode, BaseSliceProgram, SourceReference, SyntaxExpression}};
 
@@ -67,7 +66,7 @@ impl<'i> ScopedProgram<'i> {
         self.validate_expressions_by(
             |node| {
                 let SimplifiedExpression::Variable(vid) = &node.expr else { return Ok(()) };
-                if !node.data.contains_key(vid) { return Err(Report::new(CompileError::UnknownVariable(vid.clone())).attach_source(&node.data.next)) }
+                if !node.data.contains_key(vid) { return Err(Error::new(ErrorReason::UnknownVariable(vid.clone())).attach_source(&node.data.next)) }
 
                 Ok(())
             }
@@ -85,10 +84,10 @@ pub fn scope_expression<'i>(
 {
     let new_expr = match expr.expr {
         SimplifiedExpression::UTuple(children) => {
-                SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
+                SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_>>()?))
             },
         SimplifiedExpression::FunctionCall(fid, children) => {
-                SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_, _>>()?))
+                SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_>>()?))
             },
         SimplifiedExpression::Integer(x) => SimplifiedExpression::Integer(x),
         SimplifiedExpression::Variable(vid) => {
@@ -128,7 +127,7 @@ pub fn scope_expression<'i>(
                             )
                         }
                     }.map(move |new_expr| (pattern, new_expr))
-                }).collect::<Result<Vec<_>, _>>()?;
+                }).collect::<Result<Vec<_>>>()?;
 
                 SimplifiedExpression::Match(
                     var_node,

@@ -8,11 +8,11 @@ use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
-use color_eyre::eyre::Result;
 use lalrpop_util::lalrpop_mod;
 use ast::{scoped::ScopedProgram, typed::TypedProgram};
 use simple_ast::{add_refcounts, from_scoped};
 use ast::base::BaseSliceProgram;
+use error::Result;
 
 mod code;
 mod ir;
@@ -29,9 +29,7 @@ fn main() {}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<()> {
-    color_eyre::install()?;
-
-    let code = fs::read_to_string(Path::new("examples/type_error.goo"))?;
+    let code = fs::read_to_string(Path::new("examples/type_error.goo")).unwrap();
 
     let base_program = BaseSliceProgram::new(&code)?;
     println!("{base_program}");

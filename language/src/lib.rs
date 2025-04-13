@@ -4,17 +4,17 @@
 
 pub mod ast;
 mod code;
-mod error;
-mod interpreter;
-mod ir;
+pub mod error;
+pub mod interpreter;
+pub mod ir;
 mod lexer;
 mod simple_ast;
 lalrpop_mod!(pub grammar);
 
+use error::Result;
 use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
 use interpreter::Interpreter;
 use ir::Prog;
-use color_eyre::Result;
 use lalrpop_util::lalrpop_mod;
 use simple_ast::{add_refcounts, from_scoped};
 use std::cell::RefCell;

@@ -1,7 +1,6 @@
-use std::{collections::{BTreeMap, HashMap, HashSet}, iter::once, ops::{Bound, Range}};
+use std::{collections::{BTreeMap, HashMap, HashSet}, fmt::Display, iter::once, ops::{Bound, Range}};
 
-use crate::{error::CompileError, grammar, lexer::Lexer};
-use color_eyre::Result;
+use crate::{error::{ErrorReason, Result}, grammar, lexer::Lexer};
 
 use super::ast::{Constructor, ExpressionNode, FullExpression, FunctionData, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
 
@@ -27,7 +26,8 @@ pub struct SourceLocation {
 pub struct SourceReference<'i> {
     pub start: SourceLocation,
     pub end: SourceLocation,
-    pub snippet: &'i str
+    pub snippet: &'i str,
+    pub lines: &'i str
 }
 
 impl<'i> BaseSliceProgram<'i> {
@@ -48,19 +48,19 @@ impl<'i> BaseSliceProgram<'i> {
             match def {
                 Definition::ADT(aid, constructors) => {
                     if adts.insert(aid.clone(), constructors.iter().map(|(fid, _)| fid.clone()).collect()).is_some() {
-                        return Err(CompileError::MultipleADTDefinitions(aid.clone()).into())
+                        return Err(ErrorReason::MultipleADTDefinitions(aid.clone()).into())
                     }
 
     
                     for (sibling_index, (fid, args)) in constructors.into_iter().enumerate() {    
                         if all_constructors.insert(fid.clone(), Constructor { sibling_index, adt: aid.clone(), args }).is_some() {
-                            return Err(CompileError::MultipleFunctionDefinitions(fid).into())
+                            return Err(ErrorReason::MultipleFunctionDefinitions(fid).into())
                         }
                     }
                 },
                 Definition::Function(fid, (data, body)) => {    
                     if function_datas.insert(fid.clone(), data).is_some() {
-                        return Err(CompileError::MultipleFunctionDefinitions(fid).into())
+                        return Err(ErrorReason::MultipleFunctionDefinitions(fid).into())
                     }
                     function_bodies.insert(fid, body.make_slice(code, &linebreaks));
                 }
@@ -68,11 +68,11 @@ impl<'i> BaseSliceProgram<'i> {
         }
 
         if let Some(fid) = function_datas.keys().collect::<HashSet<_>>().intersection(&all_constructors.keys().collect()).next() {
-            return Err(CompileError::MultipleFunctionDefinitions((*fid).clone()).into())
+            return Err(ErrorReason::MultipleFunctionDefinitions((*fid).clone()).into())
         }
 
         if !function_datas.contains_key("main") {
-            return Err(CompileError::MissingMainFunction.into())
+            return Err(ErrorReason::MissingMainFunction.into())
         }
 
         let program = BaseSliceProgram { adts, constructors: all_constructors, function_datas, function_bodies };
@@ -124,7 +124,11 @@ impl BaseRangeNode {
         let start = SourceLocation { line: *start_line, char_offset: self.data.start.checked_sub_signed(*start_line_start_char).unwrap() };
         let end = SourceLocation { line: *end_line, char_offset: self.data.end.checked_sub_signed(*end_line_start_char).unwrap() };
 
-        let reference = SourceReference { end, start, snippet };
+        let last_line_last_char = code[(*end_line_start_char as usize)+1..].find('\n').map(|p| (*end_line_start_char as usize) + 1 + p).unwrap_or(code.len());
+        let lines = &code[(*start_line_start_char as usize)+1..last_line_last_char];
+        dbg!(lines);
+
+        let reference = SourceReference { end, start, snippet, lines };
 
         BaseSliceNode {
             expr: new_expr,
@@ -165,7 +169,7 @@ impl Type {
             Type::Int => Ok(()),
             Type::ADT(aid) => {
                 if !program.adts.contains_key(aid) { 
-                    Err(CompileError::UnknownADTInType(aid.to_string()).into()) 
+                    Err(ErrorReason::UnknownADTInType(aid.to_string()).into()) 
                 } else { 
                     Ok(()) 
                 }
@@ -203,5 +207,11 @@ impl<'a, D> From<&'a SyntaxExpression<D>> for FullExpression<'a, D, SyntaxExpres
             SyntaxExpression::LetEqualIn(x, y, z) => FullExpression::LetEqualIn(x, y, z),
             SyntaxExpression::Operation(x, y, z) => FullExpression::Operation(x, y, z)
         }
+    }
+}
+
+impl Display for SourceLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.line, self.char_offset)
     }
 }
