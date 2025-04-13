@@ -3,9 +3,9 @@ use super::mempeek::MemObj;
 use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
-use crate::ir::Prog;
-use crate::simple_ast::{Operator, add_refcounts, from_scoped};
-use crate::{code, ir};
+use crate::core::{Def, Operand, Prog, Statement};
+use crate::score;
+use crate::stir::{self, Operator};
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
@@ -13,6 +13,8 @@ use std::fmt::Debug;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
+use std::thread::sleep;
+use std::time::Duration;
 use std::{fmt, vec};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -112,7 +114,7 @@ impl Interpreter {
 
     pub fn from_program(program: &Prog) -> Self {
         let mut interpreter = Interpreter::new();
-        for def in program.0.clone() {
+        for def in program.clone() {
             interpreter = interpreter.with_fn(IDef::from_def(&def));
         }
         interpreter = interpreter.with_entry_point("main");
@@ -135,6 +137,13 @@ impl Interpreter {
         match op {
             IOperand::Ident(id) => self.get_local_var(id).unwrap_val(),
             IOperand::Int(i) => *i,
+            IOperand::Negate(id) => {
+                if self.get_local_var(id)._unwrap_raw() == 0 {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
 
@@ -142,6 +151,7 @@ impl Interpreter {
         match op {
             IOperand::Ident(id) => self.get_local_var(id),
             IOperand::Int(i) => Data::Value(*i),
+            IOperand::Negate(id) => panic!("Hoppsan"),
         }
     }
 
@@ -161,6 +171,7 @@ impl Interpreter {
         }
 
         self.heap.push(vec![Data::Value(0); width]);
+        sleep(Duration::from_micros(15));
         Data::Pointer(self.heap.len() - 1)
     }
 
@@ -182,7 +193,7 @@ impl Interpreter {
                     self.dec(ptr);
                 }
             }
-
+            sleep(Duration::from_micros(5));
             self.heap[ptr] = Vec::new();
         }
     }
@@ -211,7 +222,6 @@ impl Interpreter {
         if let Some(statement) = s.clone() {
             self.steps += 1;
             match statement {
-                IStatement::Decl(_) => (), // does nothing
                 IStatement::IfExpr(items) => {
                     for (operand, statements) in items {
                         if self.eval_op(&operand) == 1 {
@@ -224,7 +234,7 @@ impl Interpreter {
                         }
                     }
                 }
-                IStatement::InitConstructor(id, w) => {
+                IStatement::AssignMalloc(id, w) => {
                     let ptr = self.malloc(w as usize);
                     self.local_variables.insert(id.clone(), ptr);
                 }
@@ -283,7 +293,7 @@ impl Interpreter {
                     };
                     self.local_variables.insert(id, Data::Value(val));
                 }
-                IStatement::AssignConditional(id, b, iop, i) => {
+                IStatement::AssignTagCheck(id, b, iop, i) => {
                     let i = i >> 1; // bruh
                     let val = if b {
                         let name = iop.unwrap_id();
@@ -301,6 +311,21 @@ impl Interpreter {
                     self.local_variables.insert(id, self.return_value.unwrap());
                     self.return_value = None;
                 }
+                IStatement::AssignDropReuse(id, id1) => {
+                    let reff = self.get_local_var(&id1);
+                    let ptr = reff.unwrap_ptr();
+                    if self.heap[ptr][2].unwrap_val() == 1 {
+                        for i in 3..self.heap[ptr].len() {
+                            if self.heap[ptr][i].is_ptr() {
+                                self.dec(self.heap[ptr][i].unwrap_ptr());
+                            }
+                        }
+                        self.local_variables.insert(id, Data::Pointer(ptr));
+                    } else {
+                        self.heap[ptr][2].dec();
+                        self.local_variables.insert(id, Data::Value(0));
+                    }
+                }
             }
         }
         s
@@ -312,7 +337,7 @@ impl Interpreter {
         self.step();
         while let Some(s) = self.statements.get(0) {
             match s {
-                IStatement::InitConstructor(..)
+                IStatement::AssignMalloc(..)
                 | IStatement::Inc(_)
                 | IStatement::Dec(_)
                 | IStatement::AssignToField(..) => {
@@ -322,6 +347,27 @@ impl Interpreter {
                     self.step();
                 }
             }
+        }
+    }
+
+    pub fn run_until_next_ptr(&mut self) {
+        self.step();
+        while let Some(s) = self.statements.get(0) {
+            if let IStatement::AssignMalloc(_, _) = s {
+                break;
+            } else if let IStatement::Dec(op) = s {
+                match *op {
+                    IOperand::Int(i) if i == 1 => {
+                        break;
+                    }
+                    _ => (),
+                }
+            } else if let IStatement::AssignToField(_, _, op) = s {
+                if self.op_to_data(&op).is_ptr() {
+                    break;
+                }
+            }
+            self.step();
         }
     }
 
@@ -376,7 +422,7 @@ fn concat_columns(left: &Vec<String>, right: &Vec<String>, sep: &str) -> Vec<Str
             itertools::EitherOrBoth::Left(a) => format!("{:<wleft$}{sep}{:<wright$}", a, ""),
             itertools::EitherOrBoth::Right(b) => format!("{:<wleft$}{sep}{:<wright$}", "", b),
         })
-        .collect_vec()
+        .collect()
 }
 
 impl Debug for Interpreter {
@@ -447,121 +493,103 @@ impl Debug for Data {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_time(src: &str) {
-    let code = fs::read_to_string(Path::new(src)).unwrap();
-
+fn _compile(path: &str, fip: bool) -> Prog {
+    let code = fs::read_to_string(Path::new(path)).unwrap();
     let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
+    let mut program = stir::from_typed(&typed_program);
+    if fip {
+        program = stir::add_reuse(&program);
+    }
+    let program = stir::add_rc(&program, true);
+    let core_ir = score::translate(&program);
+    core_ir
+}
 
-    let simple_program = from_scoped(&typed_program);
-    let with_ref_count = add_refcounts(&simple_program);
-    let code = code::Compiler::new().compile(&with_ref_count);
-
-    let mut interpreter = Interpreter::from_program(&code);
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_test_time(src: &str) {
+    println!("fip?");
+    let core_ir = match input::<String>("").as_str() {
+        "fip" => {
+            println!("fip!");
+            _compile(src, true)
+        }
+        _ => {
+            println!("not fip =(");
+            _compile(src, false)
+        }
+    };
 
     println!("Starting!");
     let now = std::time::Instant::now();
+    for _ in 0..1000 {
+        let mut interpreter = Interpreter::from_program(&core_ir);
+        interpreter.run_until_done();
+    }
 
-    interpreter.run_until_done();
-
-    let elapsed = now.elapsed().as_micros();
-    let steps = interpreter.steps;
-    println!(
-        "Done!\n{} steps in {} us\n{} sps",
-        steps,
-        elapsed,
-        1_000_000 * steps / elapsed as u64
-    );
-    println!("{:?}", interpreter);
+    let elapsed = now.elapsed().as_millis();
+    println!("Done!\n{} ms", elapsed,);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test(src: &str) {
-    use crate::interpreter::mempeek::{MemObj, MemPeek};
+    println!("fip?");
+    let core_ir = match input::<String>("").as_str() {
+        "fip" => {
+            println!("fip!");
+            _compile(src, true)
+        }
+        _ => {
+            println!("not fip =(");
+            _compile(src, false)
+        }
+    };
 
-    let code = fs::read_to_string(Path::new(src)).unwrap();
-    let base_program = BaseSliceProgram::new(&code).unwrap();
-    let scoped_program = ScopedProgram::new(base_program).unwrap();
-    let typed_program = TypedProgram::new(scoped_program).unwrap();
-    let simple_program = from_scoped(&typed_program);
-    let with_ref_count = add_refcounts(&simple_program);
-    let code = code::Compiler::new().compile(&with_ref_count);
-
-    let c_code = ir::output(&code).join("\n");
-    fs::write(Path::new(".interpreter_out/c_code.c"), c_code).unwrap();
-
-    let mut c_ast = code.0.clone();
-    c_ast.sort_by(|a, b| a.id.cmp(&b.id));
-    let c_ast = c_ast
-        .iter()
-        .map(|def| {
-            let statements = def
-                .body
-                .iter()
-                .map(|s| format!("    {:?}", s))
-                .collect_vec()
-                .join("\n");
-            format!("function {}{:?}:\n{}\n", def.id, def.args, statements)
-        })
-        .collect_vec()
-        .join("\n");
-    fs::write(Path::new(".interpreter_out/c_ast.txt"), c_ast).unwrap();
-
-    let mut interpreter = Interpreter::from_program(&code);
-
-    let mut i_ast = interpreter.functions.values().collect_vec().clone();
-    i_ast.sort_by(|a, b| a.id.cmp(&b.id));
-    let i_ast = i_ast
-        .iter()
-        .map(|idef| format!("{}\n", idef))
-        .collect_vec()
-        .join("\n");
-
-    fs::write(Path::new(".interpreter_out/i_ast.txt"), i_ast).unwrap();
+    let mut interpreter = Interpreter::from_program(&core_ir);
 
     let mut history = Vec::new();
     loop {
-        if let Some(_) = interpreter.statements.get(0) {
-            print!("{}[2J", 27 as char);
-            println!("{:?}", interpreter);
-            println!("m, r, s, b, enter");
-            let input: String = input("");
+        print!("{}[2J", 27 as char);
+        println!("{:?}", interpreter);
+        println!("m, r, s, b, p, enter");
+        let input: String = input("");
 
-            match input.as_str() {
-                "m" => {
-                    history.push(interpreter.clone());
-                    interpreter.run_until_next_mem();
-                }
-                "r" => {
-                    history.push(interpreter.clone());
-                    interpreter.run_until_return();
-                }
-                "s" => {
-                    history.push(interpreter.clone());
-                    interpreter.run_step_over();
-                }
-                "b" => {
-                    interpreter = history.pop().unwrap();
-                }
-                x if x.parse::<usize>().is_ok() => {
-                    let shit = MemObj::from_data(
-                        &Data::Pointer(x.parse::<usize>().unwrap()),
-                        &interpreter.heap,
-                    );
-                    println!("{}", shit.as_json());
-                }
-                x if interpreter.local_variables.contains_key(x) => {
-                    let json = interpreter.get_variable_json(x);
-                    println!("{}", json);
-                }
-                _ => {
-                    history.push(interpreter.clone());
-                    interpreter.step();
-                }
+        match input.as_str() {
+            "m" => {
+                history.push(interpreter.clone());
+                interpreter.run_until_next_mem();
             }
-        } else {
-            break;
+            "r" => {
+                history.push(interpreter.clone());
+                interpreter.run_until_return();
+            }
+            "s" => {
+                history.push(interpreter.clone());
+                interpreter.run_step_over();
+            }
+            "b" => {
+                interpreter = history.pop().unwrap();
+            }
+            "p" => {
+                history.push(interpreter.clone());
+                interpreter.run_until_next_ptr();
+            }
+            x if x.parse::<usize>().is_ok() => {
+                let shit = MemObj::from_data(
+                    &Data::Pointer(x.parse::<usize>().unwrap()),
+                    &interpreter.heap,
+                );
+                println!("{}", shit.as_json());
+            }
+            x if interpreter.local_variables.contains_key(x) => {
+                let json = interpreter.get_variable_json(x);
+                println!("{}", json);
+            }
+            _ => {
+                history.push(interpreter.clone());
+                interpreter.step();
+            }
         }
     }
 }

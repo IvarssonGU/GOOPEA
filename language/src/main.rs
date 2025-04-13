@@ -8,20 +8,20 @@ use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
-use lalrpop_util::lalrpop_mod;
-use ast::{scoped::ScopedProgram, typed::TypedProgram};
-use simple_ast::{add_refcounts, from_scoped};
 use ast::base::BaseSliceProgram;
+use ast::{scoped::ScopedProgram, typed::TypedProgram};
+use color_eyre::eyre::Result;
+use lalrpop_util::lalrpop_mod;
 use error::Result;
 
-mod code;
-mod ir;
-mod simple_ast;
-mod lexer;
-mod error;
 pub mod ast;
+mod error;
+mod lexer;
 
-mod interpreter;
+mod core;
+mod score;
+mod stir;
+
 lalrpop_mod!(pub grammar);
 
 #[cfg(target_arch = "wasm32")]
@@ -29,35 +29,44 @@ fn main() {}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<()> {
-    let code = fs::read_to_string(Path::new("examples/type_error.goo")).unwrap();
+    use core::Def;
+
+    let code = fs::read_to_string(Path::new("examples/reuse_different_type.goo"))?;
 
     let base_program = BaseSliceProgram::new(&code)?;
-    println!("{base_program}");
 
     let scoped_program = ScopedProgram::new(base_program)?;
-    println!("{scoped_program}");
 
     let typed_program = TypedProgram::new(scoped_program)?;
-    println!("{typed_program}");
 
-    let simple_program = from_scoped(&typed_program);
-    let with_ref_count = add_refcounts(&simple_program);
-    let code = code::Compiler::new().compile(&with_ref_count);
-    println!("{}", ir::output(&code).join("\n"));
+    let pure_ir = stir::from_typed(&typed_program);
+    let pure_reuse = stir::add_reuse(&pure_ir);
+    let pure_rc = stir::add_rc(&pure_reuse, true);
 
+    for def in &pure_rc {
+        println!("{}", def);
+    }
+    let core_ir = score::translate(&pure_rc);
+    let result = core::output(&core_ir);
+    println!("{}", result.join("\n"));
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-    use std::fs;
     use crate::grammar;
     use crate::lexer::{Lexer, Token, lexer};
+    use std::fs;
+    use std::path::Path;
 
     fn parse_example(path: &Path) -> () {
         let code = fs::read_to_string(path).unwrap();
-        grammar::ProgramParser::new().parse(Lexer::new(&code)).unwrap();
+        println!(
+            "{}",
+            grammar::ProgramParser::new()
+                .parse(Lexer::new(&code))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -74,13 +83,13 @@ mod tests {
     fn parse_integer() {
         parse_example(Path::new("examples/integer.goo"));
     }
-    
+
     fn lexer_test(file: &Path) -> Vec<Token> {
         let src = std::fs::read_to_string(file).unwrap();
         let tokens = lexer(src.as_str());
 
         tokens.iter().for_each(|token| println!("{:#?}", token));
-        
+
         tokens
     }
 
