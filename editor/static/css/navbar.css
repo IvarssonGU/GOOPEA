@@ -8,6 +8,8 @@
     --text-color: black;
     --keywords: #708;
     --constructors: royalblue;
+    --error: #ffd2d2;
+    --text-selected: #efe7ff;
 }
 /* dark theme colors */
 [theme="dark"] {
@@ -19,6 +21,8 @@
     --text-color: #d6d6d6;
     --keywords: #db2d20;
     --constructors: #e8bbd0;
+    --error: #640000;
+    --text-selected: #5a002a;
 }
 
 .nav {
