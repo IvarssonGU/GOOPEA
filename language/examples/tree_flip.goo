@@ -46,13 +46,9 @@ sum tree = match tree {
     Node(left, value, right): sum(left) + value + sum(right)
 };
 
-Tree: Tree
-flip tree = match tree {
-    Empty: Empty,
-    Node(left, value, right): Node(flip(right), value, flip(left))
-};
-
 (Tree, Tree): Tree
+ 
+
 combine (a, b) = match a {
     Empty: match b {
         Empty: Empty,
@@ -64,5 +60,12 @@ combine (a, b) = match a {
     }
 };
 
+Tree: Tree
+flip tree = match tree {
+    Empty: Empty,
+    Node(left, value, right): Node(flip(right), value, flip(left))
+};
+
 (): Int
-main = sum(combine(build(), flip(build())));
+main = sum(flip(combine(flip(build()), build())));
+// main = sum(build());
