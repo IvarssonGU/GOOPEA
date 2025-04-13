@@ -126,7 +126,6 @@ impl BaseRangeNode {
 
         let last_line_last_char = code[(*end_line_start_char as usize)+1..].find('\n').map(|p| (*end_line_start_char as usize) + 1 + p).unwrap_or(code.len());
         let lines = &code[(*start_line_start_char as usize)+1..last_line_last_char];
-        dbg!(lines);
 
         let reference = SourceReference { end, start, snippet, lines };
 

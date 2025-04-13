@@ -10,7 +10,6 @@ use std::path::Path;
 
 use ast::base::BaseSliceProgram;
 use ast::{scoped::ScopedProgram, typed::TypedProgram};
-use color_eyre::eyre::Result;
 use lalrpop_util::lalrpop_mod;
 use error::Result;
 
@@ -31,7 +30,7 @@ fn main() {}
 fn main() -> Result<()> {
     use core::Def;
 
-    let code = fs::read_to_string(Path::new("examples/reuse_different_type.goo"))?;
+    let code = fs::read_to_string(Path::new("examples/reuse_different_type.goo")).unwrap();
 
     let base_program = BaseSliceProgram::new(&code)?;
 
