@@ -81,6 +81,11 @@ pub fn compile(arg: &str) -> ResultWrapper {
 }
 
 #[wasm_bindgen]
+pub fn start_interpreter(arg: &str) {
+    language::load_interpreter(&language::compile(arg).unwrap())
+}
+
+#[wasm_bindgen]
 pub fn get_one_step() -> String {
     language::store_interpreter();
     language::step_interpreter();
