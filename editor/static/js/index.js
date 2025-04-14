@@ -79,6 +79,9 @@ document.addEventListener("DOMContentLoaded", () => {
             document.documentElement.setAttribute("theme", "default");
         }
     }
+
+    switch_tab(2);
+    continuous_compiling();
 });
 
 window.onbeforeunload = function() {
@@ -148,6 +151,13 @@ async function compile_and_populate() {
     //populate the compiler selections
     selected_changed("diff1-select", "diff1");
     selected_changed("diff2-select", "diff2");
+}
+
+async function continuous_compiling() {
+    compile_and_populate();
+
+    // 1/sec
+    setTimeout(continuous_compiling, 1000);
 }
 
 //clear-debug-run button functions
@@ -396,7 +406,8 @@ document.addEventListener("keydown", (event) => {
         event.preventDefault();
 
         //copy editor text to clipboard
-        navigator.clipboard.writeText(editor.getValue()); 
+    // navigator.clipboard.writeText(editor.getValue()); 
+        compile_button_clicked();
     }
 });
 
