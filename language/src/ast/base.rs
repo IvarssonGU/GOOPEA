@@ -1,6 +1,6 @@
 use std::{collections::{BTreeMap, HashMap, HashSet}, fmt::Display, iter::once, ops::{Bound, Range}};
 
-use crate::{error::{ErrorReason, Result}, grammar, lexer::Lexer};
+use crate::{error::{Error, ErrorReason, Result}, grammar, lexer::Lexer};
 
 use super::ast::{Constructor, ExpressionNode, FullExpression, FunctionData, Operator, Pattern, Program, Type, UTuple, AID, FID, VID};
 
@@ -34,7 +34,8 @@ impl<'i> BaseSliceProgram<'i> {
     pub fn new(code: &'i str) -> Result<BaseSliceProgram<'i>> {
         let linebreaks = code.bytes().enumerate().filter_map(|(i, c)| (c == b'\n').then(|| i as isize)).chain(once(-1)).enumerate().map(|(i, c)| (c, i+2)).collect::<BTreeMap<_, _>>();
 
-        let program: Vec<Definition> = grammar::ProgramParser::new().parse(Lexer::new(code)).unwrap();
+        let program: Vec<Definition> = grammar::ProgramParser::new().parse(Lexer::new(code))
+            .map_err(|e| Error::new(ErrorReason::SyntaxError(e)))?;
 
         let builtin_defs = vec![
             Definition::ADT("Bool".to_string(), vec![("False".to_string(), UTuple::empty()), ("True".to_string(), UTuple::empty())])

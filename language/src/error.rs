@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
-use crate::ast::{ast::{Pattern, Type, UTuple, AID, FID, VID}, base::{SourceLocation, SourceReference}};
+use crate::{ast::{ast::{Pattern, Type, UTuple, AID, FID, VID}, base::{SourceLocation, SourceReference}}, lexer::{LexicalError, Token}};
 use itertools::Itertools;
+use lalrpop_util::ParseError;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -22,6 +23,9 @@ pub struct Error {
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum ErrorReason {
+    #[error("Syntax Error: {0:?}")]
+    SyntaxError(ParseError<usize, Token, LexicalError>),
+
     #[error("Unknown function '{0}'")]
     UnknownFunction(FID),
     #[error("Unknown variable '{0}'")]
