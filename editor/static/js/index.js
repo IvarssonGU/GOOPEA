@@ -16,7 +16,7 @@ let step1_value = "Click Compile, Run, or Debug to view step1";
 let step2_value = "Click Compile, Run, or Debug to view step2";
 let step3_value = "Click Compile, Run, or Debug to view step3";
 
-let error_text = null;
+let error_highlight = null;
 
 //establish codemirror editor
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
@@ -37,9 +37,9 @@ editor.setSize("100%", "100%");
 document.addEventListener("DOMContentLoaded", () => {
     output_textarea.value = "";
     info_textarea.value = "";
-    diff1_selected();
-    diff2_selected();
-    step_selected();
+    selected_changed("diff1-select", "diff1");
+    selected_changed("diff2-select", "diff2");
+    selected_changed("step-select", "steps");
     
     if ("tab" in localStorage) {
         let current_tab = localStorage.getItem("tab");
@@ -100,7 +100,7 @@ window.onbeforeunload = function() {
 };
 
 async function compile_and_populate() {
-    if (error_text != null) error_text.clear();
+    if (error_highlight != null) error_highlight.clear();
 
     await wasm_bindgen('./pkg/editor_bg.wasm');
 
@@ -138,17 +138,16 @@ async function compile_and_populate() {
             console.log(from)
             console.log(to)
 
-            error_text = editor.markText(from, to, {className: "error-highlight"});
+            error_highlight = editor.markText(from, to, {className: "error-highlight"});
         }
     }
     
     //assign to textarea
     info_textarea.value = compiler_message;
 
-    //populate the different compiler selections here
-    diff1_selected();
-    diff2_selected();
-    step_selected();
+    //populate the compiler selections
+    selected_changed("diff1-select", "diff1");
+    selected_changed("diff2-select", "diff2");
 }
 
 //clear-debug-run button functions
@@ -308,7 +307,7 @@ function switch_tab(opt) {
                 let current_tab = localStorage.getItem("compiler");
                 switch (current_tab) {
                     case "info": switch_compiler_tab(0); break;
-                    case "diff": switch_compiler_tab(1); console.log("diff"); break;
+                    case "diff": switch_compiler_tab(1); break;
                     case "steps": switch_compiler_tab(2); break;
                     default: switch_compiler_tab(0);
                 }
@@ -355,65 +354,25 @@ function switch_compiler_tab(opt) {
     }
 }
 
-//dropdowns under compiler->diff view
-function diff1_selected() {
-    let diff1_textarea = document.getElementById("diff1");
+//dropdowns under compiler->diff view and in intermediate
+function selected_changed(name, field) {
+    let to_textarea = document.getElementById(field);
 
-    switch(document.getElementById("diff1-select").value) {
+    switch(document.getElementById(name).value) {
         case "c":
-            diff1_textarea.value = ccode_value;
+            to_textarea.value = ccode_value;
             break;
         case "step1":
-            diff1_textarea.value = step1_value;
+            to_textarea.value = step1_value;
             break;
         case "step2":
-            diff1_textarea.value = step2_value;
+            to_textarea.value = step2_value;
             break;
         case "step3":
-            diff1_textarea.value = step3_value;
+            to_textarea.value = step3_value;
             break;
         default:
-            diff1_textarea.value = step1_value;
-    }
-}
-function diff2_selected() {
-    let diff2_textarea = document.getElementById("diff2");
-
-    switch(document.getElementById("diff2-select").value) {
-        case "c":
-            diff2_textarea.value = ccode_value;
-            break;
-        case "step1":
-            diff2_textarea.value = step1_value;
-            break;
-        case "step2":
-            diff2_textarea.value = step2_value;
-            break;
-        case "step3":
-            diff2_textarea.value = step3_value;
-            break;
-        default:
-            diff2_textarea.value = step1_value;
-    }
-}
-function step_selected() {
-    let steps_textarea = document.getElementById("steps");
-
-    switch(document.getElementById("step-select").value) {
-        case "c":
-            steps_textarea.value = ccode_value;
-            break;
-        case "step1":
-            steps_textarea.value = step1_value;
-            break;
-        case "step2":
-            steps_textarea.value = step2_value;
-            break;
-        case "step3":
-            steps_textarea.value = step3_value;
-            break;
-        default:
-            steps_textarea.value = step1_value;
+            to_textarea.value = step1_value;
     }
 }
 

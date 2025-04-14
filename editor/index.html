@@ -43,7 +43,7 @@
 					<!-- compiler buttons -->
 					<button onclick="switch_compiler_tab(0)" class="compiler-button styled-button hide current-tab" id="info-tab">Info</button>
 					<button onclick="switch_compiler_tab(1)" class="compiler-button styled-button hide" id="diff-tab">Diff view</button>
-					<button onclick="switch_compiler_tab(2)" class="compiler-button styled-button hide" id="steps-tab">Intermediate</button>
+					<button onclick="switch_compiler_tab(2)" class="compiler-button styled-button hide" id="steps-tab">Intermediate Representations</button>
 					<div class="output-container">
 						<textarea id="output" readonly="true" placeholder="not implemented yet" height="100%"></textarea>
 						<textarea id="info" readonly="true" placeholder="click compile, run, or debug to view compiler message here" height="100%" class="hide"></textarea>
@@ -52,7 +52,7 @@
 								<tr>
 									<td>
 										<label for="step-select">Step:</label>
-										<select onchange="step_selected()" name="step-select" id="step-select" class="styled-select" width="100%">
+										<select onchange="selected_changed('step-select', 'steps')" name="step-select" id="step-select" class="styled-select" width="100%">
 											<option value="c">C code</option>
 											<option value="step1">Step1</option>
 											<option value="step2">Step2</option>
@@ -72,7 +72,7 @@
 								<tr>
 									<td>
 										<label for="diff1-select">Select view 1:</label>
-										<select  onchange="diff1_selected()" name="diff1-select" id="diff1-select" class="styled-select" width="100%">
+										<select  onchange="selected_changed('diff1-select', 'diff1')" name="diff1-select" id="diff1-select" class="styled-select" width="100%">
 											<option value="c">C code</option>
 											<option value="step1">Step1</option>
 											<option value="step2">Step2</option>
@@ -81,7 +81,7 @@
 									</td>
 									<td>
 										<label for="diff2-select">Select view 2:</label>
-										<select  onchange="diff2_selected()" name="diff2-select" id="diff2-select" class="styled-select">
+										<select  onchange="selected_changed('diff2-select', 'diff2')" name="diff2-select" id="diff2-select" class="styled-select">
 											<option value="c">C code</option>
 											<option value="step1">Step1</option>
 											<option value="step2">Step2</option>
