@@ -138,9 +138,6 @@ async function compile_and_populate() {
             let from = {line: source.start_line-1, ch: source.start_line_char-1};
             let to = {line: source.end_line-1, ch: source.end_line_char-1};
 
-            console.log(from)
-            console.log(to)
-
             error_highlight = editor.markText(from, to, {className: "error-highlight"});
         }
     }
@@ -180,6 +177,7 @@ async function run_button_clicked() {
         //show only the final debug print
         wasm_bindgen.start_interpreter(code);
         debug_textarea.value = wasm_bindgen.get_run();
+        update_visualization();
 
         switch_tab(0);
     } else {
@@ -217,6 +215,7 @@ async function debug_button_clicked() {
         //display starting state
         wasm_bindgen.start_interpreter(code);
         debug_textarea.value = wasm_bindgen.get_state();
+        update_visualization();
 
         switch_tab(1);
     } else {
@@ -241,18 +240,23 @@ async function compile_button_clicked() {
 //interpreter functions
 function step_back_clicked() {
     debug_textarea.value = wasm_bindgen.get_back_step();
+    update_visualization();
 }
 function step_forward_clicked() {
     debug_textarea.value = wasm_bindgen.get_one_step();
+    update_visualization();
 }
 function run_mem_clicked() {
     debug_textarea.value = wasm_bindgen.get_until_mem();
+    update_visualization();
 }
 function run_return_clicked() {
     debug_textarea.value = wasm_bindgen.get_until_return();
+    update_visualization();
 }
 function run_done_clicked() {
     debug_textarea.value = wasm_bindgen.get_run();
+    update_visualization();
 }
 
 //saves which tab is active

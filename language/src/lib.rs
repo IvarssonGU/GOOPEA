@@ -5,7 +5,7 @@
 pub mod ast;
 pub mod core;
 pub mod error;
-mod interpreter;
+pub mod interpreter;
 mod lexer;
 mod score;
 pub mod stir;
@@ -90,4 +90,8 @@ pub fn restore_interpreter() {
             INTERPRETER.set(i);
         }
     });
+}
+
+pub fn perform_on_interpreter<T>(f: impl FnOnce(&Interpreter) -> T) -> T {
+    INTERPRETER.with_borrow(f)
 }
