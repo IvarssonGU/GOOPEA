@@ -75,17 +75,17 @@ function update_visualization() {
     let graph_nodes = mem.heap.map(fields => graph.node(fields))
     
     for(const node of graph_nodes) {
-        for(const field of node.data) {
+        for(const [i, field] of node.data.entries()) {
             if(field.is_ptr) {
-                graph.link(node, graph_nodes[field.val])
+                graph.link(node, graph_nodes[field.val], i)
             }
         }
     }
 
     const { width: graph_width, height: graph_height } = d3.sugiyama()
         .nodeSize(d => [10 + box_field_width * d.data.length, box_height])
-        .gap([10, 10])
-        .tweaks([/*d3.tweakFlip("diagonal"), */])(graph)
+        .gap([20, 50])
+        .tweaks([/*d3.tweakFlip("diagonal"), */tweak_endpoints])(graph)
 
 
     const zoom_scale = Math.min(width / graph_width, height / graph_height);
@@ -94,21 +94,12 @@ function update_visualization() {
     console.log(graph_width)
     console.log(graph_height)
 
-    const line = d3.line().curve(d3.curveBasis);
+    const line = d3.linkVertical().x(d => d[0]).y(d => d[1]);
 
     function transform_node(selection) {
         selection
-        .attr("width", d => box_field_width * d.data.length + 10)
-        .attr("height", box_height)
-        .attr("stroke-width", 2)
-        .attr("x", d => d.x - (box_field_width * d.data.length + 10) / 2)
-        .attr("y", d => d.y - box_height / 2)
-    }
-
-    function transform_line(selection) {
-        selection
-            .attr("d", ({ points }) => line(points))
-            .attr("stroke-width", 5)
+        .attr("width", d => box_field_width * d.data.length)
+        .attr("transform", d => `translate(${d.x - (box_field_width * d.data.length) / 2},${d.y - box_height / 2})`)
     }
 
     while (nodes.length < mem.heap.length) {
@@ -127,18 +118,20 @@ function update_visualization() {
     let was_changed = false;
 
     d3.select(".nodes")
-        .selectAll("rect")
+        .selectAll("g")
         .data(graph.nodes())
         .join(
             function(enter) {
                 was_changed |= !enter.empty();
 
-                return enter.append("rect")
+                return enter.append("g")
                     /*.call(d3.drag()
                         .on("start", dragstarted)
                         .on("drag", dragged)
                         .on("end", dragended))*/
                     .call(transform_node)
+                    .attr("height", box_height)
+                    .attr("stroke-width", 2)
                     .attr("opacity", 0)
                     .attr("fill", "green")
                     .attr("stroke", "#333")
@@ -150,6 +143,35 @@ function update_visualization() {
                         .attr()
                         .attr("fill", "#f0f0f0")
                         .duration(2000)
+                    .selection()
+                    .each(function(p, _) {
+                        d3.select(this)
+                            .selectAll("rect")
+                            .data(p.data)
+                            .join(enter => 
+                                enter
+                                .append("g")
+                                .attr("transform", (_,i) => `translate(${i * box_field_width},0)`)
+                                .each(function(data, i) {
+                                    let rect = d3.select(this).append("rect")
+                                        .attr("width", box_field_width)
+                                        .attr("height", box_height);
+
+                                    if (i < 3) {
+                                        rect.attr("stroke-dasharray", "5")
+                                    }
+
+                                    if (!data.is_ptr) {
+                                        d3.select(this).append("text")
+                                            .attr("x", box_field_width / 2)
+                                            .attr("y", box_height / 2)
+                                            .attr("text-anchor", "middle")
+                                            .attr("alignment-baseline", "central")
+                                            .text(d => d.val)
+                                    }
+                                }) 
+                            )
+                    })
             },
             function(update) { 
                 update
@@ -175,7 +197,13 @@ function update_visualization() {
         .join(
             function (enter) {
                 return enter.append("path")
-                .call(transform_line)
+                .attr("d", ({ points }) =>
+                    d3.linkVertical()({
+                      source: points[0],
+                      target: points[1]
+                    })
+                )                
+                .attr("stroke-width", 2.5)
                 .attr("fill", "none")
                 .attr("stroke", "black")
                 .attr("opacity", 0)
@@ -184,10 +212,7 @@ function update_visualization() {
                     .delay(500)
             },
             function (update) {
-                update
-                    .transition(1)
-                    .delay(250)
-                    .call(transform_line)
+
             },
             function (exit) {
                 exit
@@ -240,4 +265,20 @@ function update_visualization() {
         .attr("y", fieldHeight / 2)
         .attr("class", "field-label")
         .text(d => `${d.offset} — ${d.name} (${d.size} bytes)`);*/
+}
+
+function tweak_endpoints(graph, size) {
+    for(let link of graph.links()) {
+        let [sx, sy] = link.points[0]
+        sx -= link.source.data.length * box_field_width / 2
+        sx += (link.data + 0.5) * box_field_width
+        sy += box_height / 2
+        link.points[0] = [sx, sy]
+
+        let [tx, ty] = link.points[1]
+        ty -= box_height / 2
+        link.points[1] = [tx, ty]
+    }
+
+    return size
 }
