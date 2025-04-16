@@ -87,25 +87,28 @@ function update_visualization() {
         .gap([10, 10])
         .tweaks([/*d3.tweakFlip("diagonal"), */])(graph)
 
-    const scale = Math.min(width / graph_width, height / graph_height);
+
+    const zoom_scale = Math.min(width / graph_width, height / graph_height);
+
+
     console.log(graph_width)
     console.log(graph_height)
 
-    const line = d3.line(d => d[0] * scale, d => d[1] * scale).curve(d3.curveBasis);
+    const line = d3.line().curve(d3.curveBasis);
 
     function transform_node(selection) {
         selection
-        .attr("width", d => (box_field_width * d.data.length + 10) * scale)
-        .attr("height", box_height * scale)
-        .attr("stroke-width", 2 * scale)
-        .attr("x", d => (d.x - (box_field_width * d.data.length + 10) / 2) * scale)
-        .attr("y", d => (d.y - box_height / 2) * scale)
+        .attr("width", d => box_field_width * d.data.length + 10)
+        .attr("height", box_height)
+        .attr("stroke-width", 2)
+        .attr("x", d => d.x - (box_field_width * d.data.length + 10) / 2)
+        .attr("y", d => d.y - box_height / 2)
     }
 
     function transform_line(selection) {
         selection
             .attr("d", ({ points }) => line(points))
-            .attr("stroke-width", 5 * scale)
+            .attr("stroke-width", 5)
     }
 
     while (nodes.length < mem.heap.length) {
@@ -195,10 +198,9 @@ function update_visualization() {
             }
         );
 
-    /*if (was_changed) {
-        simulation.nodes(nodes)
-        simulation.alpha(1).restart();
-    }*/
+    if (was_changed) {
+        svg.transition().call(zoom.scaleTo, zoom_scale)
+    }
 
     /*
     const fieldHeight = 30;
