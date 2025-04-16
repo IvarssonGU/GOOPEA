@@ -7,7 +7,6 @@ const box_height = 50;
 const box_field_width = 50;
 
 let nodes = []
-let links = []
 
 // Create the SVG container.
 const svg = d3.create("svg")
@@ -15,33 +14,35 @@ const svg = d3.create("svg")
     .attr("height", height)
     .attr("style", "max-width: 100%; height: auto;");
 
-const simulation = d3.forceSimulation()
-    .force("link", d3.forceLink(links).id(d => d.id).distance(200))
+const zoom = d3.zoom().on("zoom", zoomed);
+svg.call(zoom);
+
+/*const simulation = d3.forceSimulation()
     .force("charge", d3.forceManyBody().strength(-200))
     .force("x", d3.forceX(width / 2))
     .force("y", d3.forceY(height / 2))
-    .on("tick", ticked);
+    .on("tick", ticked);*/
 
-let link = svg.append("g")
-    .attr("stroke", "#999")
-    .attr("stroke-opacity", 0.6)
-    .selectAll("line");
+const zoom_layer = svg.append("g").attr("class", "zoom-layer");
 
-let node = svg.append("g")
+zoom_layer.append("g")
     .attr("stroke", "#fff")
     .attr("stroke-width", 1.5)
-    .selectAll("circle");
+    .attr("class", "nodes");
 
-function ticked() {
-    node
+zoom_layer.append("g")
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1.5)
+    .attr("class", "links");
+
+function zoomed({transform}) {
+    zoom_layer.attr("transform", transform);
+}
+
+/*function ticked() {
+    d3.select(".nodes").selectAll("rect")
         .attr("x", d => d.x - d.width / 2)
         .attr("y", d => d.y - box_height / 2);
-
-    link
-        .attr("x1", d => d.source.x)
-        .attr("y1", d => d.source.y)
-        .attr("x2", d => d.target.x)
-        .attr("y2", d => d.target.y);
 }
 
 function dragstarted(event) {
@@ -62,13 +63,50 @@ function dragended(event) {
     if (!event.active) simulation.alphaTarget(0);
     event.subject.fx = null;
     event.subject.fy = null;
-}
+}*/
 
 visualization_containter.append(svg.node())
 
 function update_visualization() {
     const mem = wasm_bindgen.take_interpreter_memory_snapshot()
-    console.log(mem)
+
+    const graph = d3.graph()
+
+    let graph_nodes = mem.heap.map(fields => graph.node(fields))
+    
+    for(const node of graph_nodes) {
+        for(const field of node.data) {
+            if(field.is_ptr) {
+                graph.link(node, graph_nodes[field.val])
+            }
+        }
+    }
+
+    const { width: graph_width, height: graph_height } = d3.sugiyama()
+        .nodeSize(d => [10 + box_field_width * d.data.length, box_height])
+        .gap([10, 10])
+        .tweaks([/*d3.tweakFlip("diagonal"), */])(graph)
+
+    const scale = Math.min(width / graph_width, height / graph_height);
+    console.log(graph_width)
+    console.log(graph_height)
+
+    const line = d3.line(d => d[0] * scale, d => d[1] * scale).curve(d3.curveBasis);
+
+    function transform_node(selection) {
+        selection
+        .attr("width", d => (box_field_width * d.data.length + 10) * scale)
+        .attr("height", box_height * scale)
+        .attr("stroke-width", 2 * scale)
+        .attr("x", d => (d.x - (box_field_width * d.data.length + 10) / 2) * scale)
+        .attr("y", d => (d.y - box_height / 2) * scale)
+    }
+
+    function transform_line(selection) {
+        selection
+            .attr("d", ({ points }) => line(points))
+            .attr("stroke-width", 5 * scale)
+    }
 
     while (nodes.length < mem.heap.length) {
         nodes.push({ x: 0, y: height / 2, id: nodes.length })
@@ -83,65 +121,84 @@ function update_visualization() {
         nodes[i].width = mem.heap[i].length * box_field_width
     }
 
-    node = node.data(nodes);
-    let was_changed = !node.enter().empty() || !node.exit().empty();
+    let was_changed = false;
 
-    node.exit()
-        .transition()
-            .attr("fill", "red")
-        .transition()
-            .attr("opacity", 0)
-            .remove()
+    d3.select(".nodes")
+        .selectAll("rect")
+        .data(graph.nodes())
+        .join(
+            function(enter) {
+                was_changed |= !enter.empty();
 
-    node = node.enter().append("rect")
-        .call(d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended))
-        .attr("width", x => x.width)
-        .attr("height", box_height)
-        .attr("opacity", 0)
-        .attr("fill", "green")
-        .attr("stroke", "#333")
-        .attr("class", "node")
-        .transition()
-            .attr("opacity", 1)
-        .transition()
-            .attr()
-            .attr("fill", "#f0f0f0")
-            .duration(2000)
-            .selection()
-        .merge(node);
+                return enter.append("rect")
+                    /*.call(d3.drag()
+                        .on("start", dragstarted)
+                        .on("drag", dragged)
+                        .on("end", dragended))*/
+                    .call(transform_node)
+                    .attr("opacity", 0)
+                    .attr("fill", "green")
+                    .attr("stroke", "#333")
+                    .attr("class", "node")
+                    .transition()
+                        .attr("opacity", 1)
+                        .delay(500)
+                    .transition()
+                        .attr()
+                        .attr("fill", "#f0f0f0")
+                        .duration(2000)
+            },
+            function(update) { 
+                update
+                    .transition(1)
+                    .delay(250)
+                    .call(transform_node)
+            },
+            function(exit) {
+                was_changed |= !exit.empty();
 
-    links = []
-    for([i, fields] of mem.heap.entries()) {
-        for(data of fields) {
-
-            if (!data.is_ptr) { continue }
-
-            links.push({
-                source: i,
-                target: data.val
-            })
-        }
-    }
-
-    link = link.data(links, d => d.source.id + "-" + d.target.id);
-    was_changed = was_changed || !link.enter().empty() || !link.exit().empty();
-
-    link.exit().remove();
-    link = link.enter().append("line")
-      .attr("class", "link")
-      .merge(link);
-
-    console.log(links)
-
+                exit.transition()
+                    .attr("fill", "red")
+                .transition()
+                    .attr("opacity", 0)
+                    .remove()
+            }
+        );
     
-    if (was_changed) {
-        simulation.force("link").links(links);
+    svg
+        .select(".links")
+        .selectAll("path")
+        .data(graph.links())
+        .join(
+            function (enter) {
+                return enter.append("path")
+                .call(transform_line)
+                .attr("fill", "none")
+                .attr("stroke", "black")
+                .attr("opacity", 0)
+                .transition()
+                    .attr("opacity", 1)
+                    .delay(500)
+            },
+            function (update) {
+                update
+                    .transition(1)
+                    .delay(250)
+                    .call(transform_line)
+            },
+            function (exit) {
+                exit
+                    .transition()
+                    .delay(250)
+                    .attr("opacity", 0)
+                    .remove()
+            }
+        );
+
+    /*if (was_changed) {
         simulation.nodes(nodes)
         simulation.alpha(1).restart();
-    }
+    }*/
 
     /*
     const fieldHeight = 30;
