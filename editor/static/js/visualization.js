@@ -80,7 +80,8 @@ function update_visualization() {
     for(const node of graph_nodes) {
         for(const [i, field] of node.data.fields.entries()) {
             if(field.is_ptr) {
-                graph.link(node, graph_nodes[field.val], i)
+                let target = graph_nodes[field.val];
+                graph.link(node, target, { field_index: i, id: `${node.data.id}-${target.data.id}` })
             }
         }
     }
@@ -89,9 +90,6 @@ function update_visualization() {
         .nodeSize(d => [10 + box_field_width * d.data.fields.length, box_height])
         .gap([20, 50])
         .tweaks([/*d3.tweakFlip("diagonal"), */tweak_endpoints])(graph)
-
-
-    const zoom_scale = Math.min(width / graph_width, height / graph_height);
 
     function transform_node(selection) {
         selection
@@ -229,7 +227,7 @@ function update_visualization() {
     svg
         .select(".links")
         .selectAll("path")
-        .data(graph.links())
+        .data(graph.links(), d => d.data.id)
         .join(
             function (enter) {
                 return enter.append("path")
@@ -268,7 +266,15 @@ function update_visualization() {
         );
 
     if (was_changed) {
-        svg.transition().call(zoom.scaleTo, zoom_scale)
+        const horizontal_scale = width / graph_width;
+        const vertical_scale = height / graph_height;
+        const zoom_scale = Math.min(horizontal_scale, vertical_scale);
+
+        let vertical_padding = (height - zoom_scale * graph_height) / 2;
+        let horizontal_padding = (width - zoom_scale * graph_width) / 2;
+
+        console.log({hor: horizontal_padding, vert: vertical_padding})
+        svg.transition().call(zoom.transform, d3.zoomIdentity.translate(horizontal_padding, vertical_padding).scale(zoom_scale))
     }
 
     /*
@@ -315,7 +321,7 @@ function tweak_endpoints(graph, size) {
     for(let link of graph.links()) {
         let [sx, sy] = link.points[0]
         sx -= link.source.data.fields.length * box_field_width / 2
-        sx += (link.data + 0.5) * box_field_width
+        sx += (link.data.field_index + 0.5) * box_field_width
         sy += box_height / 2
         link.points[0] = [sx, sy]
 
