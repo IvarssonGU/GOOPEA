@@ -3,17 +3,17 @@
 #![feature(mixed_integer_ops_unsigned_sub)]
 
 pub mod ast;
-mod core;
-mod error;
+pub mod core;
+pub mod error;
 mod interpreter;
 mod lexer;
 mod score;
-mod stir;
+pub mod stir;
 
 lalrpop_mod!(pub grammar);
 
+use error::Result;
 use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
-use color_eyre::Result;
 use core::Prog;
 use interpreter::Interpreter;
 use lalrpop_util::lalrpop_mod;

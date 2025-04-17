@@ -1,38 +1,176 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background-color: var(--background);">
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./static/css/documentation_page.css">
 	<link rel="stylesheet" href="./static/css/navbar.css">
+	<link rel="icon" type="image/x-icon" href="/images/favicon.ico">
 
     <title>GOOPEA documentation</title>
 </head>
-<body>
-    <div class="nav">
+<body onload="document.body.classList.add('show')">
+    <div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
-		<a href="index.html">Editor</a>
-		<a href="example_page.html">Examples</a>
+		<a onclick="change_page(0)">Editor</a>
+		<a onclick="change_page(1)">Examples</a>
 		<a href="documentation_page.html" class="current-page">Documentation</a>
+		<a onclick="change_theme(2)" id="theme-button"><p>🌙&#Xfe0e;</p></a>
 	</div>
-
+	
 	<table id="container-table">
 		<tr>
+			<td id="control-row">
+				<button onclick="expand_all()" class="styled-button control-button">Expand all</button>
+				<button onclick="collapse_all()" class="styled-button control-button">Collapse all</button>
+			</td>
+		</tr>
+		<tr>
 			<td>
-				<button class="toggle-header">Keyboard Shortcuts</button>
+				<button class="toggle-header">Introduction</button>
 				<div class="toggle-content">
-					<p><b>Ctrl-/:</b> Toggle line comment</p>
-					<p><b>Alt-Down:</b> Copy current line and insert-paste it on line below</p>
-					<p><b>Shift-Alt-Up:</b> Switch the place of the current line with the line above</p>
-					<p><b>Shift-Alt-Down:</b> Switch the place of the current line with the line below</p>
+					<p class="multiline"><b>Kandidatarbete</b>: This was created by group DATX11 DIT561-VT25-50. This is the playground aspect of a Bachelor's thesis 
+						on the advantage of having FIP functionality in a programming language</p>
+					<p class="multiline"><b>Functional Programming Languages</b> have their roots in the lambda-calculus and model computations by function 
+						composition, as opposed to traditional languages that model it by a sequence of instructions to execute. They can therefore 
+						be very convenient and elegant when modelling recursive relationships, for example.</p>
+					<p class="multiline"><b>Functional In-Place</b>: a way to improve performance by reusing memory instead of the (de)allocations done by 
+						typical functional programming languages. Since computers are naturally stateful objects, unlike stateless functional 
+						code, the translation from functional code to machine code will often be slower than its imperative counterpart. The 
+						level of abstraction also sometimes makes it hard or impossible to implement certain classes of optimizations that 
+						lower languages can. That often makes functional languages unconducive for projects where performance is critical</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<button class="toggle-header">Editor</button>
+				<div class="toggle-content">
+
+					<table width="100%">
+						<tr>
+							<td>
+								<button class="toggle-header subsection">Keyboard shortcuts</button>
+								<div class="toggle-content">
+									<p class="tabbed"><mark><b>Ctrl-/</b></mark>: Toggle line comment</p>
+									<p class="tabbed"><mark><b>Ctrl-S</b></mark>: Copy all text in editor to clipboard</p>
+									<p class="tabbed"><mark><b>Alt-Down</b></mark>: Copy current line and insert-paste it on line below</p>
+									<p class="tabbed"><mark><b>Shift-Alt-Up/Down</b></mark>: Swap the current line with the line above/below</p>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection">Examples</button>
+								<div class="toggle-content">
+									<p class="tabbed"><mark><b>Reverse</b></mark>: reverses the list created in main</p>
+									<p class="tabbed"><mark><b>Treeflip</b></mark>: flips a tree around the vertical axis and then sums it</p>
+									<p class="tabbed"><mark><b>Arithmetic</b></mark>: operations</p>
+									<p class="tabbed"><mark><b>Complex match</b></mark>: converts a Cat to a Dog and then returns that</p>
+									<p class="tabbed"><mark><b>Multiple Return Values</b></mark>: <i>stuff</i></p>
+									<p class="tabbed"><mark><b>Type error</b></mark>: passes a variable of a type to a function that doesn't take said type</p>
+									<p class="tabbed"><mark><b>Utuple</b></mark>: <i>stuff</i></p>
+									<p class="tabbed"><mark><b>Zipper tree</b></mark>: <i>stuff</i></p>
+								</div>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<button class="toggle-header">Language</button>
+				<div class="toggle-content">
+					<p>See Examples page for context</p>
+
+					<table width="100%">
+						<tr>
+							<td>
+								<button class="toggle-header subsection">A function's type declaration</button>
+								<div class="toggle-content">
+									<p><b>fip (parameters): (returns)</b></p>
+									<p><b>(parameters): (returns)</b></p>
+									<p class="tabbed">The optional 'fip' keyword declares whether or not the function is written to use fip functionality or not</p>
+									<p class="tabbed">Both the parameter and returns are tuples of datatypes or enums, separate them with commas: <mark>(x, y, z)</mark></p>
+									<p class="tabbed">If a function takes no parameters or doesn't return anything, use an empty tuple <mark>()</mark></p>
+									<p class="tabbed">If a function takes or returns only one variable, you can just write that datatype/enum, e.g. "Tree", "Int"</p>
+									<p class="tabbed">See the examples "Reverse" and "Multiple Return Values" for how this looks</p>
+									<p></p>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection">Function declaration</button>
+								<div class="toggle-content">
+									<p class="multiline">The function declaration goes on the line under the type declaration. The name of the function is first, 
+										and does not start with a capital letter. The names of the parameters whose types were declared earlier are then given. 
+										The "Reverse" example shows how functions are declared with 0, 1, and 2+ parameters.
+									</p>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection" id="keywords-header">Keywords</button>
+								<div class="toggle-content">
+									<p class="multiline">Keywords are words that are reserved (can't be used for anything else) because they are special in 
+										the eye of the compiler (have a predefined purpose for the structure and syntax of the program and language). They are 
+										also case-sensitive.
+									</p>
+									
+									<p class="tabbed"><mark><b>match</b></mark>: Pattern matching!! Check out "complex match" example!!!</p>
+									<p class="tabbed multiline"><mark><b>enum</b></mark>: Creates a user-defined datatype. The name of an enum starts with a capital letter. 
+										See examples "Complex match" and "Multiple return values"</p>
+									<p class="tabbed"><mark><b>let _ in _</b></mark>: declare a variable (first _) in <i>stuff</i></p>
+									<p class="tabbed"><mark><b>fip</b></mark>: declare a function to use fip, see "a function's type declaration"</p>
+									<p class="tabbed"><mark><b>Int</b></mark>: integer datatype</p>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection" id="constructors-header">Constructors</button>
+								<div class="toggle-content">
+									<p class="multiline">Constructors are used to create objects. Use them in enum definitions and declarations. See 
+										"multiple return values" example.
+									</p>
+
+									<p class="tabbed"><mark><b>Cons</b></mark>: <i>stuff</i></p>
+									<p class="tabbed"><mark><b>Node</b></mark>: <i>stuff</i></p>
+									<p class="tabbed"><mark><b>Nil</b></mark>: <i>stuff</i></p>
+								</div>
+							</td>
+						</tr>
+					</table>
 				</div>
 			</td>
 		</tr>
 		<!-- toggle-list formula -->
 		<!-- <tr>
 			<td>
-				<button class="toggle-header">Visible Header</button>
+				<button class="toggle-header">section Visible Header</button>
 				<div class="toggle-content">
-					<p><b>bold stuff:</b> description</p>
+					<p><b>bold stuff</b>: description</p>
+
+					<table width="100%">
+						<tr>
+							<td>
+								<button class="toggle-header subsection">subsection Visible Header</button>
+								<div class="toggle-content">
+									<p><b>bold stuff</b>: description</p>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection">subsection Visible Header</button>
+								<div class="toggle-content">
+									<p><b>bold stuff</b>: description</p>
+								</div>
+							</td>
+						</tr>
+					</table>
 				</div>
 			</td>
 		</tr> -->
@@ -40,13 +178,6 @@
 	</table>
 	
 	<script src="./static/js/documentation_page.js"></script>
+	<script src="./static/js/navbar.js"></script>
 </body>
 </html>
-
-
-<!-- <div>
-	<p>
-		maybe for this page: runmode/colorize.js
-
-	</p>
-</div> -->

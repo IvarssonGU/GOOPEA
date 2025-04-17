@@ -1,21 +1,31 @@
-use crate::ast::{ast::{Pattern, Type, UTuple, AID, FID, VID}, base::SourceReference};
-use color_eyre::{eyre, Section, SectionExt};
+use std::fmt::Display;
+
+use crate::{ast::{ast::{Pattern, Type, UTuple, AID, FID, VID}, base::{SourceLocation, SourceReference}}, lexer::{LexicalError, Token}};
 use itertools::Itertools;
-use thiserror::Error;
+use lalrpop_util::ParseError;
 
-pub trait AttachSource {
-    fn attach_source(self, snippet: &SourceReference<'_>) -> Self;
+pub type Result<T> = core::result::Result<T, Error>;
+
+#[derive(Debug, Clone)]
+pub struct ErrorSource {
+    pub start: SourceLocation,
+    pub end: SourceLocation,
+    pub snippet: String,
+    pub lines: String
 }
 
-impl AttachSource for eyre::Report {
-    fn attach_source(self, source: &SourceReference<'_>) -> Self {
-        self.with_section(|| source.snippet.to_string().lines().enumerate().map(|(i, line)| format!("{}. {line}", source.start.line+i)).join("\n")
-            .header(format!("Source location {}:{}-{}:{}", source.start.line, source.start.char_offset, source.end.line, source.end.char_offset)))
-    }
+#[derive(Debug, thiserror::Error)]
+pub struct Error {
+    #[source]
+    pub reason: ErrorReason,
+    pub source: Option<ErrorSource>
 }
 
-#[derive(Debug, Clone, Error)]
-pub enum CompileError {
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ErrorReason {
+    #[error("Syntax Error: {0:?}")]
+    SyntaxError(ParseError<usize, Token, LexicalError>),
+
     #[error("Unknown function '{0}'")]
     UnknownFunction(FID),
     #[error("Unknown variable '{0}'")]
@@ -61,4 +71,38 @@ pub enum CompileError {
     MatchHasCaseAfterWildcard(Pattern),
     #[error("Matching on a tuple is not supported")]
     MatchingOnTuple,
+}
+
+impl Into<Error> for ErrorReason {
+    fn into(self) -> Error{
+        Error { reason: self, source: None }
+    }
+}
+
+impl<'i> Error {
+    pub fn attach_source<'s>(self, src: &SourceReference<'s>) -> Error{
+        Error { source: Some(ErrorSource { start: src.start.clone(), end: src.end.clone(), snippet: src.snippet.to_string(), lines: src.lines.to_string() }), ..self }
+    }
+}
+
+impl<'i> Error {
+    pub fn new(reason: ErrorReason) -> Self {
+        Error { reason: reason, source: None }
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "ERROR: {}", self.reason)?;
+
+        if let Some(source) = &self.source {
+            writeln!(f)?;
+            writeln!(f, "Occured at {}-{}", source.start, source.end)?;
+            writeln!(f)?;
+
+            write!(f, "{}", source.lines.to_string().lines().enumerate().map(|(i, line)| format!("{}. {line}", source.start.line+i)).join("\n"))?;
+        }
+
+        Ok(())
+    }
 }

@@ -13,8 +13,6 @@ use std::fmt::Debug;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
-use std::thread::sleep;
-use std::time::Duration;
 use std::{fmt, vec};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -171,7 +169,6 @@ impl Interpreter {
         }
 
         self.heap.push(vec![Data::Value(0); width]);
-        sleep(Duration::from_micros(15));
         Data::Pointer(self.heap.len() - 1)
     }
 
@@ -193,7 +190,6 @@ impl Interpreter {
                     self.dec(ptr);
                 }
             }
-            sleep(Duration::from_micros(5));
             self.heap[ptr] = Vec::new();
         }
     }

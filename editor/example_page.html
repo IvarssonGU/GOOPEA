@@ -1,52 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background-color: var(--background);">
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="./codemirror/codemirror.css">
+    <link rel="stylesheet" href="./codemirror/3024_night.css">
     <link rel="stylesheet" href="./static/css/example_page.css">
 	<link rel="stylesheet" href="./static/css/navbar.css">
 	<link rel="stylesheet" href="./static/css/diagram_slideshow.css">
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
 
     <title>GOOPEA examples</title>
 </head>
-<body>
-    <div class="nav">
+<body onload="document.body.classList.add('show'); code_field.refresh();">
+    <div class="nav" id="nav">
 		<a href="index.html" class="logo">GOOPEA playground</a>
-		<a href="index.html">Editor</a>
+		<a onclick="save_example(0)">Editor</a>
 		<a href="example_page.html" class="current-page">Examples</a>
-		<a href="documentation_page.html">Documentation</a>
+		<a onclick="save_example(2)">Documentation</a>
+        <a onclick="change_theme(1)" id="theme-button"><p>🌙&#Xfe0e;</p></a>
 	</div>
 
     <div class="container">
         <table width="100%">
             <tr>
                 <th>
-                    Example 1: reverse
-                    <button id="temp-button">run</button>
+                    <label for="examples">View:</label>
+                    <select  onchange="example_dropdown_changed()" name="examples" id="examples" class="styled-button">
+                        <option value="reverse">Reverse</option>
+                        <option value="treeflip">Treeflip</option>
+                        <option value="arithmetic">Arithmetic</option>
+                        <option value="complex-match">Complex match</option>
+                        <option value="mrv">Multiple Return Values</option>
+                        <option value="type-error">Type error</option>
+                        <option value="utuple">Utuple</option>
+                        <option value="zipper-tree">Zipper tree</option>
+                    </select>
+                    <button onclick="export_code()" class="styled-button">View in editor</button>
                 </th>
                 <th>Diagram</th>
             </tr>
             <tr>
-                <td id="example1-code-cell">
-                    <textarea id="example1-code">
-enum List = Nil, Cons(Int, List);
-
-fip (List, List): List
-ReverseHelper(list, acc) =
-        match list {
-            Nil: acc,
-            Cons(x, xs): ReverseHelper(xs, Cons(x, acc))
-        };
-
-fip List: List
-ReverseList list = ReverseHelper(list, Nil);
-
-fip (): ()
-Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
-</textarea>
+                <td class="example-code-cell">
+                    <textarea id="code-field"></textarea>
                 </td>
-                <td rowspan="3" id="example1-diagrams-cell">
-                    <div class="example1-diagrams">
+                <td rowspan="3" id="example-diagrams-cell">
+                    <!-- <div class="example1-diagrams">
                         <div class="slide">
                             <div class="numbering">1/27</div>
                             <img src="example-diagrams/example1/img_00.png" style="width:100%">
@@ -101,7 +99,7 @@ Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
                         </div>
                         <div class="slide">
                             <div class="numbering">14/27</div>
-                            <img src="example-diagrams/example1/img_013.png" style="width:100%">
+                            <img src="example-diagrams/example1/img_13.png" style="width:100%">
                         </div>
                         <div class="slide">
                             <div class="numbering">15/27</div>
@@ -154,24 +152,23 @@ Main = Print(ReverseList(Cons(1, Cons(2, Cons(3, Nil)))));
                         <div class="slide">
                             <div class="numbering">27/27</div>
                             <img src="example-diagrams/example1/img_26.png" style="width:100%">
-                        </div>
+                        </div> -->
 
-                        <a class="prev-arrow" onclick="change_slide(-1)">&larr;</a>
+                        <!-- <a class="prev-arrow" onclick="change_slide(-1)">&larr;</a>
                         <a class="next-arrow" onclick="change_slide(1)">&rarr;</a>
-                    </div>
+                    </div> -->
                 </td>
             </tr>
             <tr>
-                <th id="output-title-cell">Output</th>
+                <th id="output-title-cell">Result</th>
             </tr>
             <tr>
-                <td id="example1-output-cell">
-                    <textarea id="example1-output" readonly="true">
-Cons(3, Cons(2, Cons(1, Nil)))
-</textarea>
+                <td class="example-output-cell">
+                    <textarea id="output-field" readonly="true"></textarea>
                 </td>
             </tr>
         </table>
+
     </div>
 
     <script src="./codemirror/codemirror.js"></script>
@@ -179,5 +176,6 @@ Cons(3, Cons(2, Cons(1, Nil)))
     <script src="./codemirror/simple_mode.js"></script>
 	<script src="./static/js/GOOPEA_mode.js"></script>
 	<script src="./static/js/example_page.js"></script>
+    <script src="./static/js/navbar.js"></script>
 </body>
 </html>

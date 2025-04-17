@@ -10,8 +10,8 @@ use std::path::Path;
 
 use ast::base::BaseSliceProgram;
 use ast::{scoped::ScopedProgram, typed::TypedProgram};
-use color_eyre::eyre::Result;
 use lalrpop_util::lalrpop_mod;
+use error::Result;
 
 pub mod ast;
 mod error;
@@ -26,19 +26,20 @@ lalrpop_mod!(pub grammar);
 #[cfg(target_arch = "wasm32")]
 fn main() {}
 
+fn parse_and_validate(code: &str) -> Result<TypedProgram<'_>> {
+    let base_program = BaseSliceProgram::new(&code)?;
+    let scoped_program = ScopedProgram::new(base_program)?;
+    TypedProgram::new(scoped_program)
+}
+
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> Result<()> {
+fn main() {
     use core::Def;
 
-    color_eyre::install()?;
+    let code = fs::read_to_string(Path::new("examples/type_error.goo")).unwrap();
+    let code = "(): ()\nmain = ()".to_string();
 
-    let code = fs::read_to_string(Path::new("examples/reuse_different_type.goo"))?;
-
-    let base_program = BaseSliceProgram::new(&code)?;
-
-    let scoped_program = ScopedProgram::new(base_program)?;
-
-    let typed_program = TypedProgram::new(scoped_program)?;
+    let typed_program = parse_and_validate(&code).map_err(|e| e.to_string()).unwrap();
 
     let pure_ir = stir::from_typed(&typed_program);
     let pure_reuse = stir::add_reuse(&pure_ir);
@@ -50,10 +51,10 @@ fn main() -> Result<()> {
     let core_ir = score::translate(&pure_rc);
     let result = core::output(&core_ir);
     println!("{}", result.join("\n"));
-    Ok(())
 }
 
 #[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
 mod tests {
     use crate::grammar;
     use crate::lexer::{Lexer, Token, lexer};
@@ -63,7 +64,7 @@ mod tests {
     fn parse_example(path: &Path) -> () {
         let code = fs::read_to_string(path).unwrap();
         println!(
-            "{}",
+            "{:?}",
             grammar::ProgramParser::new()
                 .parse(Lexer::new(&code))
                 .unwrap()

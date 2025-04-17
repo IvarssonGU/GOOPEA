@@ -5,8 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::error::{AttachSource, CompileError};
-use color_eyre::{Result, eyre::Report};
+use crate::error::{Error, ErrorReason, Result};
 
 use super::{
     ast::{ChainedData, ExpressionNode, FID, FullExpression, Pattern, Program, UTuple, VID},
@@ -98,13 +97,8 @@ impl<'i> ScopedProgram<'i> {
     // This should be redundant
     fn validate_variable_occurences(&self) -> Result<()> {
         self.validate_expressions_by(|node| {
-            let SimplifiedExpression::Variable(vid) = &node.expr else {
-                return Ok(());
-            };
-            if !node.data.contains_key(vid) {
-                return Err(Report::new(CompileError::UnknownVariable(vid.clone()))
-                    .attach_source(&node.data.next));
-            }
+            let SimplifiedExpression::Variable(vid) = &node.expr else { return Ok(()) };
+            if !node.data.contains_key(vid) { return Err(Error::new(ErrorReason::UnknownVariable(vid.clone())).attach_source(&node.data.next)) }
 
             Ok(())
         })
@@ -119,39 +113,12 @@ pub fn scope_expression<'i>(
     zero_argument_functions: &HashSet<FID>,
 ) -> Result<ScopedNode<'i>> {
     let new_expr = match expr.expr {
-        SimplifiedExpression::UTuple(children) => SimplifiedExpression::UTuple(UTuple(
-            children
-                .0
-                .into_iter()
-                .map(|expr| {
-                    scope_expression(
-                        expr,
-                        scope.clone(),
-                        counter,
-                        atom_constructors,
-                        zero_argument_functions,
-                    )
-                })
-                .collect::<Result<_, _>>()?,
-        )),
-        SimplifiedExpression::FunctionCall(fid, children) => SimplifiedExpression::FunctionCall(
-            fid,
-            UTuple(
-                children
-                    .0
-                    .into_iter()
-                    .map(|expr| {
-                        scope_expression(
-                            expr,
-                            scope.clone(),
-                            counter,
-                            atom_constructors,
-                            zero_argument_functions,
-                        )
-                    })
-                    .collect::<Result<_, _>>()?,
-            ),
-        ),
+        SimplifiedExpression::UTuple(children) => {
+                SimplifiedExpression::UTuple(UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_>>()?))
+            },
+        SimplifiedExpression::FunctionCall(fid, children) => {
+                SimplifiedExpression::FunctionCall(fid, UTuple(children.0.into_iter().map(|expr| scope_expression(expr, scope.clone(), counter, atom_constructors, zero_argument_functions)).collect::<Result<_>>()?))
+            },
         SimplifiedExpression::Integer(x) => SimplifiedExpression::Integer(x),
         SimplifiedExpression::Variable(vid) => {
             if scope.contains_key(&vid) {
@@ -207,10 +174,8 @@ pub fn scope_expression<'i>(
                                 zero_argument_functions,
                             )
                         }
-                    }
-                    .map(move |new_expr| (pattern, new_expr))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
+                    }.map(move |new_expr| (pattern, new_expr))
+                }).collect::<Result<Vec<_>>>()?;
 
             SimplifiedExpression::Match(var_node, case_scopes)
         }

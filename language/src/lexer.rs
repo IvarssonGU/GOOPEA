@@ -1,5 +1,6 @@
 use logos::Logos;
 use logos::SpannedIter;
+use std::fmt::Display;
 use std::num::ParseIntError;
 
 pub type Spanned<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;

@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::error::{AttachSource, CompileError};
-use color_eyre::{eyre::Report, Result};
+use crate::error::{ErrorReason, Result, Error};
 
 use super::{ast::{ChainedData, ExpressionNode, FunctionSignature, Operator, Pattern, Program, Type, UTuple, FID}, base::SourceReference, scoped::{ScopedData, ScopedNode, ScopedProgram, SimplifiedExpression}};
 
@@ -42,7 +41,7 @@ impl ExpressionType {
     }
 
     pub fn expect_tp(&self, src: &SourceReference<'_>) -> Result<&Type> {
-        self.tp().ok_or_else(|| Report::new(CompileError::UnexpectedUTuple).attach_source(src))
+        self.tp().ok_or_else(|| Error::new(ErrorReason::UnexpectedUTuple).attach_source(src))
     }
 }
 
@@ -91,7 +90,7 @@ impl<'i> TypedProgram<'i> {
             let func_types = &func.signature.argument_type.0;
 
             if func_vars.len() != func_types.len() {
-                return Err(CompileError::InconsistentVariableCountInFunctionDefinition { fid: fid.clone(), signature: func_types.len(), definition: func_vars.len() }.into());
+                return Err(ErrorReason::InconsistentVariableCountInFunctionDefinition { fid: fid.clone(), signature: func_types.len(), definition: func_vars.len() }.into());
             }
 
             let base_var_types = func_vars.iter().zip(func_types.iter()).map(
@@ -119,7 +118,7 @@ impl<'i> TypedProgram<'i> {
             };
 
             if return_type != func.signature.result_type {
-                return Err(Report::new(CompileError::WrongReturnType {fid: fid.clone(), expected: func.signature.result_type.clone(), actual: return_type}).attach_source(body.snippet()))
+                return Err(Error::new(ErrorReason::WrongReturnType {fid: fid.clone(), expected: func.signature.result_type.clone(), actual: return_type}).attach_source(body.snippet()))
             }
         }
 
@@ -148,15 +147,15 @@ impl<'i> TypedProgram<'i> {
     fn validate_function_call(&self, node: &TypedNode, all_signatures: &HashMap<FID, FunctionSignature>) -> Result<()> {
         let SimplifiedExpression::FunctionCall(fid, args) = &node.expr else { return Ok(()) };
 
-        let expected_arg_type = &all_signatures.get(fid).ok_or_else(|| Report::new(CompileError::UnknownFunction(fid.clone())).attach_source(node.snippet()))?.argument_type;
+        let expected_arg_type = &all_signatures.get(fid).ok_or_else(|| Error::new(ErrorReason::UnknownFunction(fid.clone())).attach_source(node.snippet()))?.argument_type;
 
         if args.0.len() != expected_arg_type.0.len() {
-            return Err(Report::new(CompileError::WrongVariableCountInFunctionCall {fid: fid.clone(), expected: expected_arg_type.0.len(), actual: args.0.len()}).attach_source(node.snippet()));
+            return Err(Error::new(ErrorReason::WrongVariableCountInFunctionCall {fid: fid.clone(), expected: expected_arg_type.0.len(), actual: args.0.len()}).attach_source(node.snippet()));
         }
 
-        let arg_type: UTuple<Type> = UTuple(node.children().map(|child| child.data.expect_tp(child.snippet()).map(|x| x.clone())).collect::<Result<_, _>>()?);
+        let arg_type: UTuple<Type> = UTuple(node.children().map(|child| child.data.expect_tp(child.snippet()).map(|x| x.clone())).collect::<Result<_>>()?);
         if &arg_type != expected_arg_type {
-            return Err(Report::new(CompileError::WrongArgumentType{ fid: fid.clone(), actual: arg_type, expected: expected_arg_type.clone()}).attach_source(node.snippet()))
+            return Err(Error::new(ErrorReason::WrongArgumentType{ fid: fid.clone(), actual: arg_type, expected: expected_arg_type.clone()}).attach_source(node.snippet()))
         }
 
         Ok(())
@@ -166,7 +165,7 @@ impl<'i> TypedProgram<'i> {
         let SimplifiedExpression::Match(match_on, cases) = &node.expr else { return Ok(()) };
 
         get_children_same_type(cases.iter().map(|t| &t.1))
-            .ok_or_else(|| Report::new(CompileError::MissmatchedTypesInMatchCases).attach_source(node.snippet()))?;
+            .ok_or_else(|| Error::new(ErrorReason::MissmatchedTypesInMatchCases).attach_source(node.snippet()))?;
     
         let mut has_wildcard = false;
         for (pattern, _) in cases {
@@ -175,9 +174,9 @@ impl<'i> TypedProgram<'i> {
 
             if has_wildcard {
                 if !case_is_wildcard {
-                    return Err(Report::new(CompileError::MatchHasCaseAfterWildcard(pattern.clone())).attach_source(node.snippet()))
+                    return Err(Error::new(ErrorReason::MatchHasCaseAfterWildcard(pattern.clone())).attach_source(node.snippet()))
                 } else {
-                    return Err(Report::new(CompileError::MatchHasMultipleWildcards).attach_source(node.snippet()))
+                    return Err(Error::new(ErrorReason::MatchHasMultipleWildcards).attach_source(node.snippet()))
                 }
             }
 
@@ -185,7 +184,7 @@ impl<'i> TypedProgram<'i> {
         }
 
         let ExpressionType::Type(tp) = &*match_on.data else {
-            return Err(Report::new(CompileError::MatchingOnTuple).attach_source(node.snippet()));
+            return Err(Error::new(ErrorReason::MatchingOnTuple).attach_source(node.snippet()));
         };
 
         match tp {
@@ -195,36 +194,36 @@ impl<'i> TypedProgram<'i> {
                     match pattern {
                         Pattern::Integer(i) => {
                             if !used_ints.insert(i) {
-                                return Err(Report::new(CompileError::MultipleOccurencesOfIntInMatch(i.clone())).attach_source(node.snippet()));
+                                return Err(Error::new(ErrorReason::MultipleOccurencesOfIntInMatch(i.clone())).attach_source(node.snippet()));
                             }
                         },
-                        Pattern::Constructor(_, _) => return Err(Report::new(CompileError::InvalidPatternInMatchCase{ pattern: pattern.clone(), match_on_type: tp.clone() }).attach_source(node.snippet())),
+                        Pattern::Constructor(_, _) => return Err(Error::new(ErrorReason::InvalidPatternInMatchCase{ pattern: pattern.clone(), match_on_type: tp.clone() }).attach_source(node.snippet())),
                         Pattern::Variable(_) => (),
                     }
                 }
 
                 if !has_wildcard {
-                    return Err(Report::new(CompileError::NonExhaustiveMatch).attach_source(node.snippet()))
+                    return Err(Error::new(ErrorReason::NonExhaustiveMatch).attach_source(node.snippet()))
                 }
             },
             Type::ADT(aid) => {
                 let mut used_constructors = HashSet::new();
                 for (pattern, _) in cases {
                     match pattern {
-                        Pattern::Integer(_) => return Err(Report::new(CompileError::InvalidPatternInMatchCase { match_on_type: tp.clone(), pattern: pattern.clone() }).attach_source(node.snippet())),
+                        Pattern::Integer(_) => return Err(Error::new(ErrorReason::InvalidPatternInMatchCase { match_on_type: tp.clone(), pattern: pattern.clone() }).attach_source(node.snippet())),
                         Pattern::Variable(_) => (),
                         Pattern::Constructor(fid, vars) => {
-                            let cons = self.constructors.get(fid).ok_or_else(|| Report::new(CompileError::UnknownConstructor(fid.clone())).attach_source(node.snippet()))?;
+                            let cons = self.constructors.get(fid).ok_or_else(|| Error::new(ErrorReason::UnknownConstructor(fid.clone())).attach_source(node.snippet()))?;
                             if &cons.adt != aid {
-                                return Err(Report::new(CompileError::InvalidPatternInMatchCase { match_on_type: tp.clone(), pattern: pattern.clone() }).attach_source(node.snippet()));
+                                return Err(Error::new(ErrorReason::InvalidPatternInMatchCase { match_on_type: tp.clone(), pattern: pattern.clone() }).attach_source(node.snippet()));
                             }
         
                             if vars.0.len() != cons.args.0.len() {
-                                return Err(Report::new(CompileError::WrongVariableCountInMatchCase { fid: fid.clone(), actual: vars.0.len(), expected: cons.args.0.len() }).attach_source(node.snippet()))
+                                return Err(Error::new(ErrorReason::WrongVariableCountInMatchCase { fid: fid.clone(), actual: vars.0.len(), expected: cons.args.0.len() }).attach_source(node.snippet()))
                             }
         
                             if !used_constructors.insert(fid) {
-                                return Err(Report::new(CompileError::MultipleOccurencesOfConstructorInMatch(fid.clone())).attach_source(node.snippet()));
+                                return Err(Error::new(ErrorReason::MultipleOccurencesOfConstructorInMatch(fid.clone())).attach_source(node.snippet()));
                             }
                         }
                     }
@@ -232,7 +231,7 @@ impl<'i> TypedProgram<'i> {
 
                 let adt_constructors = self.adts.get(aid).unwrap();
                 if !has_wildcard && used_constructors.len() < adt_constructors.len() {
-                    return Err(Report::new(CompileError::NonExhaustiveMatch).attach_source(node.snippet()))
+                    return Err(Error::new(ErrorReason::NonExhaustiveMatch).attach_source(node.snippet()))
                 }
             },
         };
@@ -320,24 +319,24 @@ pub fn type_expression<'i>(
 {
     let (new_expr, tp) = match expr.expr {
         SimplifiedExpression::UTuple(args) => {
-                        let typed_args: Vec<_> = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?;
+                        let typed_args: Vec<_> = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_>>()?;
                     
                         let tp = ExpressionType::UTuple(UTuple(
-                            typed_args.iter().map(|s| s.data.tp().ok_or_else(|| Report::new(CompileError::UnexpectedUTuple).attach_source(&expr.data.next)).map(|t| t.clone())).collect::<Result<_, _>>()?
+                            typed_args.iter().map(|s| s.data.tp().ok_or_else(|| Error::new(ErrorReason::UnexpectedUTuple).attach_source(&expr.data.next)).map(|t| t.clone())).collect::<Result<_>>()?
                         ));
                         (SimplifiedExpression::UTuple(UTuple(typed_args)), tp)
             },
         SimplifiedExpression::FunctionCall(fid, args) => {
-                let typed_args = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_, _>>()?;
+                let typed_args = args.0.into_iter().map(|expr| type_expression(expr, var_types.clone(), function_signatures)).collect::<Result<_>>()?;
             
                 let return_type = &function_signatures.get(&fid)
-                    .ok_or_else(|| Report::new(CompileError::UnknownFunction(fid.clone())).attach_source(&expr.data.next))?.result_type;
+                    .ok_or_else(|| Error::new(ErrorReason::UnknownFunction(fid.clone())).attach_source(&expr.data.next))?.result_type;
                 let tp = if return_type.0.len() == 1 { ExpressionType::Type(return_type.0[0].clone()) } else { ExpressionType::UTuple(return_type.clone()) };
                 (SimplifiedExpression::FunctionCall(fid, UTuple(typed_args)), tp)
             },
         SimplifiedExpression::Integer(x) => (SimplifiedExpression::Integer(x), ExpressionType::Type(Type::Int)),
         SimplifiedExpression::Variable(vid) => {
-                let tp = ExpressionType::Type(var_types.get(&expr.data.get(&vid).unwrap().internal_id).ok_or_else(|| Report::new(CompileError::UnknownVariable(vid.clone())).attach_source(&expr.data.next))?.clone());
+                let tp = ExpressionType::Type(var_types.get(&expr.data.get(&vid).unwrap().internal_id).ok_or_else(|| Error::new(ErrorReason::UnknownVariable(vid.clone())).attach_source(&expr.data.next))?.clone());
 
                 (SimplifiedExpression::Variable(vid), tp)
             },
@@ -357,7 +356,7 @@ pub fn type_expression<'i>(
                             type_expression( child, new_var_types, function_signatures)
                         },
                         Pattern::Constructor(fid, vars) => {
-                            let cons_sig = &function_signatures.get(fid).ok_or(Report::new(CompileError::UnknownConstructor(fid.clone())).attach_source(&expr.data.next))?.argument_type;
+                            let cons_sig = &function_signatures.get(fid).ok_or(Error::new(ErrorReason::UnknownConstructor(fid.clone())).attach_source(&expr.data.next))?.argument_type;
                             if cons_sig.0.len() != vars.0.len() {
                                 panic!("Wrong number of arguments in match statement of case {}", fid);
                             }
@@ -373,9 +372,9 @@ pub fn type_expression<'i>(
                             type_expression(child, var_types, function_signatures)
                         },
                     }.map(move |new_expr| (pattern, new_expr))
-                }).collect::<Result<_, _>>()?;
+                }).collect::<Result<_>>()?;
 
-                let tp = get_children_same_type(new_cases.iter().map(|(_, e)| e)).ok_or_else(|| Report::new(CompileError::MissmatchedTypesInMatchCases).attach_source(&expr.data.next))?;
+                let tp = get_children_same_type(new_cases.iter().map(|(_, e)| e)).ok_or_else(|| Error::new(ErrorReason::MissmatchedTypesInMatchCases).attach_source(&expr.data.next))?;
 
                 let new_expr = SimplifiedExpression::Match(
                     var_node,
@@ -393,7 +392,7 @@ pub fn type_expression<'i>(
             };
 
             if vt.len() != vars.0.len() {
-                return Err(Report::new(CompileError::WrongVariableCountInLetStatement { actual: vars.0.len(), expected: vt.len() }).attach_source(&expr.data.next))
+                return Err(Error::new(ErrorReason::WrongVariableCountInLetStatement { actual: vars.0.len(), expected: vt.len() }).attach_source(&expr.data.next))
             }
 
             let mut new_var_types = var_types;

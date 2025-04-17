@@ -1,10 +1,14 @@
 body {
     text-align: center;
     font-family: 'Courier New', Courier, monospace;
+    background-color: var(--background);
+    color: var(--text-color);
 }
 
-button {
-    cursor: pointer;
+/* TextFields */
+#output, #debug, #code {
+    background-color: var(--background);
+    color: var(--text-color);
 }
 
 .container {
@@ -17,10 +21,8 @@ button {
     height: 100%;
 }
 
-#output {
-    /* width: 99%; */
+#output, #debug {
     height: 99%;
-    /* margin-top: -2px; */
 }
 
 .output-container {
@@ -28,9 +30,16 @@ button {
     width: 100%;
 }
 
-#code-cell {
+#code-cell, #output-cell{
     border: 1px solid gray;
     border-radius: 2px;
+    /* height:70vh; */
+}
+
+#output-cell {
+    /* border-top: none; */
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
 }
 
 table {
@@ -41,29 +50,23 @@ th {
     padding-left: 15px;
 }
 
-/* table, th, td {
-    border:2px solid black;
-} */
-
 textarea {
     outline: none;
     resize: none;
     width: 99%;
     border: none;
+    background-color: var(--background);
+    color: var(--text-color);
 }
 
-#code-cell, #output-cell {
-    height:70vh;
-}
-
-#output-cell {
-    border: 1px solid gray;
-    border-radius: 2px;
+#code-cell, #output, #debug, #steps, #info {
+    height:75vh;
+    vertical-align: top;
 }
 
 #display {
     width: 100%;
-    height:fit-content;
+    height: fit-content;
     text-align: right;
 }
 
@@ -73,17 +76,102 @@ textarea {
 
 #runtime {
     display:inline-block;
-    padding: 15px 15px 15px 15px;
+    padding: 10px 10px 10px 10px;
     border: 1px solid gray;
     border-radius: 2px;
+    background-color: var(--small-color);
+    color: var(--text-color);
+    font-weight: bold;
+    vertical-align: top;
 }
 
-/* containing run and clear buttons */
- #button-cell { 
+/* containing run, clear, and debug buttons */
+#button-cell {
     text-align: right;
-    /* width:min-content; */
 }
 
 #run-button {
-    margin-right: 15px;
+    margin-right: 12px;
 }
+
+.tab-button, .debug-button, .compiler-button {
+    margin: -21.75px 0 -0.75px -1.5px;
+    border-top: none;
+    vertical-align: bottom;
+}
+
+#output-tab-button {
+    border-top-right-radius: 0px;
+}
+
+#compiler-tab-button, #debug-tab-button {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    margin-left: -10px;
+}
+
+.current-tab.styled-button {
+    background-color: var(--main-color);
+}
+
+.debug-button {
+    width: 30px;
+    display: inline-block;
+    margin-left: -10px;
+    height: 20px;
+    margin-bottom: 0px;
+}
+#back-button, #step-button, #run-mem-button, #run-return-button, #rud-button {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+}
+#back-button {
+    margin-left: 3px;
+}
+.debug-button p{
+    margin-top: -3px;
+}
+#rud-button p{
+    margin-top: -2px;
+}
+
+.compiler-button {
+    display: inline-block;
+    margin-left: -10px;
+    margin-bottom: -0.75px;
+}
+#steps-tab, #diff-tab, #info-tab {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+}
+#info-tab {
+    margin-left: 3px;
+}
+
+#diff-container, #steps-container {
+    vertical-align: top;
+    height: 75.8vh;
+}
+#diff1, #diff2, #steps {
+    border: 1px solid gray;
+    border-radius: 2px;
+    height: 70.5vh;
+}
+
+label {
+    font-weight: bold;
+    font-size: 15px;
+    vertical-align: bottom; 
+}
+
+.CodeMirror-selected {
+    background-color: var(--text-selected) !important;
+}
+.error-highlight {
+    background-color: var(--error);
+}
+
+/* debugging purposes */
+/* table, th, td {
+    border:2px solid black;
+} */

@@ -1,8 +1,7 @@
 use std::{collections::HashMap, fmt::{Display, Formatter}, iter, ops::{Deref, Range}};
 
-use color_eyre::Result;
-
 use super::{base::SourceReference, scoped::Scope, typed::ExpressionType};
+use crate::error::Result;
 
 pub type FID = String; // Function ID, (also including ADT constructors)
 pub type VID = String; // Variable ID
@@ -165,7 +164,7 @@ impl<D, E> Program<D, E> {
         let (program_data, mut function_bodies) = self.split_data_and_bodies();
 
         let function_bodies = program_data.function_datas.keys()
-            .map(|fid| func(fid, function_bodies.remove(fid).unwrap(), &program_data.function_datas[fid], &program_data).map(|body| (fid.clone(), body))).collect::<Result<_, _>>()?;
+            .map(|fid| func(fid, function_bodies.remove(fid).unwrap(), &program_data.function_datas[fid], &program_data).map(|body| (fid.clone(), body))).collect::<Result<_>>()?;
 
         Ok(Program { 
             adts: program_data.adts,
@@ -198,11 +197,11 @@ impl<D, E> UTuple<ExpressionNode<D, E>> {
     }
 
     pub fn transform_expressions<E2>(self, func: impl Fn(E) -> Result<E2> + Clone) -> Result<UTuple<ExpressionNode<D, E2>>> {
-        Ok(UTuple(self.0.into_iter().map(|x| x.transform(func.clone())).collect::<Result<_, _>>()?))
+        Ok(UTuple(self.0.into_iter().map(|x| x.transform(func.clone())).collect::<Result<_>>()?))
     }
     
     pub fn transform_nodes<D2, E2>(self, func: impl Fn(ExpressionNode<D, E>) -> Result<ExpressionNode<D2, E2>>) -> Result<UTuple<ExpressionNode<D2, E2>>> {
-        Ok(UTuple(self.0.into_iter().map(|x| func(x)).collect::<Result<_, _>>()?))
+        Ok(UTuple(self.0.into_iter().map(|x| func(x)).collect::<Result<_>>()?))
     }
 }
 
@@ -438,7 +437,6 @@ impl DisplayData for Range<usize> {
 }
 
 impl DisplayData for &'_ str {
-
     fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
         let end_length = 10;
 
@@ -453,7 +451,7 @@ impl DisplayData for &'_ str {
 
 impl DisplayData for SourceReference<'_> {
     fn fmt(&self, f: &mut Formatter<'_>, indent: usize) -> std::fmt::Result {
-        self.snippet.fmt(f)
+        DisplayData::fmt(&self.snippet, f, indent)
     }
 }
 
@@ -562,7 +560,7 @@ impl Display for Operator {
 impl TryFrom<&str> for Operator {
     type Error = ();
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         Ok(match value {
             "==" => Operator::Equal,
             "!=" => Operator::NotEqual,
