@@ -101,7 +101,7 @@ impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             functions: HashMap::new(),
-            heap: vec![vec![]],
+            heap: Vec::new(),
             function_names_stack: Vec::new(),
             statements: VecDeque::new(),
             statement_stack: Vec::new(),
@@ -163,7 +163,7 @@ impl Interpreter {
     }
 
     fn malloc(&mut self, width: usize) -> Data {
-        for n in 1..self.heap.len() {
+        for n in 0..self.heap.len() {
             if self.heap[n].is_empty() {
                 self.heap[n] = vec![Data::Value(0); width];
                 return Data::Pointer(n);
@@ -523,13 +523,37 @@ pub fn interpreter_test_time(src: &str) {
 
     println!("Starting!");
     let now = std::time::Instant::now();
-    for _ in 0..1000 {
-        let mut interpreter = Interpreter::from_program(&core_ir);
-        interpreter.run_until_done();
+    let mut timetable = HashMap::<i32, (i32, Duration)>::new();
+    let mut interpreter = Interpreter::from_program(&core_ir);
+    while let Some(x) = interpreter.step() {
+        let elapsed = now.elapsed();
+        let key = match x {
+            IStatement::IfExpr(_) => 0,
+            IStatement::Return(_) => 1,
+            IStatement::Print(_) => 2,
+            IStatement::AssignMalloc(..) => 3,
+            IStatement::Assign(..) => 4,
+            IStatement::AssignToField(..) => 5,
+            IStatement::AssignFromField(..) => 6,
+            IStatement::AssignBinaryOperation(..) => 7,
+            IStatement::AssignTagCheck(..) => 8,
+            IStatement::FunctionCall(..) => 9,
+            IStatement::AssignReturnvalue(_) => 10,
+            IStatement::AssignDropReuse(..) => 11,
+            IStatement::Inc(_) => 12,
+            IStatement::Dec(_) => 13,
+        };
+        if timetable.contains_key(&key) {
+            let (n, t) = timetable.get(&key).unwrap();
+            let t = *t + elapsed;
+            timetable.insert(key, (n + 1, t));
+        } else {
+            timetable.insert(key, (1, elapsed));
+        }
     }
-
-    let elapsed = now.elapsed().as_millis();
-    println!("Done!\n{} ms", elapsed,);
+    for (k, (n, t)) in timetable.iter() {
+        println!("{k} {}", t.as_micros() / *n as u128);
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
