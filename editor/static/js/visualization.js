@@ -8,8 +8,6 @@ const box_field_width = 50;
 
 const box_color = "#f0f0f0"
 
-let nodes = []
-
 // Create the SVG container.
 const svg = d3.create("svg")
     .attr("width", width)
@@ -18,12 +16,6 @@ const svg = d3.create("svg")
 
 const zoom = d3.zoom().on("zoom", zoomed);
 svg.call(zoom);
-
-/*const simulation = d3.forceSimulation()
-    .force("charge", d3.forceManyBody().strength(-200))
-    .force("x", d3.forceX(width / 2))
-    .force("y", d3.forceY(height / 2))
-    .on("tick", ticked);*/
 
 const zoom_layer = svg.append("g").attr("class", "zoom-layer");
 
@@ -40,32 +32,6 @@ zoom_layer.append("g")
 function zoomed({transform}) {
     zoom_layer.attr("transform", transform);
 }
-
-/*function ticked() {
-    d3.select(".nodes").selectAll("rect")
-        .attr("x", d => d.x - d.width / 2)
-        .attr("y", d => d.y - box_height / 2);
-}
-
-function dragstarted(event) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    event.subject.fx = event.subject.x;
-    event.subject.fy = event.subject.y;
-}
-
-    // Update the subject (dragged node) position during drag.
-function dragged(event) {
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
-}
-
-// Restore the target alpha so the simulation cools after dragging ends.
-// Unfix the subject position now that it’s no longer being dragged.
-function dragended(event) {
-    if (!event.active) simulation.alphaTarget(0);
-    event.subject.fx = null;
-    event.subject.fy = null;
-}*/
 
 visualization_containter.append(svg.node())
 
@@ -95,19 +61,6 @@ function update_visualization() {
         selection
         .attr("width", d => box_field_width * d.data.fields.length)
         .attr("transform", d => `translate(${d.x - (box_field_width * d.data.fields.length) / 2},${d.y - box_height / 2})`)
-    }
-
-    while (nodes.length < mem.heap.length) {
-        nodes.push({ x: 0, y: height / 2, id: nodes.length })
-    }
-
-    while (nodes.length > mem.heap.length) {
-        nodes.pop()
-    }
-
-    for (let i = 0; i < mem.heap.length; i++) {
-        nodes[i].fields = mem.heap[i]
-        nodes[i].width = mem.heap[i].length * box_field_width
     }
 
     let was_changed = false;
@@ -276,45 +229,6 @@ function update_visualization() {
         console.log({hor: horizontal_padding, vert: vertical_padding})
         svg.transition().call(zoom.transform, d3.zoomIdentity.translate(horizontal_padding, vertical_padding).scale(zoom_scale))
     }
-
-    /*
-    const fieldHeight = 30;
-    const fieldWidth = 200;
-    const padding = 10;
-    
-    // Draw the outer box for the struct
-    svg.append("rect")
-        .attr("x", padding)
-        .attr("y", padding)
-        .attr("width", fieldWidth)
-        .attr("height", struct.fields.length * fieldHeight)
-        .attr("fill", "#f0f0f0")
-        .attr("stroke", "#333");
-
-    // Struct name label
-    svg.append("text")
-        .attr("x", padding)
-        .attr("y", padding - 2)
-        .attr("class", "struct-name")
-        .text(`struct ${struct.name}`);
-
-    // Draw fields
-    const fieldGroups = svg.selectAll(".field")
-        .data(struct.fields)
-        .enter()
-        .append("g")
-        .attr("transform", (d, i) => `translate(${padding}, ${padding + i * fieldHeight})`);
-
-    fieldGroups.append("rect")
-        .attr("width", fieldWidth)
-        .attr("height", fieldHeight)
-        .attr("class", "field");
-
-    fieldGroups.append("text")
-        .attr("x", 5)
-        .attr("y", fieldHeight / 2)
-        .attr("class", "field-label")
-        .text(d => `${d.offset} — ${d.name} (${d.size} bytes)`);*/
 }
 
 function tweak_endpoints(graph, size) {
