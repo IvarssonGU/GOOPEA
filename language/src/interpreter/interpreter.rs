@@ -393,6 +393,10 @@ impl Interpreter {
         self.heap.clone()
     }
 
+    pub fn get_function_names_stack(&self) -> Vec<String> {
+        self.function_names_stack.clone()
+    }
+
     pub fn get_variables_raw(&self) -> Vec<(String, Data)> {
         let mut list = self.local_variables.clone().into_iter().collect_vec();
         list.sort_by(|(a, _), (b, _)| a.cmp(b));

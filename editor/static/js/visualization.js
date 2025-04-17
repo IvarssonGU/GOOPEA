@@ -3,6 +3,10 @@ let visualization_containter = document.getElementById("visualization");
 const width = 500;
 const height = 500;
 
+const frame_width = 75;
+const frame_height = 20;
+const frame_padding = 4;
+
 const field_height = 25;
 const field_width = 40;
 const field_padding = 6;
@@ -59,20 +63,30 @@ zoom_layer.append("g")
     .attr("stroke-width", 1.5)
     .attr("class", "links");
 
+let call_stack = svg.append("g")
+    .attr("stroke", "#333")
+    .attr("stroke-width", 1.5)
+    .attr("fill", data_color)
+    .attr("transform", `translate(5, 5)`)
+    .attr("class", "frames");
+
 function zoomed({transform}) {
     zoom_layer.attr("transform", transform);
 }
 
 visualization_containter.append(svg.node())
 
+d3.select("#showHeaderCheckbox").on("change", update_visualization);
+
 function update_visualization() {
     const mem = wasm_bindgen.take_interpreter_memory_snapshot()
-    console.log(mem.heap)
+
+    const show_header = d3.select("#showHeaderCheckbox").property("checked");
 
     const graph = d3.graph()
 
     let graph_nodes = mem.heap.map((fields, i) => {
-        let labeled_fields = fields.map((field, i) => {
+        let modified_fields = fields.map((field, i) => {
             let label = "";
 
             if(i == 0) label = "Tag";
@@ -80,15 +94,16 @@ function update_visualization() {
             else if (i == 2) label = "Refs";
 
             field.label = label;
+            field.index = i;
         
             return field
         })
 
-        return { fields: labeled_fields, id: i }
+        if(!show_header) modified_fields.splice(0, 3)
+
+        return { fields: modified_fields, id: i }
     }).reduce((map, d) => {
-        if(d.fields.length > 0) {
-            map.set(d.id, graph.node(d))
-        } 
+        map.set(d.id, graph.node(d)) 
 
         return map;
     }, new Map());
@@ -115,37 +130,51 @@ function update_visualization() {
         .attr("transform", d => `translate(${d.x - node_width(d) / 2},${d.y - node_height(d) / 2})`)
     }
 
+    function transform_bounding_box(selection) {
+        selection
+            .attr("width", d => node_width(d))
+            .attr("height", d => node_height(d))
+    }
+
     d3.select(".nodes")
         .selectAll(".node")
         .data(graph.nodes(), d => d.data.id)
         .join(
             function(enter) {
-                return enter.append("g")
+                let group = enter.append("g")
                     .call(transform_node)
                     .attr("height", field_height)
                     .attr("stroke-width", 2)
                     .attr("stroke", "#333")
                     .attr("class", "node")
+                
+                group.append("rect")
+                    .attr("class", "bounding_box")
+                    .call(transform_bounding_box)
+                    .attr("fill", "lightgreen")
+                    .transition()
+                        .delay(500)
+                        .attr("fill", data_color)
+                        .duration(2000)
+
+                group
                     .attr("opacity", 0)
                     .transition()
                         .attr("opacity", 1)
                         .delay(500)
-                    .selection()
-                        .append("rect")
-                        .attr("class", "bounding_box")
-                        .attr("width", d => node_width(d))
-                        .attr("height", d => node_height(d))
-                        .attr("fill", "lightgreen")
-                        .transition()
-                            .delay(500)
-                            .attr("fill", data_color)
-                            .duration(2000)
             },
             function(update) { 
                 update
                     .transition(1)
                     .delay(250)
                     .call(transform_node)
+                
+                update.selectAll(".bounding_box")
+                    .data(d => [d])
+                    .join()
+                    .transition()
+                    .delay(250)
+                    .call(transform_bounding_box)
             },
             function(exit) {
                 exit.selectAll(".bounding_box")
@@ -169,24 +198,30 @@ function update_visualization() {
         })
     }
 
+    function transform_field(selection) {
+        selection.attr("transform", (_,i) => `translate(${field_dx(i)},${field_dy(i)})`)
+    }
+
     d3.select(".nodes")
         .selectAll(".node")
         .each(function(p, _) {
             d3.select(this)
                 .selectAll("g")
-                .data(p.data.fields)
+                .data(p.data.fields, d => d.index)
                 .join(function(enter) { 
                     return enter.append("g")
-                        .attr("transform", (_,i) => `translate(${field_dx(i)},${field_dy(i)})`)
-                        .each(function(data, i) {
+                        .call(transform_field)
+                        .each(function(data) {
                             this.__prev_val = data.val;
 
                             let rect = d3.select(this).append("rect")
                                 .attr("width", field_width)
                                 .attr("height", field_height)
-                                .attr("fill", field_color(i));
+                                .attr("rx", 3)
+                                .attr("ry", 3)
+                                .attr("fill", field_color(data.index));
 
-                            if (i < 3) {
+                            if (data.index < 3) {
                                 rect.attr("stroke-dasharray", "2.5")
                             }
 
@@ -219,6 +254,11 @@ function update_visualization() {
                         })
                     },
                     function(update) {
+                        update
+                            .transition()
+                            .delay(250)
+                            .call(transform_field)
+
                         update.each(function(data, i ) {
                             if(this.__prev_val != data.val) {
                                 d3.select(this).select("text").call(update_text)
@@ -228,13 +268,14 @@ function update_visualization() {
                                     .transition()
                                         .delay(500)
                                         .duration(1000)
-                                        .attr("fill", field_color(i))
+                                        .attr("fill", field_color(data.index))
 
                                 this.__prev_val = data.val
                             }
-
-
                         })
+                    },
+                    function(exit) {
+                        exit.remove()
                     }
                 )
         })
@@ -283,6 +324,44 @@ function update_visualization() {
             }
         );
 
+    let stack = mem.call_stack.map((d, i) => ({ func: d, id: d + i }));
+    stack.reverse();
+
+    call_stack.selectAll("g")
+        .data(stack, (d, i) => d.id)
+        .join(enter => {
+            let group = enter.append("g")
+                .attr("transform", (d, i) => `translate(0, ${i * frame_height})`);
+
+            group.attr("opacity", 0)
+                .transition()
+                .attr("opacity", 1);
+
+            group.append("rect")
+                .attr("width", frame_width)
+                .attr("height", frame_height)
+
+            group.append("text")
+                .attr("x", frame_width / 2)
+                .attr("y", frame_height / 2)
+                .attr("text-anchor", "middle")
+                .attr("alignment-baseline", "central")
+                .attr("stroke-width", 0.8)
+                .style("font-size", (frame_height - 2 * frame_padding) + "px")
+                .text(d => d.func)
+
+            return group
+        },
+        update => {
+            update.transition()
+                .attr("transform", (d, i) => `translate(0, ${i * frame_height})`)
+        },
+        exit => {
+            exit.transition()
+            .attr("opacity", 0)
+            .remove();
+        })
+
     let zoom_scale;
 
     //Check if the graph has positive area
@@ -303,6 +382,10 @@ function update_visualization() {
     }
     transition.call(zoom.transform, d3.zoomIdentity.translate(horizontal_padding, vertical_padding).scale(zoom_scale))
 
+    zoom.translateExtent([[-zoom_padding, -zoom_padding], [padded_graph_width, padded_graph_height]])
+    zoom.scaleExtent([zoom_scale, 10])
+    console.log(zoom_scale)
+
     prev_zoom_scale = zoom_scale
 }
 
@@ -318,8 +401,6 @@ function tweak_endpoints(graph, size) {
 
         let [tx, ty] = link.points[1]
         ty -= node_height(link.target) / 2
-        tx -= node_width(link.target) / 2
-        tx += field_dx(3 + Math.floor((link.target.data.fields.length - 3) / 2)) + field_width / 2
         link.points[1] = [tx, ty]
     }
 

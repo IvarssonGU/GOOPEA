@@ -9,7 +9,8 @@ use language::interpreter::Data as InterpreterData;
 #[derive(Serialize)]
 pub struct MemorySnapshot {
     pub variables: BTreeMap<String, Data>,
-    pub heap: Vec<Vec<Data>>
+    pub heap: Vec<Vec<Data>>,
+    pub call_stack: Vec<String>
 }
 
 #[derive(Serialize)]
@@ -39,7 +40,11 @@ pub fn take_interpreter_memory_snapshot_helper(interp: &Interpreter) -> MemorySn
         variables.insert(name, data.into());
     }
 
-    MemorySnapshot { variables, heap: interp.get_memory_raw().into_iter().map(|x| x.into_iter().map(|x| x.into()).collect()).collect() }
+    MemorySnapshot { 
+        variables, 
+        heap: interp.get_memory_raw().into_iter().map(|x| x.into_iter().map(|x| x.into()).collect()).collect(),
+        call_stack: interp.get_function_names_stack()
+    }
 }
 
 #[wasm_bindgen]

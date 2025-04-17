@@ -62,6 +62,12 @@ pub fn run_until_next_mem() {
     });
 }
 
+pub fn run_until_next_ptr() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.run_until_next_ptr();
+    });
+}
+
 pub fn run_until_return() {
     INTERPRETER.with_borrow_mut(|interpreter| {
         interpreter.run_until_return();
