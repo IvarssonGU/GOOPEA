@@ -3,8 +3,25 @@ let visualization_containter = document.getElementById("visualization");
 const width = 500;
 const height = 500;
 
-const box_height = 50;
-const box_field_width = 50;
+const field_height = 50;
+const field_width = 50;
+const box_padding = 6;
+
+function node_width(node) {
+    return box_padding + (box_padding + field_width) * node.data.fields.length;
+}
+
+function node_height(node) {
+    return field_height + 2 * box_padding
+}
+
+function field_dx(i) {
+    return box_padding + (field_width + box_padding) * i
+}
+
+function field_dy(i) {
+    return box_padding
+}
 
 const box_color = "#f0f0f0"
 
@@ -41,31 +58,34 @@ function update_visualization() {
 
     const graph = d3.graph()
 
-    let graph_nodes = mem.heap.map((fields, i) => graph.node({ fields: fields, id: i }))
+    let graph_nodes = mem.heap.map((fields, i) => ({ fields: fields, id: i })).reduce((map, d) => {
+        if(d.fields.length > 0) {
+            map.set(d.id, graph.node(d))
+        } 
+
+        return map;
+    }, new Map());
     
-    for(const node of graph_nodes) {
+    for(const node of graph_nodes.values()) {
         for(const [i, field] of node.data.fields.entries()) {
             if(field.is_ptr) {
-                let target = graph_nodes[field.val];
+                let target = graph_nodes.get(field.val);
                 graph.link(node, target, { field_index: i, id: `${node.data.id}-${target.data.id}` })
             }
         }
     }
 
     const { width: graph_width, height: graph_height } = d3.sugiyama()
-        .nodeSize(d => [10 + box_field_width * d.data.fields.length, box_height])
+        .nodeSize(d => [node_width(d), node_height(d)])
         .gap([20, 50])
         .tweaks([/*d3.tweakFlip("diagonal"), */tweak_endpoints])(graph)
 
     function transform_node(selection) {
         selection
-        .attr("width", d => box_field_width * d.data.fields.length)
-        .attr("transform", d => `translate(${d.x - (box_field_width * d.data.fields.length) / 2},${d.y - box_height / 2})`)
+        .attr("transform", d => `translate(${d.x - node_width(d) / 2},${d.y - node_height(d) / 2})`)
     }
 
     let was_changed = false;
-
-    console.log(graph.nnodes())
 
     d3.select(".nodes")
         .selectAll(".node")
@@ -82,7 +102,7 @@ function update_visualization() {
                         .on("drag", dragged)
                         .on("end", dragended))*/
                     .call(transform_node)
-                    .attr("height", box_height)
+                    .attr("height", field_height)
                     .attr("stroke-width", 2)
                     .attr("opacity", 0)
                     .attr("fill", "green")
@@ -96,6 +116,9 @@ function update_visualization() {
                         .attr("fill", box_color)
                         .duration(2000)
                     .selection()
+                        .append("rect")
+                        .attr("width", d => node_width(d))
+                        .attr("height", d => node_height(d))
             },
             function(update) { 
                 console.log("Update: " + update.size())
@@ -136,21 +159,21 @@ function update_visualization() {
                 .data(p.data.fields)
                 .join(function(enter) { 
                     return enter.append("g")
-                        .attr("transform", (_,i) => `translate(${i * box_field_width},0)`)
+                        .attr("transform", (_,i) => `translate(${field_dx(i)},${field_dy(i)})`)
                         .each(function(data, i) {
                             this.__prev_val = data.val;
 
                             let rect = d3.select(this).append("rect")
-                                .attr("width", box_field_width)
-                                .attr("height", box_height);
+                                .attr("width", field_width)
+                                .attr("height", field_height);
 
                             if (i < 3) {
                                 rect.attr("stroke-dasharray", "5")
                             }
 
                             d3.select(this).append("text")
-                                .attr("x", box_field_width / 2)
-                                .attr("y", box_height / 2)
+                                .attr("x", field_width / 2)
+                                .attr("y", field_height / 2)
                                 .attr("text-anchor", "middle")
                                 .attr("alignment-baseline", "central")
                                 .call(update_text)
@@ -234,13 +257,15 @@ function update_visualization() {
 function tweak_endpoints(graph, size) {
     for(let link of graph.links()) {
         let [sx, sy] = link.points[0]
-        sx -= link.source.data.fields.length * box_field_width / 2
-        sx += (link.data.field_index + 0.5) * box_field_width
-        sy += box_height / 2
+        sx -= node_width(link.source) / 2
+        sx += field_dx(link.data.field_index) + field_width / 2
+
+        sy -= node_height(link.source) / 2
+        sy += field_dy(link.data.field_index) + field_height
         link.points[0] = [sx, sy]
 
         let [tx, ty] = link.points[1]
-        ty -= box_height / 2
+        ty -= node_height(link.target) / 2
         link.points[1] = [tx, ty]
     }
 
