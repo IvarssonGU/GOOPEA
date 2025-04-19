@@ -1,5 +1,31 @@
 let visualization_containter = document.getElementById("visualization");
 
+/*
+=== How I want transitions to function ===
+When update is called many times in quick succession
+
+Element starting to dissappear should logically already removed
+Elements start existing under Exit
+
+Three phases:
+Exit - Things that should be removed are removed
+Shift - Things move to their correct place, camera shift
+Enter - Things should start existing enter
+
+Interruption during exit:
+    - Things continue to dissapear
+    - New shift is applied during shift
+    - Enter is deferred until new enter
+
+Interruption during shift:
+    - Shift still happens
+    - Enter is deferred until new enter
+
+Interruption during enter:
+    - Entrance animation still happens
+
+*/
+
 const width = 500;
 const height = 500;
 
@@ -94,7 +120,10 @@ d3.select("#showHeaderCheckbox").on("change", update_visualization);
 function update_visualization() {
     const mem = wasm_bindgen.take_interpreter_memory_snapshot()
 
-    show_header = d3.select("#showHeaderCheckbox").property("checked");
+    const new_show_header = d3.select("#showHeaderCheckbox").property("checked");
+    const now_showing_headers = new_show_header && !show_header;
+    const now_hiding_headers = !new_show_header && show_header;
+    show_header = new_show_header
 
     const graph = d3.graph()
 
@@ -138,9 +167,23 @@ function update_visualization() {
     const padded_graph_height = graph_height + zoom_padding;
     const padded_graph_width = graph_width + zoom_padding;
 
-    const node_exit_transition = d3.transition("exit").duration(250)
-    const node_shift_transition = node_exit_transition.transition("shift")
-    const node_enter_transition = node_shift_transition.transition("enter")
+    const node_selection = d3.select(".nodes")
+        .selectAll(".node")
+        .data(graph.nodes(), d => d.data.id);
+
+    const link_selection = svg
+        .select(".links")
+        .selectAll("path")
+        .data(graph.links(), d => d.data.id)
+
+    const exit_time = node_selection.exit().size() == 0 && link_selection.exit().size() == 0 && !now_hiding_headers ? 0 : 500;
+    const enter_time = node_selection.enter().size() == 0 && link_selection.enter().size() == 0 && !now_showing_headers ? 0 : 500;
+
+    const node_exit_transition = d3.transition("node").duration(exit_time)
+    const node_shift_transition = node_exit_transition.transition("shift").duration(500)
+    const node_enter_transition = node_shift_transition.transition("node").duration(enter_time)
+
+    const node_enter_color_transition = node_enter_transition.transition("color").duration(2000);
 
     const red_percent = 0.6;
     const fade_percent = 1 - 0.4;
@@ -158,58 +201,57 @@ function update_visualization() {
             .attr("width", d => node_width(d))
             .attr("height", d => node_height(d))
     }
+    
+    node_selection.join(
+        function(enter) {
+            let group = enter.append("g")
+                .call(transform_node)
+                .attr("height", field_height)
+                .attr("stroke-width", 2)
+                .attr("stroke", "#333")
+                .attr("class", "node")
+            
+            group
+                .attr("opacity", 0)
+                .transition(node_enter_transition)
+                    .attr("opacity", 1)
 
-    d3.select(".nodes")
-        .selectAll(".node")
-        .data(graph.nodes(), d => d.data.id)
-        .join(
-            function(enter) {
-                let group = enter.append("g")
-                    .call(transform_node)
-                    .attr("height", field_height)
-                    .attr("stroke-width", 2)
-                    .attr("stroke", "#333")
-                    .attr("class", "node")
-                
-                let enter_transition = group
-                    .attr("opacity", 0)
-                    .transition(node_enter_transition)
-                        .attr("opacity", 1)
+            group.append("rect")
+                .attr("class", "bounding_box")
+                .call(transform_bounding_box)
+                .attr("fill", "lightgreen")
+                .transition(node_enter_color_transition)
+                    .attr("fill", data_color)
+                    .duration(2000)
 
-                group.append("rect")
-                    .attr("class", "bounding_box")
-                    .call(transform_bounding_box)
-                    .attr("fill", "lightgreen")
-                    .transition(enter_transition)
-                    .transition("enter_fade")
-                        .attr("fill", data_color)
-                        .duration(2000)
-            },
-            function(update) { 
-                update
-                    .transition(node_shift_transition)
-                    .call(transform_node)
-                
-                update.selectAll(".bounding_box")
-                    .data(d => [d])
-                    .join()
-                    .transition(node_shift_transition)
-                    .delay(250)
-                    .call(transform_bounding_box)
-            },
-            function(exit) {
-                exit.selectAll(".bounding_box")
-                    .transition(node_exit_transition)
-                    .duration(red_time)
-                    .attr("fill", "red")
+            return group;
+        },
+        function(update) {
+            update
+                .transition(node_shift_transition)
+                .call(transform_node)
+            
+            update.selectAll(".bounding_box")
+                .data(d => [d])
+                .join()
+                .transition(node_shift_transition)
+                .call(transform_bounding_box)
 
-                exit.transition("exit_fade")
-                    .delay(red_time)
-                    .duration(fade_time)
-                    .attr("opacity", 0)
-                    .remove()
-            }
-        );
+            return update;
+        },
+        function(exit) {
+            exit.selectAll(".bounding_box")
+                .transition(node_exit_transition)
+                .duration(red_time)
+                .attr("fill", "red")
+
+            exit.transition("color")
+                .delay(red_time)
+                .duration(fade_time)
+                .attr("opacity", 0)
+                .remove()
+        }
+    );
 
     function update_text(selection) {
         selection.text(d => {
@@ -231,10 +273,17 @@ function update_visualization() {
             d3.select(this)
                 .selectAll("g")
                 .data(p.data.fields, d => d.index)
-                .join(function(enter) { 
-                    return enter.append("g")
-                        .call(transform_field)
-                        .each(function(data) {
+                .join(
+                    function(enter) { 
+                        let group = enter.append("g")
+                            .call(transform_field)
+
+                        group
+                            .attr("opacity", 0)
+                            .transition(node_enter_transition)
+                            .attr("opacity", 1)
+
+                        group.each(function(data) {
                             this.__prev_val = data.val;
 
                             let rect = d3.select(this).append("rect")
@@ -275,10 +324,11 @@ function update_visualization() {
                             
                             label.style("font-size", new_label_font_size + "px");
                         })
+
+                        return group;
                     },
                     function(update) {
                         update
-                            .transition("field_shift")
                             .transition(node_shift_transition)
                             .call(transform_field)
 
@@ -297,53 +347,53 @@ function update_visualization() {
                         })
                     },
                     function(exit) {
-                        exit.remove()
+                        exit
+                            .transition(node_exit_transition)
+                            .attr("opacity", 0)
+                            .remove()
                     }
                 )
         })
     
-    svg
-        .select(".links")
-        .selectAll("path")
-        .data(graph.links(), d => d.data.id)
-        .join(
-            function (enter) {
-                return enter.append("path")
+
+    link_selection.join(
+        function (enter) {
+            return enter.append("path")
+            .attr("d", ({ points }) =>
+                d3.linkVertical()({
+                    source: points[0],
+                    target: points[1]
+                })
+            )                
+            .attr("stroke-width", 2.5)
+            .attr("fill", "none")
+            .attr("stroke", "black")
+            .attr("opacity", 0)
+            .transition(node_enter_transition)
+                .attr("opacity", 1)
+        },
+        function (update) {
+            update
+                .transition(node_shift_transition)
                 .attr("d", ({ points }) =>
                     d3.linkVertical()({
-                      source: points[0],
-                      target: points[1]
+                        source: points[0],
+                        target: points[1]
                     })
-                )                
-                .attr("stroke-width", 2.5)
-                .attr("fill", "none")
-                .attr("stroke", "black")
+                )
+                
+        },
+        function (exit) {
+            exit
+                .transition(node_exit_transition)
+                .duration(red_time)
+                .attr("stroke", "red")
+                .transition()
+                .duration(fade_time)
                 .attr("opacity", 0)
-                .transition(node_enter_transition)
-                    .attr("opacity", 1)
-            },
-            function (update) {
-                update
-                    .transition(node_shift_transition)
-                    .attr("d", ({ points }) =>
-                        d3.linkVertical()({
-                          source: points[0],
-                          target: points[1]
-                        })
-                    )
-                    
-            },
-            function (exit) {
-                exit
-                    .transition(node_exit_transition)
-                    .duration(red_time)
-                    .attr("stroke", "red")
-                    .transition()
-                    .duration(fade_time)
-                    .attr("opacity", 0)
-                    .remove()
-            }
-        );
+                .remove()
+        }
+    );
 
     let stack = mem.call_stack.map((d, i) => ({ func: d, id: d + i }));
     stack.reverse();
@@ -398,8 +448,7 @@ function update_visualization() {
     let horizontal_padding = (width - zoom_scale * graph_width) / 2;
 
     node_shift_transition
-    .transition("zoom")
-    .call(zoom.transform, d3.zoomIdentity.translate(horizontal_padding, vertical_padding).scale(zoom_scale))
+    .call(zoom.transform, d3.zoomIdentity.translate(horizontal_padding, vertical_padding).scale(zoom_scale), [horizontal_padding, vertical_padding])
 
     zoom.translateExtent([[-zoom_padding, -zoom_padding], [padded_graph_width, padded_graph_height]])
     zoom.scaleExtent([zoom_scale, 10])
