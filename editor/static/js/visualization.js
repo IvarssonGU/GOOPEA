@@ -170,7 +170,7 @@ function update_visualization() {
         for(const [i, field] of node.data.fields.entries()) {
             if(field.is_ptr) {
                 let target = graph_nodes.get(field.val);
-                graph.link(node, target, { field_index: i, id: `${node.data.id}#${i}` })
+                graph.link(node, target, { field_index: i, id: `${node.data.id}#${i + (show_header ? 0 : 3)}` })
             }
         }
     }
