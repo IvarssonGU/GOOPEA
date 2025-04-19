@@ -7,6 +7,8 @@ When update is called many times in quick succession
 Element starting to dissappear should logically already removed
 Elements start existing under Exit
 
+Exit should interrupt entrance
+
 Three phases:
 Exit - Things that should be removed are removed
 Shift - Things move to their correct place, camera shift
@@ -25,6 +27,19 @@ Interruption during enter:
     - Entrance animation still happens
 
 */
+
+// This makes it so that elements that are being removed are logically removed immediately, even though they may transition away
+d3.selection.prototype.stable_data = d3.transition.prototype.stable_data = function(data, key) {
+    let new_selection = this
+        .filter(function(_, _) { return !this.__being_removed })
+        .data(data, key);
+    
+    new_selection
+        .exit()
+        .each(function(_, _) { this.__being_removed = true });
+
+    return new_selection;
+};
 
 const width = 500;
 const height = 500;
@@ -80,6 +95,7 @@ const zoom = d3.zoom().on("zoom", zoomed);
 svg.call(zoom);
 
 let prev_zoom_scale = 1;
+let currently_shifting = false;
 
 const zoom_layer = svg.append("g").attr("class", "zoom-layer");
 
@@ -154,7 +170,7 @@ function update_visualization() {
         for(const [i, field] of node.data.fields.entries()) {
             if(field.is_ptr) {
                 let target = graph_nodes.get(field.val);
-                graph.link(node, target, { field_index: i, id: `${node.data.id}-${target.data.id}` })
+                graph.link(node, target, { field_index: i, id: `${node.data.id}#${i}` })
             }
         }
     }
@@ -169,19 +185,29 @@ function update_visualization() {
 
     const node_selection = d3.select(".nodes")
         .selectAll(".node")
-        .data(graph.nodes(), d => d.data.id);
+        .stable_data(graph.nodes(), d => d.data.id);
 
     const link_selection = svg
         .select(".links")
         .selectAll("path")
-        .data(graph.links(), d => d.data.id)
+        .stable_data(graph.links(), d => d.data.id)
 
     const exit_time = node_selection.exit().size() == 0 && link_selection.exit().size() == 0 && !now_hiding_headers ? 0 : 500;
+    const shift_time = 500;
     const enter_time = node_selection.enter().size() == 0 && link_selection.enter().size() == 0 && !now_showing_headers ? 0 : 500;
 
     const node_exit_transition = d3.transition("node").duration(exit_time)
-    const node_shift_transition = node_exit_transition.transition("shift").duration(500)
-    const node_enter_transition = node_shift_transition.transition("node").duration(enter_time)
+    const node_shift_transition = d3.transition("shift").delay(exit_time).duration(shift_time).ease(d3.easeCubicInOut);
+    const node_enter_transition = d3.transition("node").delay(exit_time + shift_time).duration(enter_time)
+
+    node_shift_transition.on("end", function() { currently_shifting = false; })
+    node_shift_transition.on("start", function() {
+        if(currently_shifting) {
+            node_shift_transition.ease(d3.easeCubicOut)
+        }
+
+        currently_shifting = true;
+    })
 
     const node_enter_color_transition = node_enter_transition.transition("color").duration(2000);
 
@@ -272,7 +298,7 @@ function update_visualization() {
         .each(function(p, _) {
             d3.select(this)
                 .selectAll("g")
-                .data(p.data.fields, d => d.index)
+                .stable_data(p.data.fields, d => d.index)
                 .join(
                     function(enter) { 
                         let group = enter.append("g")
@@ -362,7 +388,7 @@ function update_visualization() {
             .attr("d", ({ points }) =>
                 d3.linkVertical()({
                     source: points[0],
-                    target: points[1]
+                    target: points[points.length - 1]
                 })
             )                
             .attr("stroke-width", 2.5)
@@ -378,7 +404,7 @@ function update_visualization() {
                 .attr("d", ({ points }) =>
                     d3.linkVertical()({
                         source: points[0],
-                        target: points[1]
+                        target: points[points.length - 1]
                     })
                 )
                 
@@ -399,7 +425,7 @@ function update_visualization() {
     stack.reverse();
 
     call_stack.selectAll("g")
-        .data(stack, (d, i) => d.id)
+        .stable_data(stack, (d, i) => d.id)
         .join(enter => {
             let group = enter.append("g")
                 .attr("transform", (d, i) => `translate(0, ${i * frame_height})`);
@@ -467,9 +493,9 @@ function tweak_endpoints(graph, size) {
         sy += field_dy(link.data.field_index) + field_height
         link.points[0] = [sx, sy]
 
-        let [tx, ty] = link.points[1]
+        let [tx, ty] = link.points[link.points.length - 1]
         ty -= node_height(link.target) / 2
-        link.points[1] = [tx, ty]
+        link.points[link.points.length - 1] = [tx, ty]
     }
 
     return size
