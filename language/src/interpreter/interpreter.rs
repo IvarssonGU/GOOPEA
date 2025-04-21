@@ -1,3 +1,4 @@
+use super::historymagic::{HMT, HistoryMagic};
 use super::iast::*;
 use super::mempeek::MemObj;
 use crate::ast::base::BaseSliceProgram;
@@ -10,6 +11,7 @@ use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
+use std::time::Instant;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
@@ -504,55 +506,6 @@ fn _compile(path: &str, fip: bool) -> Prog {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_time(src: &str) {
-    println!("fip?");
-    let core_ir = match input::<String>("").as_str() {
-        "fip" => {
-            println!("fip!");
-            _compile(src, true)
-        }
-        _ => {
-            println!("not fip =(");
-            _compile(src, false)
-        }
-    };
-
-    println!("Starting!");
-    let now = std::time::Instant::now();
-    let mut timetable = HashMap::<i32, (i32, Duration)>::new();
-    let mut interpreter = Interpreter::from_program(&core_ir);
-    while let Some(x) = interpreter.step() {
-        let elapsed = now.elapsed();
-        let key = match x {
-            IStatement::IfExpr(_) => 0,
-            IStatement::Return(_) => 1,
-            IStatement::Print(_) => 2,
-            IStatement::AssignMalloc(..) => 3,
-            IStatement::Assign(..) => 4,
-            IStatement::AssignToField(..) => 5,
-            IStatement::AssignFromField(..) => 6,
-            IStatement::AssignBinaryOperation(..) => 7,
-            IStatement::AssignTagCheck(..) => 8,
-            IStatement::FunctionCall(..) => 9,
-            IStatement::AssignReturnvalue(_) => 10,
-            IStatement::AssignDropReuse(..) => 11,
-            IStatement::Inc(_) => 12,
-            IStatement::Dec(_) => 13,
-        };
-        if timetable.contains_key(&key) {
-            let (n, t) = timetable.get(&key).unwrap();
-            let t = *t + elapsed;
-            timetable.insert(key, (n + 1, t));
-        } else {
-            timetable.insert(key, (1, elapsed));
-        }
-    }
-    for (k, (n, t)) in timetable.iter() {
-        println!("{k} {}", t.as_micros() / *n as u128);
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test(src: &str) {
     println!("fip?");
     let core_ir = match input::<String>("").as_str() {
@@ -612,4 +565,131 @@ pub fn interpreter_test(src: &str) {
             }
         }
     }
+}
+
+impl HMT for Interpreter {
+    fn next(&self) -> Self {
+        let mut next = self.clone();
+        next.step();
+        next
+    }
+}
+
+fn _run_until_next_mem(h: &mut HistoryMagic<Interpreter>) {
+    h.next();
+    while let Some(s) = h.get().statements.get(0) {
+        match s {
+            IStatement::AssignMalloc(..)
+            | IStatement::Inc(_)
+            | IStatement::Dec(_)
+            | IStatement::AssignToField(..) => {
+                break;
+            }
+            _ => {
+                h.next();
+            }
+        }
+    }
+}
+
+fn _run_until_next_ptr(h: &mut HistoryMagic<Interpreter>) {
+    h.next();
+    while let Some(s) = h.get().statements.get(0) {
+        if let IStatement::AssignMalloc(_, _) = s {
+            break;
+        } else if let IStatement::Dec(op) = s {
+            match *op {
+                IOperand::Int(i) if i == 1 => {
+                    break;
+                }
+                _ => (),
+            }
+        } else if let IStatement::AssignToField(_, _, op) = s {
+            if h.get().op_to_data(&op).is_ptr() {
+                break;
+            }
+        }
+        h.next();
+    }
+}
+
+fn _run_until_done(h: &mut HistoryMagic<Interpreter>) {
+    while !h.get().statements.is_empty() {
+        h.next();
+    }
+}
+
+fn _run_until_return(h: &mut HistoryMagic<Interpreter>) {
+    let s = h.get().function_names_stack.len();
+
+    while h.get().function_names_stack.len() >= s && !h.get().statements.is_empty() {
+        h.next();
+    }
+}
+
+fn _run_step_over(h: &mut HistoryMagic<Interpreter>) {
+    let s = h.get().function_names_stack.len();
+    h.next();
+    while h.get().function_names_stack.len() > s && !h.get().statements.is_empty() {
+        h.next();
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_test_brutal(src: &str) {
+    let core_ir = _compile(src, true);
+    let mut interpreter = Interpreter::from_program(&core_ir);
+
+    let mut history = Vec::new();
+    let now = Instant::now();
+    while let Some(_) = interpreter.step() {
+        history.push(interpreter.clone());
+    }
+    let elapsed = now.elapsed().as_millis();
+    let _: String = input("Check mem use now..");
+    println!("brutal: {} ms ({})", elapsed, history.len());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_test_magic(src: &str) {
+    let core_ir = _compile(src, true);
+    let interpreter = Interpreter::from_program(&core_ir);
+
+    let mut history = HistoryMagic::from_init(100, interpreter);
+
+    let now = Instant::now();
+    _run_until_return(&mut history);
+    let elapsed = now.elapsed().as_millis();
+    let _: String = input("Check mem use now..");
+    println!("magic: {} ms ({})", elapsed, history.history.len());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_test_nosave(src: &str) {
+    let core_ir = _compile(src, true);
+    let mut interpreter = Interpreter::from_program(&core_ir);
+
+    let now = Instant::now();
+    while let Some(_) = interpreter.step() {}
+    let elapsed = now.elapsed().as_millis();
+    let _: String = input("Check mem use now..");
+    println!("no save: {} ms ({})", elapsed, 0);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_test_save1000(src: &str) {
+    let core_ir = _compile(src, true);
+    let mut interpreter = Interpreter::from_program(&core_ir);
+
+    let n = 1000;
+    let mut c = 0;
+    let mut history = vec![Interpreter::new(); n];
+    let now = Instant::now();
+    while let Some(_) = interpreter.step() {
+        history[c % n] = interpreter.clone();
+        c += 1;
+    }
+    let elapsed = now.elapsed().as_millis();
+    let _: String = input("Check mem use now..");
+    println!("no save: {} ms ({})", elapsed, 0);
 }
