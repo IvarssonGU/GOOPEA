@@ -87,9 +87,10 @@ function field_color(i) {
 
 // Create the SVG container.
 const svg = d3.create("svg")
-    .attr("width", width)
-    .attr("height", height)
-    .attr("style", "max-width: 100%; height: auto;");
+    .attr("class", "svg")
+    // .attr("width", width)
+    // .attr("height", height)
+    // .attr("style", "height: 100%;");
 
 const zoom = d3.zoom().on("zoom", zoomed);
 svg.call(zoom);
