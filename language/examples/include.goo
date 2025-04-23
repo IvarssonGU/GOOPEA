@@ -1,3 +1,16 @@
-test stuff
+#def use_f
+
+first import
 #include lib.goo
-hejsan
+second import
+#include lib.goo
+
+#if use_f
+f = do stuff
+#endif use_f
+
+#undef use_f
+
+#if use_f
+f = do stuff
+#endif use_f

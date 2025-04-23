@@ -1,3 +1,6 @@
+#ifnot LIB
+#def LIB
 function lib() {
     do stuff
 }
+#endif LIB
