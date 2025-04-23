@@ -1,0 +1,3 @@
+function lib() {
+    do stuff
+}
