@@ -52,7 +52,7 @@
 							<table width="100%">
 								<tr>
 									<td>
-										<label for="step-select">Step:</label>
+										<label for="step-select" class="big-label">Step:</label>
 										<select onchange="selected_changed(0)" name="step-select" id="step-select" class="styled-select" width="100%">
 											<option value="c">C code</option>
 											<option value="step1">Step1</option>
@@ -74,7 +74,7 @@
 							<table width="100%">
 								<tr>
 									<td>
-										<label for="diff1-select">Select view 1:</label>
+										<label for="diff1-select" class="big-label">Select view 1:</label>
 										<select  onchange="selected_changed(1)" name="diff1-select" id="diff1-select" class="styled-select" width="100%">
 											<option value="c">C code</option>
 											<option value="step1">Step1</option>
@@ -83,7 +83,7 @@
 										</select>
 									</td>
 									<td>
-										<label for="diff2-select">Select view 2:</label>
+										<label for="diff2-select" class="big-label">Select view 2:</label>
 										<select  onchange="selected_changed(2)" name="diff2-select" id="diff2-select" class="styled-select">
 											<option value="c">C code</option>
 											<option selected value="step1">Step1</option>
@@ -102,9 +102,14 @@
 								</tr>
 							</table>
 						</div>
-						<input type="checkbox" id="showHeaderCheckbox">
-						<div id="visualization"></div>
-						<textarea id="debug" readonly="true" placeholder="click Debug to start debug view, then use the buttons above" height="100%" class="hide"></textarea>
+						<div class="debug-container hide" id="debug-container">
+							<div class="visualization-div hide" id="visualization-div">
+								<input type="checkbox" id="showHeaderCheckbox">
+								<label for="showHeaderCheckbox" class="small-label">Show header fields</label>
+								<div id="visualization"></div>
+							</div>
+							<textarea id="debug" readonly="true" placeholder="click Debug to start debug view, then use the buttons above" height="100%"></textarea>
+						</div>
 					</div>
 				</td>
 			</tr>

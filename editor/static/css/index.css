@@ -158,21 +158,29 @@ textarea {
     height: 70.5vh;
 }
 
-label {
+.big-label {
     font-weight: bold;
     font-size: 15px;
     vertical-align: bottom; 
 }
+.small-label {
+    font-size: 12px;
+    font-weight: bold;
+}
+
 #step-select {
     margin-top: 2px;
 }
 
-.CodeMirror-selected {
-    background-color: var(--text-selected) !important;
-}
 .error-highlight {
     background-color: var(--error);
 }
+.CodeMirror-selected {
+    background-color: var(--text-selected) !important;
+}
+/* .CodeMirror-selected.error-highlight {
+    background-color: var(--error-selected) !important;
+} */
 
 #copied-ack {
     transition: opacity 1s;

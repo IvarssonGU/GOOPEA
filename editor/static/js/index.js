@@ -2,6 +2,8 @@ let output_textarea = document.getElementById("output");
 let debug_textarea = document.getElementById("debug");
 let info_textarea = document.getElementById("info");
 
+let visualization_div = document.getElementById("visualization-div");
+
 let output_button = document.getElementById("output-tab-button");
 let compiler_button = document.getElementById("compiler-tab-button");
 let debug_tab_button = document.getElementById("debug-tab-button");
@@ -80,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    switch_tab(2);
+    // switch_tab(2);
     // continuous_compiling();
 });
 
@@ -90,6 +92,8 @@ window.onbeforeunload = function() {
     if (output_button.classList.contains("current-tab")) localStorage.setItem("tab", "output");
     if (compiler_button.classList.contains("current-tab")) localStorage.setItem("tab", "compiler");
     if (debug_tab_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
+
+    console.log(localStorage.getItem("tab"));
     
     if (info_button.classList.contains("current-tab")) localStorage.setItem("compiler", "info");
     if (diff_button.classList.contains("current-tab")) localStorage.setItem("compiler", "diff");
@@ -181,7 +185,7 @@ async function run_button_clicked() {
 
         //show only the final debug print
         wasm_bindgen.start_interpreter(code);
-        debug_textarea.value = wasm_bindgen.get_run();
+        // debug_textarea.value = wasm_bindgen.get_run();
         update_visualization();
 
         switch_tab(0);
@@ -204,7 +208,7 @@ function update_runtime(runtime) {
 function clear_button_clicked() {
     editor.setValue("");
     output_textarea.value = "";
-    debug_textarea.value = "";
+    // debug_textarea.value = "";
     info_textarea = "";
 }
 
@@ -219,11 +223,16 @@ async function debug_button_clicked() {
     if (compiler_message === "looks good") {
         //display starting state
         wasm_bindgen.start_interpreter(code);
-        debug_textarea.value = wasm_bindgen.get_state();
+        if (!debug_textarea.classList.contains("hide")) debug_textarea.classList.toggle("hide");
+        if (visualization_div.classList.contains("hide")) visualization_div.classList.toggle("hide");
+        // debug_textarea.value = wasm_bindgen.get_state();
         update_visualization();
 
         switch_tab(1);
     } else {
+        if (debug_textarea.classList.contains("hide")) debug_textarea.classList.toggle("hide");
+        if (!visualization_div.classList.contains("hide")) visualization_div.classList.toggle("hide");
+
         switch_tab(2);
         switch_compiler_tab(0);
     }
@@ -235,7 +244,7 @@ async function compile_button_clicked() {
 
     await compile_and_populate();
 
-    debug_textarea.value = "";
+    // debug_textarea.value = "";
 
     switch_tab(2);
     switch_compiler_tab(0);
@@ -244,23 +253,23 @@ async function compile_button_clicked() {
 
 //interpreter functions
 function step_back_clicked() {
-    debug_textarea.value = wasm_bindgen.get_back_step();
+    wasm_bindgen.get_back_step();
     update_visualization();
 }
 function step_forward_clicked() {
-    debug_textarea.value = wasm_bindgen.get_one_step();
+    wasm_bindgen.get_one_step();
     update_visualization();
 }
 function run_mem_clicked() {
-    debug_textarea.value = wasm_bindgen.get_until_mem();
+    wasm_bindgen.get_until_mem();
     update_visualization();
 }
 function run_return_clicked() {
-    debug_textarea.value = wasm_bindgen.get_until_return();
+    wasm_bindgen.get_until_return();
     update_visualization();
 }
 function run_done_clicked() {
-    debug_textarea.value = wasm_bindgen.get_run();
+    wasm_bindgen.get_run();
     update_visualization();
 }
 
@@ -293,12 +302,13 @@ function switch_tab(opt) {
     if (debug_tab_button.classList.contains("current-tab")) {
         debug_tab_button.classList.toggle("current-tab");
         for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
-        debug_textarea.classList.toggle("hide");
+        document.getElementById("debug-container").classList.toggle("hide");
     }
     if (compiler_button.classList.contains("current-tab")) {
         compiler_button.classList.toggle("current-tab");
         for (var i = 0; i < code_step_buttons.length; i++) code_step_buttons[i].classList.toggle("hide");
         info_textarea.classList.toggle("hide");
+        localStorage.setItem("tab", "compiler");
 
         //save current compiler tab
         if (info_button.classList.contains("current-tab")) localStorage.setItem("compiler", "info");
@@ -312,11 +322,13 @@ function switch_tab(opt) {
         case 0: //switch to output
             output_button.classList.toggle("current-tab");
             output_textarea.classList.toggle("hide");
+            localStorage.setItem("tab", "output");
             break;
         case 1: //switch to debugging
             debug_tab_button.classList.toggle("current-tab");
             for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
-            debug_textarea.classList.toggle("hide");
+            document.getElementById("debug-container").classList.toggle("hide");
+            localStorage.setItem("tab", "debug");
             break;
         case 2: //switch to compiler
             compiler_button.classList.toggle("current-tab");
@@ -467,7 +479,7 @@ commands to run first time or when changing rust code:
 command to run otherwise: 
     basic-http-server
 
-or: (linux)
+or:
     GOOPEA.sh
 */
 
