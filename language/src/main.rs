@@ -10,8 +10,8 @@ use std::path::Path;
 
 use ast::base::BaseSliceProgram;
 use ast::{scoped::ScopedProgram, typed::TypedProgram};
-use lalrpop_util::lalrpop_mod;
 use error::Result;
+use lalrpop_util::lalrpop_mod;
 
 pub mod ast;
 mod error;
@@ -36,18 +36,16 @@ fn parse_and_validate(code: &str) -> Result<TypedProgram<'_>> {
 fn main() {
     use core::Def;
 
-    let code = fs::read_to_string(Path::new("examples/type_error.goo")).unwrap();
-    let code = "(): ()\nmain = ()".to_string();
+    let code = fs::read_to_string(Path::new("examples/bools.goo")).unwrap();
+    //let code = "(): ()\nmain = ()".to_string();
 
-    let typed_program = parse_and_validate(&code).map_err(|e| e.to_string()).unwrap();
+    let typed_program = parse_and_validate(&code)
+        .map_err(|e| e.to_string())
+        .unwrap();
 
     let pure_ir = stir::from_typed(&typed_program);
     let pure_reuse = stir::add_reuse(&pure_ir);
     let pure_rc = stir::add_rc(&pure_reuse, true);
-
-    for def in &pure_rc {
-        println!("{}", def);
-    }
     let core_ir = score::translate(&pure_rc);
     let result = core::output(&core_ir);
     println!("{}", result.join("\n"));

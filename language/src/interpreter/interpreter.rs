@@ -505,6 +505,8 @@ fn _compile(path: &str, fip: bool) -> Prog {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test_time(src: &str) {
+    use std::time::Duration;
+
     println!("fip?");
     let core_ir = match input::<String>("").as_str() {
         "fip" => {
