@@ -163,12 +163,36 @@ label {
     font-size: 15px;
     vertical-align: bottom; 
 }
+#step-select {
+    margin-top: 2px;
+}
 
 .CodeMirror-selected {
     background-color: var(--text-selected) !important;
 }
 .error-highlight {
     background-color: var(--error);
+}
+
+#copied-ack {
+    transition: opacity 1s;
+    width:max-content;
+    opacity: 0;
+    cursor: default;
+    height: min-content;
+    /* hover:none; */
+    /* border: 2px solid black; */
+}
+#copied-ack:hover {
+    background-color: var(--small-color);
+}
+.appearing {
+    opacity: 1;
+    animation: temp-appear 1s linear;
+}
+@keyframes temp-appear {
+    0%, 100% { opacity: 0 }
+    20%, 80% { opacity: 1 }
 }
 
 /* debugging purposes */

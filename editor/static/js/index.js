@@ -37,9 +37,9 @@ editor.setSize("100%", "100%");
 document.addEventListener("DOMContentLoaded", () => {
     output_textarea.value = "";
     info_textarea.value = "";
-    selected_changed("diff1-select", "diff1");
-    selected_changed("diff2-select", "diff2");
-    selected_changed("step-select", "steps");
+    selected_changed(0);
+    selected_changed(1);
+    selected_changed(2);
     
     if ("tab" in localStorage) {
         let current_tab = localStorage.getItem("tab");
@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     switch_tab(2);
-    continuous_compiling();
+    // continuous_compiling();
 });
 
 window.onbeforeunload = function() {
@@ -104,6 +104,8 @@ window.onbeforeunload = function() {
 
 async function compile_and_populate() {
     if (error_highlight != null) error_highlight.clear();
+
+    if (document.getElementById("copy-button").classList.contains("hide")) document.getElementById("copy-button").classList.toggle("hide");
 
     await wasm_bindgen('./pkg/editor_bg.wasm');
 
@@ -149,8 +151,9 @@ async function compile_and_populate() {
     info_textarea.value = compiler_message;
 
     //populate the compiler selections
-    selected_changed("diff1-select", "diff1");
-    selected_changed("diff2-select", "diff2");
+    selected_changed(0);
+    selected_changed(1);
+    selected_changed(2);
 }
 
 // CodeMirror.addEventListener("keyup", compile_and_populate());
@@ -333,6 +336,7 @@ function switch_tab(opt) {
 }
 
 function switch_compiler_tab(opt) {
+    //unselect previous tab
     if (info_button.classList.contains("current-tab")) {
         info_button.classList.toggle("current-tab");
         info_textarea.classList.toggle("hide");
@@ -346,6 +350,7 @@ function switch_compiler_tab(opt) {
         document.getElementById("diff-container").classList.toggle("hide");
     }
 
+    //switch to clicked tab
     switch (opt) {
         case 0: //switch to info
             info_button.classList.toggle("current-tab");
@@ -354,10 +359,13 @@ function switch_compiler_tab(opt) {
         case 1: //switch to diff
             diff_button.classList.toggle("current-tab");
             document.getElementById("diff-container").classList.toggle("hide");
+            selected_changed(1);
+            selected_changed(2);
             break;
         case 2: //switch to intermediate steps
             steps_button.classList.toggle("current-tab");
             document.getElementById("steps-container").classList.toggle("hide");
+            selected_changed(0);
             break;
         default:
             info_button.classList.toggle("current-tab");
@@ -367,25 +375,52 @@ function switch_compiler_tab(opt) {
 }
 
 //dropdowns under compiler->diff view and in intermediate
-function selected_changed(name, field) {
-    let to_textarea = document.getElementById(field);
-
-    switch(document.getElementById(name).value) {
-        case "c":
-            to_textarea.value = ccode_value;
+// function selected_changed(selector, target_textarea) {
+function selected_changed(opt) {
+    switch(opt) {
+        case 0:
+            selector = "step-select"
+            target = "steps"
             break;
-        case "step1":
-            to_textarea.value = step1_value;
+        case 1: 
+            selector = "diff1-select";
+            target = "diff1";
             break;
-        case "step2":
-            to_textarea.value = step2_value;
-            break;
-        case "step3":
-            to_textarea.value = step3_value;
+        case 2:
+            selector = "diff2-select";
+            target = "diff2";
             break;
         default:
-            to_textarea.value = step1_value;
+            selector = "step-select"
+            target = "steps"
     }
+
+    let target_textarea = document.getElementById(target);
+
+    switch(document.getElementById(selector).value) {
+        case "c":
+            target_textarea.value = ccode_value;
+            break;
+        case "step1":
+            target_textarea.value = step1_value;
+            break;
+        case "step2":
+            target_textarea.value = step2_value;
+            break;
+        case "step3":
+            target_textarea.value = step3_value;
+            break;
+        default:
+            target_textarea.value = step1_value;
+    }
+}
+
+function copy_step() {
+    let copied_ack = document.getElementById("copied-ack");
+
+    copied_ack.classList.toggle("appearing");
+    navigator.clipboard.writeText(document.getElementById("steps").value);
+    setTimeout(function() {copied_ack.classList.toggle("appearing");}, 1000); //untoggles after 1s
 }
 
 //changes theme of codemirror editor
@@ -408,8 +443,9 @@ document.addEventListener("keydown", (event) => {
         event.preventDefault();
 
         //copy editor text to clipboard
-    // navigator.clipboard.writeText(editor.getValue()); 
-        compile_button_clicked();
+        // navigator.clipboard.writeText(editor.getValue()); 
+        // compile_button_clicked();
+        compile_and_populate();
     }
 });
 
