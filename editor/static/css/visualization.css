@@ -1,4 +1,44 @@
-.svg {
+#visualization svg {
     height: 70vh;
     width: 100%;
+}
+
+#visualization text {
+    text-anchor: middle;
+    alignment-baseline: central;
+    stroke: var(--text-color);
+}
+
+#visualization .box {
+    fill: var(--smallest-color);
+    stroke: gray
+}
+
+.stack-frame text, #call-stack-text {
+    stroke-width: 0.6;
+}
+
+.stack-frame rect {
+    stroke-width: 1.6;
+}
+
+.field rect {
+    rx: 3;
+    ry: 3;
+}
+
+.header-field rect {
+    stroke-dasharray: 2.5;
+    fill: var(--medium-color) !important;
+}
+
+.field .field-name {
+    stroke-width: 0.6;
+    font-style: italic;
+}
+
+.link {
+    stroke-width: 2.5;
+    stroke: gray;
+    fill: none;
 }

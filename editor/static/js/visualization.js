@@ -41,9 +41,6 @@ d3.selection.prototype.stable_data = d3.transition.prototype.stable_data = funct
     return new_selection;
 };
 
-const width = 500;
-const height = 500;
-
 const frame_width = 75;
 const frame_height = 20;
 const frame_padding = 4;
@@ -80,17 +77,8 @@ function field_dy(i) {
 const data_color = "#f0f0f0";
 const header_color = "#c0c0c0";
 
-function field_color(i) {
-    if(i < 3) return header_color;
-    else return data_color;
-}
-
 // Create the SVG container.
-const svg = d3.create("svg")
-    .attr("class", "svg")
-    // .attr("width", width)
-    // .attr("height", height)
-    // .attr("style", "height: 100%;");
+const svg = d3.create("svg");
 
 const zoom = d3.zoom().on("zoom", zoomed);
 svg.call(zoom);
@@ -98,28 +86,16 @@ svg.call(zoom);
 let prev_zoom_scale = 1;
 let currently_shifting = false;
 
-const zoom_layer = svg.append("g").attr("class", "zoom-layer");
-
-zoom_layer.append("g")
-    .attr("class", "nodes");
-
-zoom_layer.append("g")
-    .attr("class", "links");
+const zoom_layer = svg.append("g");
 
 let call_stack = svg.append("g")
-    .attr("stroke", "#333")
-    .attr("stroke-width", 1.5)
-    .attr("fill", data_color)
     .attr("transform", `translate(${call_stack_padding}, ${call_stack_padding + call_stack_label_height})`)
     .attr("class", "frames");
 
-call_stack.append("text")
-    .attr("stroke-width", 0.6)
+call_stack.append("text").attr("id", "call-stack-text")
     .attr("x", frame_width / 2)
     .attr("y", -call_stack_label_height / 2 - 2)
     .attr("font-size", call_stack_label_height + "px")
-    .attr("text-anchor", "middle")
-    .attr("alignment-baseline", "central")
     .text("Call Stack")
 
 function zoomed({transform}) {
@@ -182,13 +158,10 @@ function update_visualization() {
     const padded_graph_height = graph_height + zoom_padding;
     const padded_graph_width = graph_width + zoom_padding;
 
-    const node_selection = d3.select(".nodes")
-        .selectAll(".node")
+    const node_selection = zoom_layer.selectAll(".node")
         .stable_data(graph.nodes(), d => d.data.id);
 
-    const link_selection = svg
-        .select(".links")
-        .selectAll("path")
+    const link_selection = zoom_layer.selectAll(".link")
         .stable_data(graph.links(), d => d.data.id)
 
     const exit_time = node_selection.exit().size() == 0 && link_selection.exit().size() == 0 && !now_hiding_headers ? 0 : 500;
@@ -229,24 +202,20 @@ function update_visualization() {
     
     node_selection.join(
         function(enter) {
-            let group = enter.append("g")
+            let group = enter.append("g").attr("class", "node")
                 .call(transform_node)
                 .attr("height", field_height)
-                .attr("stroke-width", 2)
-                .attr("stroke", "#333")
-                .attr("class", "node")
             
             group
-                .attr("opacity", 0)
+                .style("opacity", 0)
                 .transition(node_enter_transition)
-                    .attr("opacity", 1)
+                    .style("opacity", null)
 
-            group.append("rect")
-                .attr("class", "bounding_box")
+            group.append("rect").attr("class", "bounding_box box")
                 .call(transform_bounding_box)
-                .attr("fill", "lightgreen")
+                .style("fill", "lightgreen")
                 .transition(node_enter_color_transition)
-                    .attr("fill", data_color)
+                    .style("fill", null)
                     .duration(2000)
 
             return group;
@@ -268,12 +237,12 @@ function update_visualization() {
             exit.selectAll(".bounding_box")
                 .transition(node_exit_transition)
                 .duration(red_time)
-                .attr("fill", "red")
+                .style("fill", "red")
 
             exit.transition("color")
                 .delay(red_time)
                 .duration(fade_time)
-                .attr("opacity", 0)
+                .style("opacity", 0)
                 .remove()
         }
     );
@@ -292,51 +261,35 @@ function update_visualization() {
         selection.attr("transform", (_,i) => `translate(${field_dx(i)},${field_dy(i)})`)
     }
 
-    d3.select(".nodes")
-        .selectAll(".node")
+    zoom_layer.selectAll(".node")
         .each(function(p, _) {
             d3.select(this)
                 .selectAll(".field")
                 .stable_data(p.data.fields, d => d.index)
                 .join(
                     function(enter) { 
-                        let group = enter.append("g")
-                            .attr("class", "field")
+                        let group = enter.append("g").attr("class", d => "field" + (d.index < 3 ? " header-field" : ""))
                             .call(transform_field)
 
                         group
-                            .attr("opacity", 0)
+                            .style("opacity", 0)
                             .transition(node_enter_transition)
-                            .attr("opacity", 1)
+                            .style("opacity", null)
+
+                        group.append("rect").attr("class", "box")
+                            .attr("width", field_width)
+                            .attr("height", field_height);
+
+                        group.append("text")
+                            .attr("x", field_width / 2)
+                            .attr("y", field_height / 2)
+                            .call(update_text)
 
                         group.each(function(data) {
                             this.__prev_val = data.val;
-
-                            let rect = d3.select(this).append("rect")
-                                .attr("width", field_width)
-                                .attr("height", field_height)
-                                .attr("rx", 3)
-                                .attr("ry", 3)
-                                .attr("fill", field_color(data.index));
-
-                            if (data.index < 3) {
-                                rect.attr("stroke-dasharray", "2.5")
-                            }
-
-                            d3.select(this).append("text")
-                                .attr("x", field_width / 2)
-                                .attr("y", field_height / 2)
-                                .attr("text-anchor", "middle")
-                                .attr("alignment-baseline", "central")
-                                .call(update_text)
-
-                            let label = d3.select(this).append("text")
+                            let label = d3.select(this).append("text").attr("class", "field-name")
                                 .attr("x", field_width / 2)
                                 .attr("y", -label_padding - label_height/2)
-                                .attr("text-anchor", "middle")
-                                .attr("alignment-baseline", "central")
-                                .attr("stroke-width", 0.6)
-                                .attr("font-style", "italic")
                                 .text(data.label)
                                 .style("font-size", label_height + "px");
 
@@ -363,10 +316,10 @@ function update_visualization() {
                                 d3.select(this).select("text").call(update_text)
 
                                 d3.select(this).select("rect")
-                                    .attr("fill", "orange")
+                                    .style("fill", "orange")
                                     .transition("data_edit")
                                         .duration(1000)
-                                        .attr("fill", field_color(data.index))
+                                        .style("fill", null)
 
                                 this.__prev_val = data.val
                             }
@@ -375,7 +328,7 @@ function update_visualization() {
                     function(exit) {
                         exit
                             .transition(node_exit_transition)
-                            .attr("opacity", 0)
+                            .style("opacity", 0)
                             .remove()
                     }
                 )
@@ -384,19 +337,16 @@ function update_visualization() {
 
     link_selection.join(
         function (enter) {
-            return enter.append("path")
+            return enter.append("path").attr("class", "link")
             .attr("d", ({ points }) =>
                 d3.linkVertical()({
                     source: points[0],
                     target: points[points.length - 1]
                 })
             )                
-            .attr("stroke-width", 2.5)
-            .attr("fill", "none")
-            .attr("stroke", "black")
-            .attr("opacity", 0)
+            .style("opacity", 0)
             .transition(node_enter_transition)
-                .attr("opacity", 1)
+                .style("opacity", null)
         },
         function (update) {
             update
@@ -413,10 +363,10 @@ function update_visualization() {
             exit
                 .transition(node_exit_transition)
                 .duration(red_time)
-                .attr("stroke", "red")
+                .style("stroke", "red")
                 .transition()
                 .duration(fade_time)
-                .attr("opacity", 0)
+                .style("opacity", 0)
                 .remove()
         }
     );
@@ -427,23 +377,20 @@ function update_visualization() {
     call_stack.selectAll("g")
         .stable_data(stack, (d, i) => d.id)
         .join(enter => {
-            let group = enter.append("g")
+            let group = enter.append("g").attr("class", "stack-frame")
                 .attr("transform", (d, i) => `translate(0, ${i * frame_height})`);
 
-            group.attr("opacity", 0)
+            group.style("opacity", 0)
                 .transition()
-                .attr("opacity", 1);
+                .style("opacity", null);
 
-            group.append("rect")
+            group.append("rect").attr("class", "box")
                 .attr("width", frame_width)
                 .attr("height", frame_height)
 
             group.append("text")
                 .attr("x", frame_width / 2)
                 .attr("y", frame_height / 2)
-                .attr("text-anchor", "middle")
-                .attr("alignment-baseline", "central")
-                .attr("stroke-width", 0.8)
                 .style("font-size", (frame_height - 2 * frame_padding) + "px")
                 .text(d => d.func)
 
@@ -455,23 +402,25 @@ function update_visualization() {
         },
         exit => {
             exit.transition()
-            .attr("opacity", 0)
+            .style("opacity", 0)
             .remove();
         })
 
     let zoom_scale;
 
+    const size = svg.node().getBoundingClientRect();
+
     //Check if the graph has positive area
     if(graph_width * graph_height > 0) {
-        const horizontal_scale = width / padded_graph_width;
-        const vertical_scale = height / padded_graph_height;
+        const horizontal_scale = size.width / padded_graph_width;
+        const vertical_scale = size.height / padded_graph_height;
         zoom_scale = Math.min(horizontal_scale, vertical_scale);
     } else {
         zoom_scale = 1;
     }
 
-    let vertical_padding = (height - zoom_scale * graph_height) / 2;
-    let horizontal_padding = (width - zoom_scale * graph_width) / 2;
+    let vertical_padding = (size.height - zoom_scale * graph_height) / 2;
+    let horizontal_padding = (size.width - zoom_scale * graph_width) / 2;
 
     node_shift_transition
     .call(zoom.transform, d3.zoomIdentity.translate(horizontal_padding, vertical_padding).scale(zoom_scale), [horizontal_padding, vertical_padding])
