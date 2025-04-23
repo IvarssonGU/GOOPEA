@@ -18,8 +18,14 @@ where
     let mut lines = file.lines();
     while let Some(line) = lines.next() {
         let words: Vec<&str> = line.split_whitespace().collect();
+        println!("{:?}", words);
         match words[..] {
-            ["#include", a] => out.push(_preprocess(folder.join(a), defs)),
+            ["#include", a] => {
+                let src = _preprocess(folder.join(a), defs);
+                for line in src.lines() {
+                    out.push(line.to_string());
+                }
+            }
             ["#include", ..] => panic!("Invalid include: {}", line),
             ["#def", a] => {
                 defs.insert(a.to_string());

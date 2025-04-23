@@ -1,3 +1,4 @@
+top
 #def use_f
 
 first import
@@ -14,3 +15,4 @@ f = do stuff
 #if use_f
 f = do stuff
 #endif use_f
+bot
