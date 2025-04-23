@@ -32,6 +32,9 @@ fn parse_and_validate(code: &str) -> Result<TypedProgram<'_>> {
     TypedProgram::new(scoped_program)
 }
 
+mod preprocessor;
+use preprocessor::preprocess;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     use core::Def;

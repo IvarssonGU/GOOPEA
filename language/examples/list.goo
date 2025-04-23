@@ -1,0 +1,20 @@
+enum List = Nil, Cons(List, Int);
+
+(List, List): List
+reverseHelper(list, acc) =
+    match list {
+        Nil: acc,
+        Cons(xs, x): reverseHelper(xs, Cons(acc, x))
+    };
+
+List: List
+reverseList list = reverseHelper(list, Nil);
+
+(Int, Int): List
+rangeList(start, stop) = match start <= stop {
+    True: Cons(rangeList((start + 1), stop), start),
+    False: Nil
+};
+
+(): List
+main = rangeList(3, 6)
