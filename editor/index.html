@@ -101,6 +101,8 @@
 								</tr>
 							</table>
 						</div>
+						<input type="checkbox" id="showHeaderCheckbox">
+						<div id="visualization"></div>
 						<textarea id="debug" readonly="true" placeholder="click Debug to start debug view, then use the buttons above" height="100%" class="hide"></textarea>
 					</div>
 				</td>
@@ -120,6 +122,10 @@
 			</tr>
 		</table>
 	</div>
+
+	<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+	<script src="https://unpkg.com/d3-dag@1.1.0"></script>
+	<script src="./static/js/visualization.js"></script>
 
 	<script src="./pkg/editor.js"></script>
 	<script src="./codemirror/codemirror.js"></script>

@@ -5,7 +5,7 @@
 pub mod ast;
 pub mod core;
 pub mod error;
-mod interpreter;
+pub mod interpreter;
 mod lexer;
 mod score;
 pub mod stir;
@@ -62,6 +62,12 @@ pub fn run_until_next_mem() {
     });
 }
 
+pub fn run_until_next_ptr() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.run_until_next_ptr();
+    });
+}
+
 pub fn run_until_return() {
     INTERPRETER.with_borrow_mut(|interpreter| {
         interpreter.run_until_return();
@@ -90,4 +96,8 @@ pub fn restore_interpreter() {
             INTERPRETER.set(i);
         }
     });
+}
+
+pub fn perform_on_interpreter<T>(f: impl FnOnce(&Interpreter) -> T) -> T {
+    INTERPRETER.with_borrow(f)
 }

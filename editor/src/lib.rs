@@ -1,3 +1,5 @@
+pub mod visualization;
+
 extern crate console_error_panic_hook;
 // use std::panic;
 
@@ -108,7 +110,7 @@ pub fn get_back_step() -> String {
 #[wasm_bindgen]
 pub fn get_until_mem() -> String {
     language::store_interpreter();
-    language::run_until_next_mem();
+    language::run_until_next_ptr();
     language::get_interpreter_state()
 }
 

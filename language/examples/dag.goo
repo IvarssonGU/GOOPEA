@@ -1,0 +1,10 @@
+enum Node = Data(Int), Child(Node), Children(Node, Node);
+
+Node: Node
+build x = Children(Child(x), Child(x));
+
+Node: ()
+print x = ();
+  
+(): ()
+main = print (build (Data 5));
