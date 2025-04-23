@@ -100,13 +100,9 @@ let currently_shifting = false;
 const zoom_layer = svg.append("g").attr("class", "zoom-layer");
 
 zoom_layer.append("g")
-    .attr("stroke", "#fff")
-    .attr("stroke-width", 1.5)
     .attr("class", "nodes");
 
 zoom_layer.append("g")
-    .attr("stroke", "#fff")
-    .attr("stroke-width", 1.5)
     .attr("class", "links");
 
 let call_stack = svg.append("g")
@@ -161,7 +157,9 @@ function update_visualization() {
 
         return { fields: modified_fields, id: i }
     }).reduce((map, d) => {
-        map.set(d.id, graph.node(d)) 
+        if(d.fields.length > 0) {
+            map.set(d.id, graph.node(d))
+        }
 
         return map;
     }, new Map());
@@ -297,11 +295,12 @@ function update_visualization() {
         .selectAll(".node")
         .each(function(p, _) {
             d3.select(this)
-                .selectAll("g")
+                .selectAll(".field")
                 .stable_data(p.data.fields, d => d.index)
                 .join(
                     function(enter) { 
                         let group = enter.append("g")
+                            .attr("class", "field")
                             .call(transform_field)
 
                         group
