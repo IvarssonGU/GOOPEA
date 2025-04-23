@@ -1,3 +1,6 @@
+#ifnot LIST_LIB
+#def LIST_LIB
+
 enum List = Nil, Cons(List, Int);
 
 (List, List): List
@@ -10,11 +13,40 @@ reverseHelper(list, acc) =
 List: List
 reverseList list = reverseHelper(list, Nil);
 
+List: Int
+sumList list = match list {
+    Nil: 0,
+    Cons(xs, x): x + sumList xs
+};
+
+List: Int
+lenList list = match list {
+    Nil: 0,
+    Cons(xs, x): 1 + lenList xs
+};
+
+(List, List): List
+concatList(list1, list2) = match list1 {
+    Nil: list2,
+    Cons(xs, x): Cons(concatList(xs, list2), x)
+};
+
 (Int, Int): List
-rangeList(start, stop) = match start <= stop {
-    True: Cons(rangeList((start + 1), stop), start),
+rangeListp(start, stop) = match start <= stop {
+    True: Cons(rangeListp((start + 1), stop), start),
     False: Nil
 };
 
-(): List
-main = rangeList(3, 6)
+(Int, Int): List
+rangeListn(start, stop) = match start >= stop {
+    True: Cons(rangeListn((start - 1), stop), start),
+    False: Nil
+};
+
+(Int, Int): List
+rangeList(start, stop) = match start <= stop {
+    True: rangeListp(start, stop),
+    False: rangeListn(start, stop)
+};
+
+#endif LIST_LIB

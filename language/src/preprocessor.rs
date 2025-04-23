@@ -18,7 +18,6 @@ where
     let mut lines = file.lines();
     while let Some(line) = lines.next() {
         let words: Vec<&str> = line.split_whitespace().collect();
-        println!("{:?}", words);
         match words[..] {
             ["#include", a] => {
                 let src = _preprocess(folder.join(a), defs);

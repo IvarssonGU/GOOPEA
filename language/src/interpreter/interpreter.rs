@@ -7,6 +7,7 @@ use crate::ast::typed::TypedProgram;
 use crate::core::{Def, Operand, Prog, Statement};
 use crate::score;
 use crate::stir::{self, Operator};
+use crate::preprocessor::preprocess;
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
@@ -101,7 +102,7 @@ impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             functions: HashMap::new(),
-            heap: Vec::new(),
+            heap: vec![Vec::new()],
             function_names_stack: Vec::new(),
             statements: VecDeque::new(),
             statement_stack: Vec::new(),
@@ -163,7 +164,7 @@ impl Interpreter {
     }
 
     fn malloc(&mut self, width: usize) -> Data {
-        for n in 0..self.heap.len() {
+        for n in 1..self.heap.len() {
             if self.heap[n].is_empty() {
                 self.heap[n] = vec![Data::Value(0); width];
                 return Data::Pointer(n);
@@ -492,7 +493,7 @@ impl Debug for Data {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn _compile(path: &str, fip: bool) -> Prog {
-    let code = fs::read_to_string(Path::new(path)).unwrap();
+    let code = preprocess(Path::new(path));
     let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
