@@ -1,5 +1,5 @@
 #include list.goo
-#include list.goo
+#include rand.goo
 
-() : Int
-main = lenList(rangeList(1, 5));
+() : List
+main = randList(42, 10);

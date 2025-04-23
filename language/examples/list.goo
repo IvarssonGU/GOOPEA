@@ -25,6 +25,12 @@ lenList list = match list {
     Cons(xs, x): 1 + lenList xs
 };
 
+(List, Int): List
+appendList(list, a) = match list {
+    Nil: Cons(Nil, a),
+    Cons(xs, x): Cons(appendList(xs, a), x)
+};
+
 (List, List): List
 concatList(list1, list2) = match list1 {
     Nil: list2,
