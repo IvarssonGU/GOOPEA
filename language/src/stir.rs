@@ -794,10 +794,7 @@ fn insert_rc_body(
             ),
             Exp::App(fid, args) => cappy(
                 args.clone(),
-                {
-                    println!("{}", fid);
-                    beta_map.get(fid).unwrap().clone()
-                },
+                beta_map.get(fid).unwrap().clone(),
                 &Body::Let(
                     var.clone(),
                     exp.clone(),
