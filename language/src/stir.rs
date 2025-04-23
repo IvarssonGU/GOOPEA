@@ -283,6 +283,36 @@ fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
             ),
+            ">" => Simple::Operation(
+                Operator::Greater,
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
+            ),
+            "<" => Simple::Operation(
+                Operator::Less,
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
+            ),
+            ">=" => Simple::Operation(
+                Operator::GreaterOrEqual,
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
+            ),
+            "<=" => Simple::Operation(
+                Operator::LessOrEq,
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
+            ),
+            "==" => Simple::Operation(
+                Operator::Equal,
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
+            ),
+            "!=" => Simple::Operation(
+                Operator::NotEqual,
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
+            ),
             _ => match context.constructors.get(id) {
                 Some(cons) => {
                     if args.0.is_empty() {

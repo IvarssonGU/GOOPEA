@@ -1,0 +1,92 @@
+enum Tree = Empty, Node(Int, Tree, Int, Tree);
+enum List = Nil, Cons(Int, List);
+
+
+(Int, Tree) : Tree
+insert(value, tree) = match tree {
+    Empty: Node(1, Empty, value, Empty),
+    Node(h, l, v, r): match value < v {
+        True: split(skew(Node(h, insert(value, l), v, r))),
+        False: split(skew(Node(h, l, v, insert(value, r))))
+    }
+};
+
+(List, List) : List
+concat(xs, ys) = match xs {
+    Nil: ys,
+    Cons(x, xx): Cons(x, concat(xx, ys))
+};
+
+Tree : List
+inorder tree = match tree {
+    Empty: Nil,
+    Node(h, l, v, r): concat(inorder(l), Cons(v, inorder(r)))
+};
+
+List : Tree
+fromList xs = match xs {
+    Nil: Empty,
+    Cons(x, xx): insert(x, fromList(xx))
+};
+
+List : Int
+sum xs = match xs {
+    Nil: 0,
+    Cons(x, xx): x + sum(xx)
+};
+
+Int : List
+build n = match n == 0 {
+    True: Nil,
+    False: Cons(n, build(n - 1))
+};
+
+Tree : Tree
+skew tree = match skewInvariant(tree) {
+    False: tree,
+    True: match tree {
+        Empty: tree,
+        Node(h, l, v, r): match l {
+            Empty: tree,
+            Node(lh, ll, lv, lr): Node(h, ll, lv, Node(lh, lr, v, r))
+        }
+    }
+};
+
+Tree : Tree
+split tree = match splitInvariant(tree) {
+    False: tree,
+    True: match tree {
+        Empty: tree,
+        Node(h, l, v, r): match r {
+            Empty: tree,
+            Node(rh, rl, rv, rr): Node(rh + 1, Node(h, l, v, rl), rv, rr)
+        }
+    }
+};
+
+Tree : Bool
+skewInvariant tree = match tree {
+    Empty: False,
+    Node(h, l, v, r): match l {
+        Empty: False,
+        Node(lh, ll, lv, lr): lh == h
+    }
+};
+
+Tree : Bool
+splitInvariant tree = match tree {
+    Empty: False,
+    Node(h, l, v, r): match r {
+        Empty: False,
+        Node(rh, rl, rv, rr): match rr {
+            Empty: False,
+            Node(rrh, rrl, rrv, rrr): rrh == h
+        }
+    }
+};
+
+
+
+() : Int
+main = sum(inorder(fromList(build(100))));

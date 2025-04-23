@@ -7,22 +7,22 @@ pub trait HMT {
 
 pub struct HistoryMagic<T> {
     size: usize,
-    history: Vec<(usize, T)>,
+    pub history: Vec<(usize, T)>,
 }
 
 impl<T: HMT + Clone> HistoryMagic<T> {
-    fn from_init(size: usize, init: T) -> Self {
+    pub fn from_init(size: usize, init: T) -> Self {
         HistoryMagic::<T> {
             size: size,
             history: vec![(0, init)],
         }
     }
 
-    fn get(&self) -> T {
-        self.history.last().unwrap().1.clone()
+    pub fn get(&self) -> &T {
+        &self.history.last().unwrap().1
     }
 
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         let size = self.size;
         let (n, curr) = self.history.last().unwrap();
         let n = *n + 1;
@@ -37,7 +37,7 @@ impl<T: HMT + Clone> HistoryMagic<T> {
         }
     }
 
-    fn back(&mut self) {
+    pub fn back(&mut self) {
         if self.history.len() == 1 {
             return;
         }
