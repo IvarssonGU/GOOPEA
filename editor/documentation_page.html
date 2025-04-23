@@ -52,7 +52,8 @@
 								<button class="toggle-header subsection">Keyboard shortcuts</button>
 								<div class="toggle-content">
 									<p class="tabbed"><mark><b>Ctrl-/</b></mark>: Toggle line comment</p>
-									<p class="tabbed"><mark><b>Ctrl-S</b></mark>: Copy all text in editor to clipboard</p>
+									<p class="tabbed"><mark><b>Ctrl-S</b></mark>: Does the same as compile button; if you have an error, 
+										try the shortcut again to see if you have more errors. Or click the button again :/</p>
 									<p class="tabbed"><mark><b>Alt-Down</b></mark>: Copy current line and insert-paste it on line below</p>
 									<p class="tabbed"><mark><b>Shift-Alt-Up/Down</b></mark>: Swap the current line with the line above/below</p>
 								</div>
@@ -66,10 +67,10 @@
 									<p class="tabbed"><mark><b>Treeflip</b></mark>: flips a tree around the vertical axis and then sums it</p>
 									<p class="tabbed"><mark><b>Arithmetic</b></mark>: operations</p>
 									<p class="tabbed"><mark><b>Complex match</b></mark>: converts a Cat to a Dog and then returns that</p>
-									<p class="tabbed"><mark><b>Multiple Return Values</b></mark>: <i>stuff</i></p>
+									<p class="tabbed"><mark><b>Multiple Return Values</b></mark>: two functions that return more than one value</p>
 									<p class="tabbed"><mark><b>Type error</b></mark>: passes a variable of a type to a function that doesn't take said type</p>
-									<p class="tabbed"><mark><b>Utuple</b></mark>: <i>stuff</i></p>
-									<p class="tabbed"><mark><b>Zipper tree</b></mark>: <i>stuff</i></p>
+									<p class="tabbed"><mark><b>Utuple</b></mark>: pattern matching :D</p>
+									<p class="tabbed"><mark><b>Zipper tree</b></mark>: Zippers a tree</p>
 								</div>
 							</td>
 						</tr>
@@ -133,12 +134,26 @@
 								<button class="toggle-header subsection" id="constructors-header">Constructors</button>
 								<div class="toggle-content">
 									<p class="multiline">Constructors are used to create objects. Use them in enum definitions and declarations. See 
-										"multiple return values" example.
+										"multiple return values" example. You can use any word you like that isn't a keyword and starts with a capital 
+										letter made up of only letters. These are the ones you can see in the examples and have special syntax 
+										highlighting because of it:
 									</p>
 
-									<p class="tabbed"><mark><b>Cons</b></mark>: <i>stuff</i></p>
-									<p class="tabbed"><mark><b>Node</b></mark>: <i>stuff</i></p>
-									<p class="tabbed"><mark><b>Nil</b></mark>: <i>stuff</i></p>
+									<table id="constructors-table" class="tabbed" width="100%">
+										<tr>
+											<td>
+												<p><mark><b>Cons</b></mark></p>
+												<p><mark><b>Node</b></mark></p>
+												<p><mark><b>Just</b></mark></p>
+												<p><mark><b>Maybe</b></mark></p>
+											</td>
+											<td>
+												<p><mark><b>Empty</b></mark></p>
+												<p><mark><b>Nil</b></mark></p>
+												<p><mark><b>Nothing</b></mark></p>
+											</td>
+										</tr>
+									</table>
 								</div>
 							</td>
 						</tr>

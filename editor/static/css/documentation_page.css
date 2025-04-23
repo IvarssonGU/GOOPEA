@@ -8,6 +8,10 @@ p.multiline {
     line-height: 1.5;
 }
 
+#constructors-table td {
+    vertical-align: top;
+}
+
 #container-table {
     width: 70%;
     margin: auto;

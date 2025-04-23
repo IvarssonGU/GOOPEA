@@ -138,8 +138,8 @@ async function compile_and_populate() {
             let from = {line: source.start_line-1, ch: source.start_line_char-1};
             let to = {line: source.end_line-1, ch: source.end_line_char-1};
 
-            console.log(from)
-            console.log(to)
+            // console.log(from)
+            // console.log(to)
 
             error_highlight = editor.markText(from, to, {className: "error-highlight"});
         }
@@ -153,12 +153,14 @@ async function compile_and_populate() {
     selected_changed("diff2-select", "diff2");
 }
 
-async function continuous_compiling() {
-    compile_and_populate();
+// CodeMirror.addEventListener("keyup", compile_and_populate());
 
-    // 1/sec
-    setTimeout(continuous_compiling, 1000);
-}
+// async function continuous_compiling() {
+//     compile_and_populate();
+
+//     // 1/sec
+//     setTimeout(continuous_compiling, 1000);
+// }
 
 //clear-debug-run button functions
 async function run_button_clicked() {
