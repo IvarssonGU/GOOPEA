@@ -6,9 +6,21 @@
 Int: Int
 next x = x * 1664525 + 1013904223;
 
-(Int, Int): List
-randList(seed, len) = match len > 0 {
-    True: let a = next seed in Cons(randList(a, len - 1), a),
+(Int, Int): Int
+fastMod(a, b) = match a >= 0 {
+    True: match a > b {
+        True: let b2 = 2 * b in match a >= b2 {
+            True: fastMod(fastMod(a - b2, b2), b),
+            False: fastMod(a - b, b)
+        },
+        False: a
+    },
+    False: b - fastMod(-a, b)
+};
+
+(Int, Int, Int): List
+randList(seed, len, mod) = match len > 0 {
+    True: let a = next seed in Cons(randList(a, len - 1, mod), fastMod(a, mod)),
     False: Nil
 };
 

@@ -2,4 +2,4 @@
 #include rand.goo
 
 () : List
-main = randList(42, 10);
+main = randList(42, 100, 10);
