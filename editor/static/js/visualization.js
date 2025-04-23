@@ -78,7 +78,8 @@ const data_color = "#f0f0f0";
 const header_color = "#c0c0c0";
 
 // Create the SVG container.
-const svg = d3.create("svg");
+const svg = d3.create("svg")
+    .attr("class", "svg");
 
 const zoom = d3.zoom().on("zoom", zoomed);
 svg.call(zoom);

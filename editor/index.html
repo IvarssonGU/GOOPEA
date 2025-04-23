@@ -34,7 +34,7 @@
 					<!-- tab buttons -->
 					<button onclick="switch_tab(0)" class="tab-button styled-button current-tab" id="output-tab-button">Output</button>
 					<button onclick="switch_tab(1)" class="tab-button styled-button" id="debug-tab-button">Debugging</button>
-					<button onclick="switch_tab(2)" class="tab-button styled-button" id="compiler-tab-button">Compiler</button>
+					<button onclick="switch_tab(2)" class="tab-button styled-button" id="compiler-tab-button">Compilation</button>
 					<!-- debug buttons -->
 					<button onclick="step_back_clicked()" title="One step back" id="back-button" class="debug-button styled-button hide"><p>&#X23F4;&#xfe0e;</p></button>
 					<button onclick="step_forward_clicked()" title="One step forward" id="step-button" class="debug-button styled-button hide"><p>&#X23F5;&#xfe0e;</p></button>
@@ -42,12 +42,12 @@
 					<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide"><p>&#X23ED;&#xfe0e;</p></button>
 					<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide"><p>&#X23FA;&#xfe0e;</p></button>
 					<!-- compiler buttons -->
-					<button onclick="switch_compiler_tab(0)" class="compiler-button styled-button hide current-tab" id="info-tab">Info</button>
+					<!-- <button onclick="switch_compiler_tab(0)" class="compiler-button styled-button hide current-tab" id="info-tab">Info</button> -->
 					<button onclick="switch_compiler_tab(1)" class="compiler-button styled-button hide" id="diff-tab">Diff view</button>
-					<button onclick="switch_compiler_tab(2)" class="compiler-button styled-button hide" id="steps-tab">Code view</button>
+					<button onclick="switch_compiler_tab(2)" class="compiler-button styled-button hide current-tab" id="steps-tab">Code view</button>
 					<div class="output-container">
 						<textarea id="output" readonly="true" placeholder="not implemented yet" height="100%"></textarea>
-						<textarea id="info" readonly="true" placeholder="click compile, run, or debug to view compiler message here" height="100%" class="hide"></textarea>
+						<!-- <textarea id="info" readonly="true" placeholder="click compile, run, or debug to view compiler message here" height="100%" class="hide"></textarea> -->
 						<div class="steps-container hide" id="steps-container">
 							<table width="100%">
 								<tr>

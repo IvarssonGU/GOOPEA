@@ -1,6 +1,6 @@
 let output_textarea = document.getElementById("output");
 let debug_textarea = document.getElementById("debug");
-let info_textarea = document.getElementById("info");
+let steps_container = document.getElementById("steps-container");
 
 let visualization_div = document.getElementById("visualization-div");
 
@@ -8,7 +8,6 @@ let output_button = document.getElementById("output-tab-button");
 let compiler_button = document.getElementById("compiler-tab-button");
 let debug_tab_button = document.getElementById("debug-tab-button");
 
-let info_button = document.getElementById("info-tab");
 let diff_button = document.getElementById("diff-tab");
 let steps_button = document.getElementById("steps-tab");
 
@@ -38,7 +37,6 @@ editor.setSize("100%", "100%");
 //loading and unloading
 document.addEventListener("DOMContentLoaded", () => {
     output_textarea.value = "";
-    info_textarea.value = "";
     selected_changed(0);
     selected_changed(1);
     selected_changed(2);
@@ -58,13 +56,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if ("compiler" in localStorage) {
         let current_tab = localStorage.getItem("compiler");
         switch (current_tab) {
-            case "info": switch_compiler_tab(0); break;
             case "diff": switch_compiler_tab(1); break;
             case "steps": switch_compiler_tab(2); break;
-            default: switch_compiler_tab(0);
+            default: switch_compiler_tab(2);
         }
     } else {
-        switch_compiler_tab(0);
+        switch_compiler_tab(2);
     }
 
     debug_textarea.value = "";
@@ -81,9 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.documentElement.setAttribute("theme", "default");
         }
     }
-
-    // switch_tab(2);
-    // continuous_compiling();
 });
 
 window.onbeforeunload = function() {
@@ -95,7 +89,6 @@ window.onbeforeunload = function() {
 
     console.log(localStorage.getItem("tab"));
     
-    if (info_button.classList.contains("current-tab")) localStorage.setItem("compiler", "info");
     if (diff_button.classList.contains("current-tab")) localStorage.setItem("compiler", "diff");
     if (steps_button.classList.contains("current-tab")) localStorage.setItem("compiler", "steps");
 
@@ -122,7 +115,7 @@ async function compile_and_populate() {
 
         //compilation (get all the steps and assign them to their vars here)
         ccode_value = prog.get_c_code();
-        compiler_message = "looks good";
+        compiler_message = "-- looks good --";
         step1_value = "compiled step1 (not implemented yet)";
         step2_value = "compiled step2 (not implemented yet)";
         step3_value = "compiled step3 (not implemented yet)";
@@ -149,22 +142,13 @@ async function compile_and_populate() {
     }
     
     //assign to textarea
-    info_textarea.value = compiler_message;
+    output_textarea.value = compiler_message;
 
     //populate the compiler selections
     selected_changed(0);
     selected_changed(1);
     selected_changed(2);
 }
-
-// CodeMirror.addEventListener("keyup", compile_and_populate());
-
-// async function continuous_compiling() {
-//     compile_and_populate();
-
-//     // 1/sec
-//     setTimeout(continuous_compiling, 1000);
-// }
 
 //clear-debug-run button functions
 async function run_button_clicked() {
@@ -179,19 +163,23 @@ async function run_button_clicked() {
 
     await compile_and_populate();
 
-    if (compiler_message === "looks good") {
-        //get output (not implemented)
-        output_textarea.value = "output not implemented";
+    if (compiler_message === "-- looks good --") {
+        let run_value = "output not implemented" //<-- get output on this line
+        let output_value = "";
+        if (run_value === "") {
+            output_value = compiler_message
+        } else {
+            output_value = run_value.concat("\n\n").concat(compiler_message);
+        }
+        output_textarea.value = output_value;
 
         //show only the final debug print
         wasm_bindgen.start_interpreter(code);
-        // debug_textarea.value = wasm_bindgen.get_run();
         update_visualization();
 
         switch_tab(0);
     } else {
-        switch_tab(2);
-        switch_compiler_tab(0);
+        switch_tab(0);
     }
 
 	const endTime = performance.now();
@@ -208,8 +196,6 @@ function update_runtime(runtime) {
 function clear_button_clicked() {
     editor.setValue("");
     output_textarea.value = "";
-    // debug_textarea.value = "";
-    info_textarea = "";
 }
 
 async function debug_button_clicked() {
@@ -220,12 +206,11 @@ async function debug_button_clicked() {
 
     await compile_and_populate();
 
-    if (compiler_message === "looks good") {
+    if (compiler_message === "-- looks good --") {
         //display starting state
         wasm_bindgen.start_interpreter(code);
         if (!debug_textarea.classList.contains("hide")) debug_textarea.classList.toggle("hide");
         if (visualization_div.classList.contains("hide")) visualization_div.classList.toggle("hide");
-        // debug_textarea.value = wasm_bindgen.get_state();
         update_visualization();
 
         switch_tab(1);
@@ -233,8 +218,7 @@ async function debug_button_clicked() {
         if (debug_textarea.classList.contains("hide")) debug_textarea.classList.toggle("hide");
         if (!visualization_div.classList.contains("hide")) visualization_div.classList.toggle("hide");
 
-        switch_tab(2);
-        switch_compiler_tab(0);
+        switch_tab(0);
     }
 }
 
@@ -244,10 +228,12 @@ async function compile_button_clicked() {
 
     await compile_and_populate();
 
-    // debug_textarea.value = "";
-
-    switch_tab(2);
-    switch_compiler_tab(0);
+    if (compiler_message === "-- looks good --") {
+        switch_tab(2);
+        switch_compiler_tab(2);
+    } else {
+        switch_tab(0);
+    }
 }
 
 
@@ -281,7 +267,6 @@ function save_state(opt) {
     if (compiler_button.classList.contains("current-tab")) localStorage.setItem("tab", "compiler");
     if (debug_tab_button.classList.contains("current-tab")) localStorage.setItem("tab", "debug");
 
-    if (info_button.classList.contains("current-tab")) localStorage.setItem("compiler", "info");
     if (diff_button.classList.contains("current-tab")) localStorage.setItem("compiler", "diff");
     if (steps_button.classList.contains("current-tab")) localStorage.setItem("compiler", "steps");
 
@@ -307,15 +292,13 @@ function switch_tab(opt) {
     if (compiler_button.classList.contains("current-tab")) {
         compiler_button.classList.toggle("current-tab");
         for (var i = 0; i < code_step_buttons.length; i++) code_step_buttons[i].classList.toggle("hide");
-        info_textarea.classList.toggle("hide");
-        localStorage.setItem("tab", "compiler");
-
+        
         //save current compiler tab
-        if (info_button.classList.contains("current-tab")) localStorage.setItem("compiler", "info");
         if (diff_button.classList.contains("current-tab")) localStorage.setItem("compiler", "diff");
         if (steps_button.classList.contains("current-tab")) localStorage.setItem("compiler", "steps");
         //switch for ease
-        switch_compiler_tab(0);
+        switch_compiler_tab(2);
+        steps_container.classList.toggle("hide");
     }
 
     switch (opt) {
@@ -333,15 +316,16 @@ function switch_tab(opt) {
         case 2: //switch to compiler
             compiler_button.classList.toggle("current-tab");
             for (var i = 0; i < code_step_buttons.length; i++) code_step_buttons[i].classList.toggle("hide");
-            info_textarea.classList.toggle("hide");
+            steps_container.classList.toggle("hide");
             if ("compiler" in localStorage) {
                 let current_tab = localStorage.getItem("compiler");
                 switch (current_tab) {
-                    case "info": switch_compiler_tab(0); break;
                     case "diff": switch_compiler_tab(1); break;
                     case "steps": switch_compiler_tab(2); break;
-                    default: switch_compiler_tab(0);
+                    default: switch_compiler_tab(2);
                 }
+            } else {
+                switch_compiler_tab(2);
             }
             break;
         default:
@@ -353,10 +337,6 @@ function switch_tab(opt) {
 
 function switch_compiler_tab(opt) {
     //unselect previous tab
-    if (info_button.classList.contains("current-tab")) {
-        info_button.classList.toggle("current-tab");
-        info_textarea.classList.toggle("hide");
-    }
     if (steps_button.classList.contains("current-tab")) {
         steps_button.classList.toggle("current-tab");
         document.getElementById("steps-container").classList.toggle("hide");
@@ -368,10 +348,6 @@ function switch_compiler_tab(opt) {
 
     //switch to clicked tab
     switch (opt) {
-        case 0: //switch to info
-            info_button.classList.toggle("current-tab");
-            info_textarea.classList.toggle("hide");
-            break;
         case 1: //switch to diff
             diff_button.classList.toggle("current-tab");
             document.getElementById("diff-container").classList.toggle("hide");
@@ -380,18 +356,17 @@ function switch_compiler_tab(opt) {
             break;
         case 2: //switch to intermediate steps
             steps_button.classList.toggle("current-tab");
-            document.getElementById("steps-container").classList.toggle("hide");
+            steps_container.classList.toggle("hide");
             selected_changed(0);
             break;
         default:
-            info_button.classList.toggle("current-tab");
-            info_textarea.classList.toggle("hide");
+            steps_button.classList.toggle("current-tab");
+            steps_container.classList.toggle("hide");
 
     }
 }
 
 //dropdowns under compiler->diff view and in intermediate
-// function selected_changed(selector, target_textarea) {
 function selected_changed(opt) {
     switch(opt) {
         case 0:
@@ -459,8 +434,8 @@ document.addEventListener("keydown", (event) => {
         event.preventDefault();
 
         //copy editor text to clipboard
-        // navigator.clipboard.writeText(editor.getValue()); 
-        // compile_button_clicked();
+        // navigator.clipboard.writeText(editor.getValue());
+        
         compile_and_populate();
     }
 });
