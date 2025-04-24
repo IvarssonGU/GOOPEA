@@ -36,7 +36,7 @@ editor.setSize("100%", "100%");
 
 //loading and unloading
 document.addEventListener("DOMContentLoaded", () => {
-    output_textarea.value = "";
+    output_textarea.innerHTML = "";
     selected_changed(0);
     selected_changed(1);
     selected_changed(2);
@@ -100,6 +100,9 @@ window.onbeforeunload = function() {
 };
 
 async function compile_and_populate() {
+    //returns true = error free
+    error_free = false;
+
     if (error_highlight != null) error_highlight.clear();
 
     if (document.getElementById("copy-button").classList.contains("hide")) document.getElementById("copy-button").classList.toggle("hide");
@@ -115,10 +118,12 @@ async function compile_and_populate() {
 
         //compilation (get all the steps and assign them to their vars here)
         ccode_value = prog.get_c_code();
-        compiler_message = "-- looks good --";
+        compiler_message = "-- executed without errors --";
         step1_value = "compiled step1 (not implemented yet)";
         step2_value = "compiled step2 (not implemented yet)";
         step3_value = "compiled step3 (not implemented yet)";
+
+        error_free = true;
     } else {
         let err = result.unwrap_err();
 
@@ -128,7 +133,6 @@ async function compile_and_populate() {
         step1_value = "error step1 (not implemented yet)";
         step2_value = "error step2 (not implemented yet)";
         step3_value = "error step3 (not implemented yet)";
-        output_textarea.value = "doesn't compile"
         debug_textarea.value = "doesn't compile";
 
         //get error char, search for string, highlight string (not implemented)
@@ -140,19 +144,18 @@ async function compile_and_populate() {
             error_highlight = editor.markText(from, to, {className: "error-highlight"});
         }
     }
-    
-    //assign to textarea
-    output_textarea.value = compiler_message;
 
-    //populate the compiler selections
+    //populate the compilation selections
     selected_changed(0);
     selected_changed(1);
     selected_changed(2);
+
+    return error_free;
 }
 
 //clear-debug-run button functions
 async function run_button_clicked() {
-    output_textarea.value = "";
+    output_textarea.innerHTML = "";
 
 	const startTime = performance.now();
 
@@ -161,17 +164,18 @@ async function run_button_clicked() {
     let code = editor.getValue();
     localStorage.setItem("code", code);
 
-    await compile_and_populate();
-
-    if (compiler_message === "-- looks good --") {
+    if (await compile_and_populate()) {
         let run_value = "output not implemented" //<-- get output on this line
         let output_value = "";
         if (run_value === "") {
-            output_value = compiler_message
+            output_value = `${compiler_message}`;
         } else {
-            output_value = run_value.concat("\n\n").concat(compiler_message);
+            output_value = 
+`<span style=\"white-space: pre-line;\">${run_value}
+
+<span style=\"color: green;\">${compiler_message}</span></span>`;
         }
-        output_textarea.value = output_value;
+        output_textarea.innerHTML = output_value;
 
         //show only the final debug print
         wasm_bindgen.start_interpreter(code);
@@ -179,12 +183,20 @@ async function run_button_clicked() {
 
         switch_tab(0);
     } else {
+        write_error_message();//`<span style=\"white-space: pre-wrap;\">${compiler_message}</span>`;
+
         switch_tab(0);
     }
 
 	const endTime = performance.now();
 
 	update_runtime(endTime - startTime);
+}
+
+function write_error_message() {
+    output_textarea.innerHTML = `<span style=\"white-space: pre-wrap;\"><span style=\"color: red;\">-- compiled with error(s) --</span>
+    
+${compiler_message}</span>`;
 }
 
 function update_runtime(runtime) {
@@ -195,7 +207,7 @@ function update_runtime(runtime) {
 
 function clear_button_clicked() {
     editor.setValue("");
-    output_textarea.value = "";
+    output_textarea.innerHTML = "";
 }
 
 async function debug_button_clicked() {
@@ -204,9 +216,7 @@ async function debug_button_clicked() {
     let code = editor.getValue();
     localStorage.setItem("code", code);
 
-    await compile_and_populate();
-
-    if (compiler_message === "-- looks good --") {
+    if (await compile_and_populate()) {
         //display starting state
         wasm_bindgen.start_interpreter(code);
         if (!debug_textarea.classList.contains("hide")) debug_textarea.classList.toggle("hide");
@@ -218,6 +228,8 @@ async function debug_button_clicked() {
         if (debug_textarea.classList.contains("hide")) debug_textarea.classList.toggle("hide");
         if (!visualization_div.classList.contains("hide")) visualization_div.classList.toggle("hide");
 
+        write_error_message();
+
         switch_tab(0);
     }
 }
@@ -226,12 +238,12 @@ async function compile_button_clicked() {
     let code = editor.getValue();
     localStorage.setItem("code", code);
 
-    await compile_and_populate();
-
-    if (compiler_message === "-- looks good --") {
+    if (await compile_and_populate()) {
         switch_tab(2);
         switch_compiler_tab(2);
     } else {
+        write_error_message();
+
         switch_tab(0);
     }
 }
