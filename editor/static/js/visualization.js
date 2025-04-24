@@ -43,7 +43,7 @@ d3.selection.prototype.stable_data = d3.transition.prototype.stable_data = funct
 
 const frame_width = 75;
 const frame_height = 20;
-const frame_padding = 4;
+const frame_padding = 2;
 const call_stack_label_height = 10;
 const call_stack_padding = 5;
 
@@ -74,9 +74,6 @@ function field_dy(i) {
     return (show_header ? (label_height + 2 * label_padding) : box_padding)
 }
 
-const data_color = "#f0f0f0";
-const header_color = "#c0c0c0";
-
 // Create the SVG container.
 const svg = d3.create("svg");
 
@@ -105,6 +102,10 @@ function zoomed({transform}) {
 visualization_containter.append(svg.node())
 
 d3.select("#showHeaderCheckbox").on("change", update_visualization);
+
+const entrance_color = window.getComputedStyle(svg.node()).getPropertyValue('--entrance-color');
+const exit_color = window.getComputedStyle(svg.node()).getPropertyValue('--exit-color');
+const update_color = window.getComputedStyle(svg.node()).getPropertyValue('--update-color');
 
 function update_visualization() {
     const mem = wasm_bindgen.take_interpreter_memory_snapshot()
@@ -181,7 +182,7 @@ function update_visualization() {
         currently_shifting = true;
     })
 
-    const node_enter_color_transition = node_enter_transition.transition("color").duration(2000);
+    const node_enter_color_transition = node_enter_transition.transition("color").duration(1000);
 
     const red_percent = 0.6;
     const fade_percent = 1 - 0.4;
@@ -213,7 +214,7 @@ function update_visualization() {
 
             group.append("rect").attr("class", "bounding_box box")
                 .call(transform_bounding_box)
-                .style("fill", "lightgreen")
+                .style("fill", entrance_color)
                 .transition(node_enter_color_transition)
                     .style("fill", null)
                     .duration(2000)
@@ -237,7 +238,7 @@ function update_visualization() {
             exit.selectAll(".bounding_box")
                 .transition(node_exit_transition)
                 .duration(red_time)
-                .style("fill", "red")
+                .style("fill", exit_color)
 
             exit.transition("color")
                 .delay(red_time)
@@ -285,24 +286,11 @@ function update_visualization() {
                             .attr("y", field_height / 2)
                             .call(update_text)
 
-                        group.each(function(data) {
-                            this.__prev_val = data.val;
-                            let label = d3.select(this).append("text").attr("class", "field-name")
-                                .attr("x", field_width / 2)
-                                .attr("y", -label_padding - label_height/2)
-                                .text(data.label)
-                                .style("font-size", label_height + "px");
+                        group.append("text").attr("class", "field-name")
+                            .text(d => d.label)
+                            .call(center_and_size_text, 0, -label_padding - label_height, field_width, label_height)
 
-                            let label_bbox = label.node().getBBox();
-                            let label_scale = Math.min(
-                                field_width / label_bbox.width,
-                                label_height / label_bbox.height
-                            );
-                            
-                            let new_label_font_size = Math.floor(label_height * label_scale);
-                            
-                            label.style("font-size", new_label_font_size + "px");
-                        })
+                        group.each(function(d) { this.__prev_val = d.val })
 
                         return group;
                     },
@@ -316,7 +304,7 @@ function update_visualization() {
                                 d3.select(this).select("text").call(update_text)
 
                                 d3.select(this).select("rect")
-                                    .style("fill", "orange")
+                                    .style("fill", update_color)
                                     .transition("data_edit")
                                         .duration(1000)
                                         .style("fill", null)
@@ -337,16 +325,19 @@ function update_visualization() {
 
     link_selection.join(
         function (enter) {
-            return enter.append("path").attr("class", "link")
-            .attr("d", ({ points }) =>
-                d3.linkVertical()({
-                    source: points[0],
-                    target: points[points.length - 1]
-                })
-            )                
-            .style("opacity", 0)
-            .transition(node_enter_transition)
-                .style("opacity", null)
+            let link = enter.append("path").attr("class", "link")
+                .attr("d", ({ points }) =>
+                    d3.linkVertical()({
+                        source: points[0],
+                        target: points[points.length - 1]
+                    })
+                )    
+                       
+            link.style("opacity", 0)
+                .transition(node_enter_transition)
+                .style("opacity", null);
+
+            return link;
         },
         function (update) {
             update
@@ -363,7 +354,7 @@ function update_visualization() {
             exit
                 .transition(node_exit_transition)
                 .duration(red_time)
-                .style("stroke", "red")
+                .style("stroke", exit_color)
                 .transition()
                 .duration(fade_time)
                 .style("opacity", 0)
@@ -389,10 +380,9 @@ function update_visualization() {
                 .attr("height", frame_height)
 
             group.append("text")
-                .attr("x", frame_width / 2)
-                .attr("y", frame_height / 2)
-                .style("font-size", (frame_height - 2 * frame_padding) + "px")
                 .text(d => d.func)
+                .call(center_and_size_text, frame_padding, frame_padding, frame_width - frame_padding * 2, frame_height - frame_padding * 2)
+                
 
             return group
         },
@@ -430,6 +420,25 @@ function update_visualization() {
     console.log(zoom_scale)
 
     prev_zoom_scale = zoom_scale
+}
+
+function center_and_size_text(selection, x, y, width, height) {
+    selection.each(function(d) {
+        let label = d3.select(this);
+    
+        let label_bbox = label.node().getBBox();
+        let label_scale = Math.min(
+            width / label_bbox.width,
+            height / label_bbox.height
+        );
+    
+        let new_label_font_size = Math.floor(height * label_scale);
+    
+        label
+            .style("font-size", new_label_font_size + "px")
+            .attr("x", x + width / 2)
+            .attr("y", y + height / 2);
+    })
 }
 
 function tweak_endpoints(graph, size) {

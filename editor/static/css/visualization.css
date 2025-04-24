@@ -1,6 +1,9 @@
-.svg {
+#visualization svg {
     height: 72.2vh;
     width: 100%;
+    --entrance-color: hsl(151, 100%, 85%);
+    --exit-color: hsl(0, 100%, 85%);
+    --update-color: hsl(41, 100%, 85%);
 }
 
 #visualization text {
@@ -11,7 +14,8 @@
 
 #visualization .box {
     fill: var(--smallest-color);
-    stroke: gray
+    stroke: gray;
+    stroke-width: 1.8;
 }
 
 .stack-frame text, #call-stack-text {
