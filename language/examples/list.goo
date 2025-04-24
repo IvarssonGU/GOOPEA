@@ -1,6 +1,8 @@
 #ifnot LIST_LIB
 #def LIST_LIB
 
+#include rand.goo
+
 enum List = Nil, Cons(List, Int);
 
 (List, List): List
@@ -53,6 +55,12 @@ rangeListn(start, stop) = match start >= stop {
 rangeList(start, stop) = match start <= stop {
     True: rangeListp(start, stop),
     False: rangeListn(start, stop)
+};
+
+(Int, Int, Int): List
+randList(seed, len, mod) = match len > 0 {
+    True: let a = next seed in Cons(randList(a, len - 1, mod), modulo(a, mod)),
+    False: Nil
 };
 
 #endif LIST_LIB

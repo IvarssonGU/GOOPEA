@@ -1,27 +1,22 @@
 #ifnot RAND_LIB
 #def RAND_LIB
 
-#include list.goo
-
 Int: Int
 next x = x * 1664525 + 1013904223;
 
 (Int, Int): Int
-fastMod(a, b) = match a >= 0 {
-    True: match a > b {
-        True: let b2 = 2 * b in match a >= b2 {
-            True: fastMod(fastMod(a - b2, b2), b),
-            False: fastMod(a - b, b)
-        },
-        False: a
+fastMod(a, b) = match a >= b {
+    True: let b2 = 2 * b in match a >= b2 {
+        True: fastMod(fastMod(a - b2, b2), b),
+        False: fastMod(a - b, b)
     },
-    False: b - fastMod(-a, b)
+    False: a
 };
 
-(Int, Int, Int): List
-randList(seed, len, mod) = match len > 0 {
-    True: let a = next seed in Cons(randList(a, len - 1, mod), fastMod(a, mod)),
-    False: Nil
+(Int, Int): Int
+modulo(a, b) = match a >= 0 {
+    True: fastMod(a, b),
+    False: fastMod(b - fastMod(-a, b), b)
 };
 
 #endif RAND_LIB

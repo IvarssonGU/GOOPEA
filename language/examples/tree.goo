@@ -1,0 +1,36 @@
+#ifnot TREE_LIB
+#def TREE_LIB
+
+#include rand.goo
+#include list.goo
+
+enum BST = Empty, Node(BST, Int, BST);
+
+(BST, Int): BST
+insert(tree, value) = match tree {
+    Empty: Node(Empty, value, Empty),
+    Node(left, x, right): match value == x {
+        True: Node(left, x, right),
+        False: match value < x {
+            True: Node(insert(left, value), x, right),
+            False: Node(left, x, insert(right, value))
+        }
+    }
+};
+
+(BST, List): BST
+insertList(tree, list) = match list {
+    Cons(xs, x): insertList(insert(tree, x), xs),
+    Nil: tree
+};
+
+BST: List
+flatten(tree) = match tree {
+    Empty: Nil,
+    Node(left, x, right): concatList(concatList(flatten(left), Cons(Nil, x)), flatten(right))
+};
+
+List: List
+dumbSort(list) = let tree = insertList(Empty, list) in flatten(tree);
+
+#endif TREE_LIB
