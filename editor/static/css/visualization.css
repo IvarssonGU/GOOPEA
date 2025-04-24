@@ -1,14 +1,10 @@
 #visualization svg {
     height: 72.2vh;
     width: 100%;
-    --entrance-color: hsl(151, 100%, 85%);
-    --exit-color: hsl(0, 100%, 85%);
-    --update-color: hsl(41, 100%, 85%);
 }
 
 #visualization text {
     text-anchor: middle;
-    alignment-baseline: central;
     stroke: var(--text-color);
 }
 

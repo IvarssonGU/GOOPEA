@@ -50,6 +50,7 @@ const call_stack_padding = 5;
 const field_height = 25;
 const field_width = 40;
 const field_padding = 6;
+const interior_field_padding = 4;
 const box_padding = 8;
 const label_height = 14;
 const label_padding = 2;
@@ -104,12 +105,12 @@ visualization_containter.append(svg.node())
 
 d3.select("#showHeaderCheckbox").on("change", update_visualization);
 
-const entrance_color = window.getComputedStyle(svg.node()).getPropertyValue('--entrance-color');
-const exit_color = window.getComputedStyle(svg.node()).getPropertyValue('--exit-color');
-const update_color = window.getComputedStyle(svg.node()).getPropertyValue('--update-color');
-
 function update_visualization() {
     const mem = wasm_bindgen.take_interpreter_memory_snapshot()
+
+    const entrance_color = window.getComputedStyle(svg.node()).getPropertyValue('--entrance-color');
+    const exit_color = window.getComputedStyle(svg.node()).getPropertyValue('--exit-color');
+    const update_color = window.getComputedStyle(svg.node()).getPropertyValue('--update-color');
 
     const new_show_header = d3.select("#showHeaderCheckbox").property("checked");
     const now_showing_headers = new_show_header && !show_header;
@@ -257,6 +258,7 @@ function update_visualization() {
                 return d.val
             }
         })
+        .call(center_and_size_text, interior_field_padding, interior_field_padding, field_width - interior_field_padding * 2, field_height - interior_field_padding * 2)
     }
 
     function transform_field(selection) {
@@ -283,8 +285,6 @@ function update_visualization() {
                             .attr("height", field_height);
 
                         group.append("text")
-                            .attr("x", field_width / 2)
-                            .attr("y", field_height / 2)
                             .call(update_text)
 
                         group.append("text").attr("class", "field-name")
@@ -426,6 +426,8 @@ function update_visualization() {
 function center_and_size_text(selection, x, y, width, height) {
     selection.each(function(d) {
         let label = d3.select(this);
+
+        if(label.text().length == 0) return;
     
         let label_bbox = label.node().getBBox();
         let label_scale = Math.min(
@@ -438,7 +440,7 @@ function center_and_size_text(selection, x, y, width, height) {
         label
             .style("font-size", new_label_font_size + "px")
             .attr("x", x + width / 2)
-            .attr("y", y + height / 2);
+            .attr("y", y + height / 2 + new_label_font_size / 3.5);
     })
 }
 

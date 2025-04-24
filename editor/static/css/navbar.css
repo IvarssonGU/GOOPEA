@@ -11,6 +11,11 @@
     --error: #ffd2d2;
     --text-selected: #efe7ff;
     --error-selected: #ffe7f3;
+
+    /*Visualization*/
+    --entrance-color: hsl(151, 100%, 85%);
+    --exit-color: hsl(0, 100%, 85%);
+    --update-color: hsl(41, 100%, 85%);
 }
 /* dark theme colors */
 [theme="dark"] {
@@ -25,6 +30,11 @@
     --error: #640000;
     --text-selected: #5a002a;
     --error-selected: #5b002e;
+
+    /*Visualization*/
+    --entrance-color: hsl(151, 100%, 11%);
+    --exit-color: hsl(0, 100%, 11%);
+    --update-color: hsl(41, 100%, 11%);
 }
 
 .nav {
