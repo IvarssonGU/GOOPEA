@@ -144,7 +144,7 @@ textarea {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
 }
-#info-tab {
+#diff-tab {
     margin-left: 3px;
 }
 
@@ -166,9 +166,10 @@ textarea {
 .small-label {
     font-size: 12px;
     font-weight: bold;
+    margin-left: -6px;
 }
 
-#step-select {
+select {
     margin-top: 2px;
 }
 

@@ -75,7 +75,8 @@ function field_dy(i) {
 }
 
 // Create the SVG container.
-const svg = d3.create("svg");
+const svg = d3.create("svg")
+    .attr("class", "svg");
 
 const zoom = d3.zoom().on("zoom", zoomed);
 svg.call(zoom);
