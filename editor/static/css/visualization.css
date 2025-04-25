@@ -22,9 +22,15 @@
     stroke-width: 1.6;
 }
 
-.field rect {
-    rx: 3;
-    ry: 3;
+.field, .var {
+    rect {
+        rx: 3;
+        ry: 3;
+    }
+
+    .field-name {
+        stroke-width: 0.3;
+    }
 }
 
 .header-field rect {
@@ -32,8 +38,7 @@
     fill: var(--medium-color) !important;
 }
 
-.field .field-name {
-    stroke-width: 0.6;
+.header-field text {
     font-style: italic;
 }
 

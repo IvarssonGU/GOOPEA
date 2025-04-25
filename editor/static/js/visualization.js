@@ -1,4 +1,4 @@
-let visualization_containter = document.getElementById("visualization");
+let visualization_container = document.getElementById("visualization");
 
 /*
 === How I want transitions to function ===
@@ -60,11 +60,13 @@ const zoom_padding = 50;
 let show_header = true;
 
 function node_width(node) {
-    return 2 * box_padding + field_width * node.data.fields.length + field_padding * (node.data.fields.length - 1);
+    if(!node.data.is_var) return 2 * box_padding + field_width * node.data.fields.length + field_padding * (node.data.fields.length - 1);
+    else return field_width;
 }
 
 function node_height(node) {
-    return field_height + box_padding + (show_header ? (label_height + 2 * label_padding) : box_padding)
+    if(!node.data.is_var) return field_height + box_padding + (show_header ? (label_height + 2 * label_padding) : box_padding)
+    else return field_height + (node.data.label.length > 0 ? label_height + label_padding : 0);
 }
 
 function field_dx(i) {
@@ -73,6 +75,14 @@ function field_dx(i) {
 
 function field_dy(i) {
     return (show_header ? (label_height + 2 * label_padding) : box_padding)
+}
+
+function var_dx(d) {
+    return -node_width(d) / 2
+}
+
+function var_dy(d) {
+    return (d.data.label.length > 0 ? label_height + label_padding : 0) - node_height(d) / 2
 }
 
 // Create the SVG container.
@@ -101,7 +111,7 @@ function zoomed({transform}) {
     zoom_layer.attr("transform", transform);
 }
 
-visualization_containter.append(svg.node())
+visualization_container.append(svg.node())
 
 d3.select("#showHeaderCheckbox").on("change", update_visualization);
 
@@ -119,7 +129,7 @@ function update_visualization() {
 
     const graph = d3.graph()
 
-    let graph_nodes = mem.heap.map((fields, i) => {
+    let mem_nodes = mem.heap.map((fields, i) => {
         let modified_fields = fields.map((field, i) => {
             let label = "";
 
@@ -128,14 +138,13 @@ function update_visualization() {
             else if (i == 2) label = "Refs";
 
             field.label = label;
-            field.index = i;
         
-            return field
+            return { data: field, index: i }
         })
 
         if(!show_header) modified_fields.splice(0, 3)
 
-        return { fields: modified_fields, id: i }
+        return { fields: modified_fields, id: i, is_var: false }
     }).reduce((map, d) => {
         if(d.fields.length > 0) {
             map.set(d.id, graph.node(d))
@@ -143,11 +152,24 @@ function update_visualization() {
 
         return map;
     }, new Map());
+
+    let var_nodes = [...mem.variables.entries().map(([label, data]) => {
+        data.label = label;
+        data.is_var = true;
+        return graph.node(data)
+    })];
+
+    for(const node of var_nodes) {
+        if(node.data.is_ptr) {
+            let target = mem_nodes.get(node.data.val);
+            graph.link(node, target, { id: node.data.label })
+        }
+    }
     
-    for(const node of graph_nodes.values()) {
-        for(const [i, field] of node.data.fields.entries()) {
-            if(field.is_ptr) {
-                let target = graph_nodes.get(field.val);
+    for(const node of mem_nodes.values()) {
+        for(const [i, d] of node.data.fields.entries()) {
+            if(d.data.is_ptr) {
+                let target = mem_nodes.get(d.data.val);
                 graph.link(node, target, { field_index: i, id: `${node.data.id}#${i + (show_header ? 0 : 3)}` })
             }
         }
@@ -161,15 +183,21 @@ function update_visualization() {
     const padded_graph_height = graph_height + zoom_padding;
     const padded_graph_width = graph_width + zoom_padding;
 
-    const node_selection = zoom_layer.selectAll(".node")
-        .stable_data(graph.nodes(), d => d.data.id);
+    const mem_selection = zoom_layer.selectAll(".node")
+        .stable_data(mem_nodes.values(), d => d.data.id);
+
+    const var_selection = zoom_layer.selectAll(".var")
+        .stable_data(var_nodes, d => d.data.label);
 
     const link_selection = zoom_layer.selectAll(".link")
         .stable_data(graph.links(), d => d.data.id)
 
-    const exit_time = node_selection.exit().size() == 0 && link_selection.exit().size() == 0 && !now_hiding_headers ? 0 : 500;
+    let nothing_exiting = mem_selection.exit().size() == 0 && link_selection.exit().size() == 0 && var_selection.exit().size() == 0 && !now_hiding_headers;
+    let nothing_entering = mem_selection.enter().size() == 0 && link_selection.enter().size() == 0 && var_selection.enter().size() == 0 && !now_showing_headers;
+
+    const exit_time = nothing_exiting ? 0 : 500;
     const shift_time = 500;
-    const enter_time = node_selection.enter().size() == 0 && link_selection.enter().size() == 0 && !now_showing_headers ? 0 : 500;
+    const enter_time = nothing_entering ? 0 : 500;
 
     const node_exit_transition = d3.transition("node").duration(exit_time)
     const node_shift_transition = d3.transition("shift").delay(exit_time).duration(shift_time).ease(d3.easeCubicInOut);
@@ -192,6 +220,20 @@ function update_visualization() {
     const red_time = red_percent * node_exit_transition.duration();
     const fade_time = fade_percent * node_exit_transition.duration();
 
+    function fade_in(selection) {
+        selection
+            .style("opacity", 0)
+            .transition(node_enter_transition)
+                .style("opacity", null)
+    }
+
+    function green_in(selection) {
+        selection.style("fill", entrance_color)
+            .transition(node_enter_color_transition)
+                .style("fill", null)
+                .duration(2000)
+    }
+
     function transform_node(selection) {
         selection
         .attr("transform", d => `translate(${d.x - node_width(d) / 2},${d.y - node_height(d) / 2})`)
@@ -203,23 +245,17 @@ function update_visualization() {
             .attr("height", d => node_height(d))
     }
     
-    node_selection.join(
+    mem_selection.join(
         function(enter) {
             let group = enter.append("g").attr("class", "node")
                 .call(transform_node)
                 .attr("height", field_height)
             
-            group
-                .style("opacity", 0)
-                .transition(node_enter_transition)
-                    .style("opacity", null)
+            group.call(fade_in)
 
             group.append("rect").attr("class", "bounding_box box")
                 .call(transform_bounding_box)
-                .style("fill", entrance_color)
-                .transition(node_enter_color_transition)
-                    .style("fill", null)
-                    .duration(2000)
+                .call(green_in)
 
             return group;
         },
@@ -250,19 +286,72 @@ function update_visualization() {
         }
     );
 
-    function update_text(selection) {
-        selection.text(d => {
-            if(d.is_ptr) {
+    function join_field(selection, position_func, class_func, enter_func, exit_func) {
+        function get_text(d) {
+            if(d.data.is_ptr) {
                 return ""
             } else {
-                return d.val
+                return d.data.val
             }
-        })
-        .call(center_and_size_text, interior_field_padding, interior_field_padding, field_width - interior_field_padding * 2, field_height - interior_field_padding * 2)
-    }
+        }
 
-    function transform_field(selection) {
-        selection.attr("transform", (_,i) => `translate(${field_dx(i)},${field_dy(i)})`)
+        function update_text(selection) {
+            selection.text(get_text)
+            .call(center_and_size_text, interior_field_padding, interior_field_padding, field_width - interior_field_padding * 2, field_height - interior_field_padding * 2)
+        }
+    
+        function transform_field(selection) {
+            selection.attr("transform", function(d,i) {
+                let pos = position_func(d, i);
+                return `translate(${pos[0]},${pos[1]})`;
+            })
+        }
+    
+        selection.join(
+            function(enter) { 
+                let group = enter.append("g").attr("class", d => class_func(d))
+                    .call(transform_field)
+    
+                group.call(fade_in)
+    
+                group.append("rect").attr("class", "box")
+                    .attr("width", field_width)
+                    .attr("height", field_height);
+    
+                group.append("text")
+                    .call(update_text)
+    
+                group.append("text").attr("class", "field-name")
+                    .text(d => d.data.label)
+                    .call(center_and_size_text, 0, -label_padding - label_height, field_width, label_height)
+
+                group.call(enter_func)
+    
+                return group;
+            },
+            function(update) {
+                update
+                    .transition(node_shift_transition)
+                    .call(transform_field)
+    
+                update.each(function(d, i ) {
+                    let text_obj = d3.select(this).select("text");
+
+                    if(text_obj.text() != get_text(d)) {
+                        text_obj.call(update_text)
+    
+                        d3.select(this).select("rect")
+                            .style("fill", update_color)
+                            .transition("data_edit")
+                                .duration(1000)
+                                .style("fill", null)
+                    }
+                })
+            },
+            function(exit) {
+                exit.call(exit_func)
+            }
+        )
     }
 
     zoom_layer.selectAll(".node")
@@ -270,59 +359,35 @@ function update_visualization() {
             d3.select(this)
                 .selectAll(".field")
                 .stable_data(p.data.fields, d => d.index)
-                .join(
-                    function(enter) { 
-                        let group = enter.append("g").attr("class", d => "field" + (d.index < 3 ? " header-field" : ""))
-                            .call(transform_field)
-
-                        group
-                            .style("opacity", 0)
-                            .transition(node_enter_transition)
-                            .style("opacity", null)
-
-                        group.append("rect").attr("class", "box")
-                            .attr("width", field_width)
-                            .attr("height", field_height);
-
-                        group.append("text")
-                            .call(update_text)
-
-                        group.append("text").attr("class", "field-name")
-                            .text(d => d.label)
-                            .call(center_and_size_text, 0, -label_padding - label_height, field_width, label_height)
-
-                        group.each(function(d) { this.__prev_val = d.val })
-
-                        return group;
-                    },
-                    function(update) {
-                        update
-                            .transition(node_shift_transition)
-                            .call(transform_field)
-
-                        update.each(function(data, i ) {
-                            if(this.__prev_val != data.val) {
-                                d3.select(this).select("text").call(update_text)
-
-                                d3.select(this).select("rect")
-                                    .style("fill", update_color)
-                                    .transition("data_edit")
-                                        .duration(1000)
-                                        .style("fill", null)
-
-                                this.__prev_val = data.val
-                            }
-                        })
-                    },
-                    function(exit) {
+                .call(join_field, (_, i) => [field_dx(i), field_dy(i)], d => "field" + (d.index < 3 ? " header-field" : ""), _ => {}, 
+                    exit => {
                         exit
                             .transition(node_exit_transition)
                             .style("opacity", 0)
                             .remove()
                     }
-                )
-        })
-    
+                );
+        });
+        
+    var_selection
+        .call(
+            join_field, 
+            (d, _) => [d.x + var_dx(d), d.y + var_dy(d)], 
+            _ => "var", 
+            s => s.select(".box").call(green_in),
+            exit => {
+                exit.selectAll(".box")
+                    .transition(node_exit_transition)
+                    .duration(red_time)
+                    .style("fill", exit_color)
+
+                exit.transition("color")
+                    .delay(red_time)
+                    .duration(fade_time)
+                    .style("opacity", 0)
+                    .remove()
+            }
+        )
 
     link_selection.join(
         function (enter) {
@@ -334,9 +399,7 @@ function update_visualization() {
                     })
                 )    
                        
-            link.style("opacity", 0)
-                .transition(node_enter_transition)
-                .style("opacity", null);
+            link.call(fade_in)
 
             return link;
         },
@@ -418,7 +481,6 @@ function update_visualization() {
 
     zoom.translateExtent([[-zoom_padding, -zoom_padding], [padded_graph_width, padded_graph_height]])
     zoom.scaleExtent([zoom_scale, 10])
-    console.log(zoom_scale)
 
     prev_zoom_scale = zoom_scale
 }
@@ -447,11 +509,15 @@ function center_and_size_text(selection, x, y, width, height) {
 function tweak_endpoints(graph, size) {
     for(let link of graph.links()) {
         let [sx, sy] = link.points[0]
-        sx -= node_width(link.source) / 2
-        sx += field_dx(link.data.field_index) + field_width / 2
+        if(link.source.data.is_var) {
+            sy += var_dy(link.source) + field_height;
+        } else {
+            sx -= node_width(link.source) / 2
+            sx += field_dx(link.data.field_index) + field_width / 2
 
-        sy -= node_height(link.source) / 2
-        sy += field_dy(link.data.field_index) + field_height
+            sy -= node_height(link.source) / 2
+            sy += field_dy(link.data.field_index) + field_height
+        }
         link.points[0] = [sx, sy]
 
         let [tx, ty] = link.points[link.points.length - 1]
