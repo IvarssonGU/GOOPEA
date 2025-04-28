@@ -1,4 +1,4 @@
-use std::{collections::{BTreeMap, HashMap, HashSet}, fmt::Display, iter::once, ops::{Bound, Range}};
+use std::{collections::{BTreeMap, HashSet}, fmt::Display, iter::once, ops::{Bound, Range}};
 
 use crate::{error::{Error, ErrorReason, Result}, grammar, lexer::Lexer};
 
@@ -41,10 +41,10 @@ impl<'i> BaseSliceProgram<'i> {
             Definition::ADT("Bool".to_string(), vec![("False".to_string(), UTuple::empty()), ("True".to_string(), UTuple::empty())])
         ];
 
-        let mut adts = HashMap::new();
-        let mut all_constructors = HashMap::new();
-        let mut function_datas = HashMap::new();
-        let mut function_bodies = HashMap::new();
+        let mut adts = BTreeMap::new();
+        let mut all_constructors = BTreeMap::new();
+        let mut function_datas = BTreeMap::new();
+        let mut function_bodies = BTreeMap::new();
         for def in program.into_iter().chain(builtin_defs.into_iter()) {
             match def {
                 Definition::ADT(aid, constructors) => {
