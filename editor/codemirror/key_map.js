@@ -71,4 +71,10 @@ var key_binds = {
     "Ctrl-/": function(cm) { //toggle line comment
         cm.toggleComment();
     },
+    "Ctrl-Space": function(cm) {
+        autocomplete_hints(cm);
+    },
+    // "Ctrl-Space": function(cm) {
+    //     cm.autocomplete();
+    // },
 };
