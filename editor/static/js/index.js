@@ -32,19 +32,14 @@ var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
 });
 
 editor.setSize("100%", "100%");
-// editor.setOption("hintOptions", {hint: autocomplete_hints(editor)});
-editor.on('keyup', function (event) {
-    if (event.ctrlKey && event.key === 'Space') {
-        autocomplete_hints();
-    }
-})
+// editor.on('keyup', function () {
+//     autocomplete_hints(editor);
+// })
 
 function autocomplete_hints(cm) {
     let replaced_with_space = editor.getValue().replace(/(\s|[^A-Za-z_\d*]|(?<![A-Za-z_])\d+(?![A-Za-z_]))+/g, ' ');
     replaced_with_space = replaced_with_space.concat(" match let in fip enum Int"); //keywords
-    console.log(replaced_with_space);
     let completion_values = [...new Set(replaced_with_space.split(' '))];
-    console.log(completion_values);
 
     CodeMirror.showHint(cm, function () {
         var cursor = editor.getCursor(), line = editor.getLine(cursor.line)
@@ -55,21 +50,16 @@ function autocomplete_hints(cm) {
         let hints = [];
         for (var i = 0; i < completion_values.length; i++) {
             if (completion_values[i].includes(word) && completion_values[i].indexOf(word) === 0) {
-                console.log(completion_values[i])
                 if (completion_values[i] === word) {
                     completion_values.splice(i, 1);
-                    console.log(completion_values)
                 } else {
                     hints.push(completion_values[i])
-                    console.log(hints)
                 }
             }
         }
-        console.log(word);
-        console.log(hints);
         return {list: hints.length ? hints : completion_values,
-            from: CodeMirror.Pos(cursor.line, start),
-            to: CodeMirror.Pos(cursor.line, end)};
+                from: CodeMirror.Pos(cursor.line, start),
+                to: CodeMirror.Pos(cursor.line, end)};
     }, {completeSingle: true});
 }
 
@@ -117,6 +107,8 @@ document.addEventListener("DOMContentLoaded", () => {
             document.documentElement.setAttribute("theme", "default");
         }
     }
+
+    continuous_compilation();
 });
 
 window.onbeforeunload = function() {
@@ -137,6 +129,16 @@ window.onbeforeunload = function() {
         localStorage.setItem("theme", "default");
     }
 };
+
+async function continuous_compilation() {
+    if (await compile_and_populate()) {
+        write_compilation_message();
+    } else {
+        write_error_message();
+    }
+
+    setTimeout(continuous_compilation, 1000);
+}
 
 async function compile_and_populate() {
     // autocomplete_hints();
@@ -233,8 +235,11 @@ async function run_button_clicked() {
 	update_runtime(endTime - startTime);
 }
 
+function write_compilation_message() {
+    output_textarea.innerHTML = `<span style=\"white-space: pre-wrap;\"><span style=\"color: green;\">-- compiled without error --</span></span>`;
+}
 function write_error_message() {
-    output_textarea.innerHTML = `<span style=\"white-space: pre-wrap;\"><span style=\"color: red;\">-- compiled with error(s) --</span>
+    output_textarea.innerHTML = `<span style=\"white-space: pre-wrap;\"><span style=\"color: red;\">-- compiled with error --</span>
     
 ${compiler_message}</span>`;
 }
@@ -257,6 +262,7 @@ async function debug_button_clicked() {
     localStorage.setItem("code", code);
 
     if (await compile_and_populate()) {
+        write_compilation_message();
         //display starting state
         wasm_bindgen.start_interpreter(code);
         if (!debug_textarea.classList.contains("hide")) debug_textarea.classList.toggle("hide");
@@ -279,6 +285,7 @@ async function compile_button_clicked() {
     localStorage.setItem("code", code);
 
     if (await compile_and_populate()) {
+        write_compilation_message();
         switch_tab(2);
         switch_compiler_tab(2);
     } else {
