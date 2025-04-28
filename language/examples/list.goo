@@ -1,0 +1,66 @@
+#ifnot LIST_LIB
+#def LIST_LIB
+
+#include rand.goo
+
+enum List = Nil, Cons(List, Int);
+
+(List, List): List
+reverseHelper(list, acc) =
+    match list {
+        Nil: acc,
+        Cons(xs, x): reverseHelper(xs, Cons(acc, x))
+    };
+
+List: List
+reverseList list = reverseHelper(list, Nil);
+
+List: Int
+sumList list = match list {
+    Nil: 0,
+    Cons(xs, x): x + sumList xs
+};
+
+List: Int
+lenList list = match list {
+    Nil: 0,
+    Cons(xs, x): 1 + lenList xs
+};
+
+(List, Int): List
+appendList(list, a) = match list {
+    Nil: Cons(Nil, a),
+    Cons(xs, x): Cons(appendList(xs, a), x)
+};
+
+(List, List): List
+concatList(list1, list2) = match list1 {
+    Nil: list2,
+    Cons(xs, x): Cons(concatList(xs, list2), x)
+};
+
+(Int, Int): List
+rangeListp(start, stop) = match start <= stop {
+    True: Cons(rangeListp((start + 1), stop), start),
+    False: Nil
+};
+
+(Int, Int): List
+rangeListn(start, stop) = match start >= stop {
+    True: Cons(rangeListn((start - 1), stop), start),
+    False: Nil
+};
+
+(Int, Int): List
+rangeList(start, stop) = match start <= stop {
+    True: rangeListp(start, stop),
+    False: rangeListn(start, stop)
+};
+
+(Int, Int, Int): List
+randList(seed, len, mod) = match len > 0 {
+    True: let a = next seed in Cons(randList(a, len - 1, mod), modulo(a, mod)),
+    False: Nil
+};
+
+#endif LIST_LIB

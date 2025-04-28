@@ -8,6 +8,7 @@ pub mod error;
 pub mod interpreter;
 mod lexer;
 mod score;
+mod preprocessor;
 pub mod stir;
 
 lalrpop_mod!(pub grammar);

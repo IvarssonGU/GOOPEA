@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::{Display, Formatter}, iter, ops::{Deref, Range}};
+use std::{collections::BTreeMap, fmt::{Display, Formatter}, iter, ops::{Deref, Range}};
 
 use super::{base::SourceReference, scoped::Scope, typed::ExpressionType};
 use crate::error::Result;
@@ -18,16 +18,16 @@ pub struct UTuple<T>(pub Vec<T>);
 
 #[derive(Debug)]
 pub struct Program<D, E> {
-    pub adts: HashMap<AID, Vec<FID>>,
-    pub constructors: HashMap<FID, Constructor>,
-    pub function_datas: HashMap<FID, FunctionData>,
-    pub function_bodies: HashMap<FID, ExpressionNode<D, E>>
+    pub adts: BTreeMap<AID, Vec<FID>>,
+    pub constructors: BTreeMap<FID, Constructor>,
+    pub function_datas: BTreeMap<FID, FunctionData>,
+    pub function_bodies: BTreeMap<FID, ExpressionNode<D, E>>
 }
 
 pub struct ProgramData {
-    pub adts: HashMap<AID, Vec<FID>>,
-    pub constructors: HashMap<FID, Constructor>,
-    pub function_datas: HashMap<FID, FunctionData>,
+    pub adts: BTreeMap<AID, Vec<FID>>,
+    pub constructors: BTreeMap<FID, Constructor>,
+    pub function_datas: BTreeMap<FID, FunctionData>,
 }
 
 #[derive(Debug, Clone)]
@@ -153,7 +153,7 @@ impl<D, E> Program<D, E> {
         }
     }
 
-    pub fn split_data_and_bodies(self) -> (ProgramData, HashMap<FID, ExpressionNode<D, E>>) {
+    pub fn split_data_and_bodies(self) -> (ProgramData, BTreeMap<FID, ExpressionNode<D, E>>) {
         (
             ProgramData { adts: self.adts, constructors: self.constructors, function_datas: self.function_datas },
             self.function_bodies
