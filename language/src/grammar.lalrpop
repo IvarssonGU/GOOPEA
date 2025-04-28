@@ -26,6 +26,7 @@ extern {
         "let" => Token::Let,
         "in" => Token::In,
         "+-" => Token::PlusMinus(<String>),
+        "%" => Token::Modulo,
         "*/" => Token::MultiplyDivide(<String>),
         "cmp" => Token::Comparator(<String>),
         ";" => Token::EOL
@@ -129,6 +130,9 @@ Expression: BaseRangeNode = {
 
     #[precedence(level="4")] #[assoc(side="left")]
     <l: @L> <e1: Expression> <op: "+-"> <e2: Expression> <r: @R> => BaseRangeNode::operation(op.as_str().try_into().unwrap(), e1, e2, l..r),
+
+    #[precedence(level="4")] #[assoc(side="left")]
+    <l: @L> <e1: Expression> <op: "%"> <e2: Expression> <r: @R> => BaseRangeNode::operation(Operator::Mod, e1, e2, l..r),
 
     #[precedence(level="5")] #[assoc(side="left")]
     <l: @L> <e1: Expression> <op: "cmp"> <e2: Expression> <r: @R> => BaseRangeNode::operation(op.as_str().try_into().unwrap(), e1, e2, l..r),

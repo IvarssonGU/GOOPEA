@@ -79,6 +79,8 @@ pub enum Token {
     PlusMinus(String),
     #[regex("[*/]", |lex| lex.slice().to_string())]
     MultiplyDivide(String),
+    #[token("%")]
+    Modulo,
     #[regex("<|>|<=|>=|==|!=", |lex| lex.slice().to_string())]
     Comparator(String),
 
