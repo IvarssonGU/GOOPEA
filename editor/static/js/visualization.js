@@ -81,8 +81,16 @@ function var_dx(d) {
     return -node_width(d) / 2
 }
 
-function var_dy(d) {
-    return (d.data.label.length > 0 ? label_height + label_padding : 0) - node_height(d) / 2
+function var_dy(node) {
+    return (node.data.label.length > 0 ? label_height + label_padding : 0) - node_height(node) / 2
+}
+
+function out_port_dx(i, node) {
+    return field_dx(i) + field_width / 2;
+}
+
+function out_port_dy(i, node) {
+    return field_dy(i) + field_height;
 }
 
 // Create the SVG container.
@@ -115,7 +123,24 @@ visualization_container.append(svg.node())
 
 d3.select("#showHeaderCheckbox").on("change", update_visualization);
 
-function update_visualization() {
+const elk = new ELK({
+    defaultLayoutOptions: {
+      'elk.algorithm': 'layered',
+      // keep layering direction consistent
+      'elk.direction': 'DOWN',
+      // spacing
+      'elk.layered.spacing.nodeNodeBetweenLayers': '50',
+      'elk.layered.spacing.nodeNode': '20',
+      'org.eclipse.elk.layered.cycleBreaking.strategy': 'INTERACTIVE',
+      'org.eclipse.elk.layered.layering.strategy': 'INTERACTIVE',
+      'org.eclipse.elk.layered.crossingMinimization.strategy': 'INTERACTIVE',
+      //'org.eclipse.elk.layered.nodePlacement.strategy': "INTERACTIVE"
+    }
+});
+
+let prev_elk_node_positions = {}
+
+async function update_visualization() {
     const mem = wasm_bindgen.take_interpreter_memory_snapshot()
 
     const entrance_color = window.getComputedStyle(svg.node()).getPropertyValue('--entrance-color');
@@ -127,7 +152,81 @@ function update_visualization() {
     const now_hiding_headers = !new_show_header && show_header;
     show_header = new_show_header
 
-    const graph = d3.graph()
+    let elk_graph = {
+        id: 'root',
+        layoutOptions: { 'elk.algorithm': 'layered' },
+        children: []
+    };
+
+    let elk_links = [];
+    let elk_mem_nodes = [];
+    for(let [i, fields] of mem.heap.entries()) {
+        fields = fields.map((field, i) => {
+            let label = "";
+
+            if(i == 0) label = "Tag";
+            else if (i == 1) label = "Size";
+            else if (i == 2) label = "Refs";
+
+            field.label = label;
+        
+            return { data: field, index: i }
+        })
+
+        if(!show_header) fields.splice(0, 3);
+
+        let node_id = i.toString();
+        let node = {
+            id: node_id,
+            data: { fields: fields, is_var: false }
+        };
+
+        if(prev_elk_node_positions[node_id] != undefined) {
+            let { x, y } = prev_elk_node_positions[node_id];
+            node.x = x;
+            node.y = y;
+        }
+
+        node.width = node_width(node);
+        node.height = node_height(node);
+
+        node.ports = [];
+        node.edges = [];
+        for(let j = 0; j < fields.length; j++) {
+            let port_id = `${node_id}[${j}]`;
+
+            node.ports.push({
+                id: port_id,
+                x: out_port_dx(j, node),
+                y: out_port_dy(j, node),
+                width: 10,
+                height: 10
+            });
+
+            if(fields[j].data.is_ptr) {
+                let edge = {
+                    id: `${port_id}-${fields[j].data.val}`,
+                    sources: [port_id],
+                    targets: [elk_mem_nodes[fields[j].data.val].id]
+                };
+
+                node.edges.push(edge);
+                elk_links.push(edge)
+            }
+        }
+
+        elk_graph.children.push(node);
+        elk_mem_nodes.push(node);
+    }
+
+    elk_graph = await elk.layout(elk_graph)
+
+    prev_elk_node_positions = {};
+    for(const node of elk_graph.children) {
+        prev_elk_node_positions[node.id] = { x: node.x, y: node.y };
+    }
+
+    /*const graph = d3.graph()
 
     let mem_nodes = mem.heap.map((fields, i) => {
         let modified_fields = fields.map((field, i) => {
@@ -178,19 +277,22 @@ function update_visualization() {
     const { width: graph_width, height: graph_height } = d3.sugiyama()
         .nodeSize(d => [node_width(d), node_height(d)])
         .gap([20, 50])
-        .tweaks([/*d3.tweakFlip("diagonal"), */tweak_endpoints])(graph)
+        .tweaks([tweak_endpoints])(graph)*/
 
-    const padded_graph_height = graph_height + zoom_padding;
+    const graph_width = elk_graph.width;
+    const graph_height = elk_graph.height;
+
     const padded_graph_width = graph_width + zoom_padding;
+    const padded_graph_height = graph_height + zoom_padding;
 
     const mem_selection = zoom_layer.selectAll(".node")
-        .stable_data(mem_nodes.values(), d => d.data.id);
+        .stable_data(elk_mem_nodes, d => d.id);
 
     const var_selection = zoom_layer.selectAll(".var")
-        .stable_data(var_nodes, d => d.data.label);
+        .stable_data([], d => d.data.label);
 
     const link_selection = zoom_layer.selectAll(".link")
-        .stable_data(graph.links(), d => d.data.id)
+        .stable_data(elk_links, d => d.id)
 
     let nothing_exiting = mem_selection.exit().size() == 0 && link_selection.exit().size() == 0 && var_selection.exit().size() == 0 && !now_hiding_headers;
     let nothing_entering = mem_selection.enter().size() == 0 && link_selection.enter().size() == 0 && var_selection.enter().size() == 0 && !now_showing_headers;
@@ -235,8 +337,7 @@ function update_visualization() {
     }
 
     function transform_node(selection) {
-        selection
-        .attr("transform", d => `translate(${d.x - node_width(d) / 2},${d.y - node_height(d) / 2})`)
+        selection.attr("transform", d => `translate(${d.x},${d.y})`)
     }
 
     function transform_bounding_box(selection) {
@@ -392,10 +493,10 @@ function update_visualization() {
     link_selection.join(
         function (enter) {
             let link = enter.append("path").attr("class", "link")
-                .attr("d", ({ points }) =>
+                .attr("d", link => 
                     d3.linkVertical()({
-                        source: points[0],
-                        target: points[points.length - 1]
+                        source: [link.sections[0].startPoint.x, link.sections[0].startPoint.y] ,
+                        target: [link.sections[0].endPoint.x, link.sections[0].endPoint.y]
                     })
                 )    
                        
@@ -406,10 +507,10 @@ function update_visualization() {
         function (update) {
             update
                 .transition(node_shift_transition)
-                .attr("d", ({ points }) =>
+                .attr("d", link =>
                     d3.linkVertical()({
-                        source: points[0],
-                        target: points[points.length - 1]
+                        source: [link.sections[0].startPoint.x, link.sections[0].startPoint.y] ,
+                        target: [link.sections[0].endPoint.x, link.sections[0].endPoint.y]
                     })
                 )
                 
@@ -504,26 +605,4 @@ function center_and_size_text(selection, x, y, width, height) {
             .attr("x", x + width / 2)
             .attr("y", y + height / 2 + new_label_font_size / 3.5);
     })
-}
-
-function tweak_endpoints(graph, size) {
-    for(let link of graph.links()) {
-        let [sx, sy] = link.points[0]
-        if(link.source.data.is_var) {
-            sy += var_dy(link.source) + field_height;
-        } else {
-            sx -= node_width(link.source) / 2
-            sx += field_dx(link.data.field_index) + field_width / 2
-
-            sy -= node_height(link.source) / 2
-            sy += field_dy(link.data.field_index) + field_height
-        }
-        link.points[0] = [sx, sy]
-
-        let [tx, ty] = link.points[link.points.length - 1]
-        ty -= node_height(link.target) / 2
-        link.points[link.points.length - 1] = [tx, ty]
-    }
-
-    return size
 }
