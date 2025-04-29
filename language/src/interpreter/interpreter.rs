@@ -5,9 +5,9 @@ use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
 use crate::core::{Def, Operand, Prog, Statement};
+use crate::preprocessor::preprocess;
 use crate::score;
 use crate::stir::{self, Operator};
-use crate::preprocessor::preprocess;
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
@@ -115,7 +115,7 @@ impl Interpreter {
 
     pub fn from_program(program: &Prog) -> Self {
         let mut interpreter = Interpreter::new();
-        for def in program.clone() {
+        for def in program.0.clone() {
             interpreter = interpreter.with_fn(IDef::from_def(&def));
         }
         interpreter = interpreter.with_entry_point("main");

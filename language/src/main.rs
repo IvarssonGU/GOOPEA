@@ -39,7 +39,7 @@ use preprocessor::preprocess;
 fn main() {
     use core::Def;
 
-    let code = fs::read_to_string(Path::new("examples/BST.goo")).unwrap();
+    let code = fs::read_to_string(Path::new("examples/utuple-test.goo")).unwrap();
     //let code = "(): ()\nmain = ()".to_string();
 
     let typed_program = parse_and_validate(&code)
