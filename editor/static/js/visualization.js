@@ -131,10 +131,9 @@ const elk = new ELK({
       // spacing
       'elk.layered.spacing.nodeNodeBetweenLayers': '50',
       'elk.layered.spacing.nodeNode': '20',
-      'org.eclipse.elk.layered.cycleBreaking.strategy': 'INTERACTIVE',
-      'org.eclipse.elk.layered.layering.strategy': 'INTERACTIVE',
-      'org.eclipse.elk.layered.crossingMinimization.strategy': 'INTERACTIVE',
-      //'org.eclipse.elk.layered.nodePlacement.strategy': "INTERACTIVE"
+      //'org.eclipse.elk.layered.layering.strategy': 'INTERACTIVE',
+      //'org.eclipse.elk.layered.nodePlacement.strategy': "INTERACTIVE",
+      "org.eclipse.elk.portConstraints": "FIXED_POS"
     }
 });
 
@@ -190,7 +189,12 @@ async function update_visualization() {
         node.width = node_width(node);
         node.height = node_height(node);
 
-        node.ports = [];
+        node.ports = [{
+            id: `${node_id}[in]`,
+            x: node.width / 2,
+            y: 0,
+        }];
+
         node.edges = [];
         for(let j = 0; j < fields.length; j++) {
             let port_id = `${node_id}[${j}]`;
@@ -199,15 +203,13 @@ async function update_visualization() {
                 id: port_id,
                 x: out_port_dx(j, node),
                 y: out_port_dy(j, node),
-                width: 10,
-                height: 10
             });
 
             if(fields[j].data.is_ptr) {
                 let edge = {
                     id: `${port_id}-${fields[j].data.val}`,
                     sources: [port_id],
-                    targets: [elk_mem_nodes[fields[j].data.val].id]
+                    targets: [elk_mem_nodes[fields[j].data.val].id+"[in]"]
                 };
 
                 node.edges.push(edge);
@@ -219,6 +221,7 @@ async function update_visualization() {
         elk_mem_nodes.push(node);
     }
 
+    console.log(elk_graph)
     elk_graph = await elk.layout(elk_graph)
 
     prev_elk_node_positions = {};
