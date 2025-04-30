@@ -10,6 +10,7 @@ use std::path::Path;
 
 use ast::base::BaseSliceProgram;
 use ast::{scoped::ScopedProgram, typed::TypedProgram};
+use compiler::compile::compile_typed;
 use error::Result;
 use lalrpop_util::lalrpop_mod;
 
@@ -38,11 +39,8 @@ fn main() {
     let typed_program = parse_and_validate(&code)
         .map_err(|e| e.to_string())
         .unwrap();
-    let pure_ir = compiler::stir::from_typed(&typed_program);
-    let pure_reuse = compiler::stir::add_reuse(&pure_ir);
-    let pure_rc = compiler::stir::add_rc(&pure_reuse, true);
-    let core_ir = compiler::score::translate(&pure_rc);
-    let result = compiler::core::output(&core_ir);
+    let compiled_program = compile_typed(&typed_program);
+    let result = compiler::core::output(&compiled_program.core);
     println!("{}", result.join("\n"));
 }
 
