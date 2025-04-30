@@ -2,7 +2,7 @@ use core::panic;
 //stir = Sequentially-Transformed-Intermediate-Representation
 use crate::compiler::simple::{Binder, Operator, Simple, Type, get_type};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter, Result};
 
 pub type Stir = Vec<Function>;
