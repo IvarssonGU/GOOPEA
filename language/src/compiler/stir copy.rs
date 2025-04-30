@@ -1,8 +1,10 @@
+use core::panic;
 //stir = Sequentially-Transformed-Intermediate-Representation
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter, Result};
 
+use crate::ast::typed::ExpressionType;
 use crate::ast::{
     ast, scoped,
     typed::{TypedNode, TypedProgram},
@@ -10,20 +12,47 @@ use crate::ast::{
 
 pub type Stir = Vec<Function>;
 
-type Var = String;
+type Var = (String, Type);
 type Constant = String;
 type Tag = u8;
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum Type {
+    Int,
+    Heaped,
+    Unboxed(Vec<Type>),
+}
+
 #[derive(Debug, Clone)]
 pub struct Function {
+    pub fip: bool,
     pub id: Constant,
+    pub typ: Type,
     pub args: Vec<Var>,
     pub body: Body,
 }
 
 impl Display for Function {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{} {} = {}", self.id, self.args.join(" "), self.body)
+        write!(
+            f,
+            "{}{} =\n{}",
+            self.id,
+            {
+                let args = self
+                    .args
+                    .iter()
+                    .map(|(var, _)| var.clone())
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                if args.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(" {}", args)
+                }
+            },
+            self.body.pretty_body(2)
+        )
     }
 }
 
@@ -47,42 +76,34 @@ impl Body {
         }
     }
 
-    fn pretty_string(&self, indent: usize) -> String {
+    fn pretty_body(&self, indent: usize) -> String {
+        let tab = " ".repeat(indent);
         match self {
-            Body::Ret(var) => format!("{}ret {}\n", " ".repeat(indent), var),
+            Body::Ret(var) => format!("{}ret {}\n", tab, var.0),
             Body::Let(var, exp, body) => format!(
                 "{}let {} = {};\n{}",
                 " ".repeat(indent),
-                var,
+                var.0,
                 exp,
-                body.pretty_string(indent)
+                body.pretty_body(indent)
             ),
             Body::Match(var, branches) => {
-                let mut result = format!("{}case {} of\n", " ".repeat(indent), var);
-                for (i, branch) in branches {
-                    result.push_str(&branch.pretty_string(indent + 2));
+                let mut result = format!("{}match {}\n", tab, var.0);
+                for (i, (_, branch)) in branches.iter().enumerate() {
+                    result.push_str(&format!("{}{} ->\n", " ".repeat(indent + 2), i));
+                    result.push_str(&branch.pretty_body(indent + 4));
                 }
                 result
             }
-            Body::Inc(var, body) => format!(
-                "{}inc {};\n{}",
-                " ".repeat(indent),
-                var,
-                body.pretty_string(indent)
-            ),
-            Body::Dec(var, body) => format!(
-                "{}dec {};\n{}",
-                " ".repeat(indent),
-                var,
-                body.pretty_string(indent)
-            ),
+            Body::Inc(var, body) => format!("{}inc {};\n{}", tab, var.0, body.pretty_body(indent)),
+            Body::Dec(var, body) => format!("{}dec {};\n{}", tab, var.0, body.pretty_body(indent)),
         }
     }
 }
 
 impl Display for Body {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.pretty_string(0))
+        write!(f, "{}", self.pretty_body(0))
     }
 }
 
@@ -130,7 +151,7 @@ impl Display for Exp {
                     "[]".to_string()
                 } else {
                     args.iter()
-                        .map(|x| x.to_string())
+                        .map(|x| x.0.to_string())
                         .collect::<Vec<String>>()
                         .join(", ")
                 }
@@ -143,25 +164,25 @@ impl Display for Exp {
                     "[]".to_string()
                 } else {
                     args.iter()
-                        .map(|x| x.to_string())
+                        .map(|x| x.0.to_string())
                         .collect::<Vec<String>>()
                         .join(", ")
                 }
             ),
-            Exp::Proj(tag, var) => write!(f, "Proj({}, {})", tag, var),
+            Exp::Proj(tag, var) => write!(f, "Proj({}, {})", tag, var.0),
             Exp::Int(i) => write!(f, "{}", i),
-            Exp::Op(op, var1, var2) => write!(f, "{} {} {}", var1, op, var2),
-            Exp::Reset(var) => write!(f, "reset {}", var),
+            Exp::Op(op, var1, var2) => write!(f, "{} {} {}", var1.0, op, var2.0),
+            Exp::Reset(var) => write!(f, "reset {}", var.0),
             Exp::Reuse(var, tag, args) => write!(
                 f,
                 "reuse {} in Ctor({}, {})",
-                var,
+                var.0,
                 tag,
                 if args.is_empty() {
                     "[]".to_string()
                 } else {
                     args.iter()
-                        .map(|x| x.to_string())
+                        .map(|x| x.0.to_string())
                         .collect::<Vec<String>>()
                         .join(", ")
                 }
@@ -173,7 +194,7 @@ impl Display for Exp {
                     "[]".to_string()
                 } else {
                     vars.iter()
-                        .map(|x| x.to_string())
+                        .map(|x| x.0.to_string())
                         .collect::<Vec<String>>()
                         .join(", ")
                 }
@@ -215,26 +236,26 @@ impl Display for Operator {
 
 #[derive(Clone)]
 pub enum Simple {
-    Ident(Var),
-    Int(i64),
-    Operation(Operator, Box<Simple>, Box<Simple>),
-    Constructor(i64, Vec<Simple>),
-    App(String, Vec<Simple>),
-    Match(Box<Simple>, Vec<(Pattern, Simple)>),
-    Let(String, Box<Simple>, Box<Simple>),
-    UTuple(Vec<Simple>),
-    LetApp(Vec<String>, Box<Simple>, Box<Simple>),
+    Ident(String, Type),
+    Int(i64, Type),
+    Operation(Operator, Box<Simple>, Box<Simple>, Type),
+    Constructor(i64, Vec<Simple>, Type),
+    App(String, Vec<Simple>, Type),
+    Match(Box<Simple>, Vec<(Pattern, Simple)>, Type),
+    Let(String, Box<Simple>, Box<Simple>, Type),
+    UTuple(Vec<Simple>, Type),
+    LetApp(Vec<String>, Box<Simple>, Box<Simple>, Type),
 }
 
 type Pattern = (i64, Vec<Binder>);
 
 #[derive(Debug, Clone)]
 pub enum Binder {
-    Variable(String),
+    Variable(String, Type),
     Wildcard,
 }
 
-fn next_var() -> Var {
+fn next_var() -> String {
     thread_local!(
         static COUNTER: RefCell<usize> = Default::default();
     );
@@ -250,8 +271,16 @@ pub fn from_typed(typed: &TypedProgram) -> Stir {
 
     for (id, func, body) in typed.function_iter() {
         program.push(Function {
+            fip: func.signature.is_fip,
             id: id.clone(),
-            args: func.vars.0.clone(),
+            typ: from_exp_type(&body.data.data),
+            args: func
+                .vars
+                .0
+                .iter()
+                .zip(func.signature.argument_type.0.iter())
+                .map(|(var, typ)| (var.clone(), from_type(typ)))
+                .collect(),
             body: remove_dead_bindings(from_simple(&from_typed_expr(&body, typed), &|var| {
                 Body::Ret(var)
             })),
@@ -267,56 +296,66 @@ fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
                 Operator::Add,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             "-" => Simple::Operation(
                 Operator::Sub,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             "*" => Simple::Operation(
                 Operator::Mul,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             "/" => Simple::Operation(
                 Operator::Div,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             ">" => Simple::Operation(
                 Operator::Greater,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             "<" => Simple::Operation(
                 Operator::Less,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             ">=" => Simple::Operation(
                 Operator::GreaterOrEqual,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             "<=" => Simple::Operation(
                 Operator::LessOrEq,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             "==" => Simple::Operation(
                 Operator::Equal,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             "!=" => Simple::Operation(
                 Operator::NotEqual,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
             ),
             _ => match context.constructors.get(id) {
                 Some(cons) => {
                     if args.0.is_empty() {
-                        Simple::Int(cons.sibling_index as i64)
+                        Simple::Int(cons.sibling_index as i64, from_exp_type(&expr.data.data))
                     } else {
                         Simple::Constructor(
                             cons.sibling_index as i64,
@@ -324,6 +363,7 @@ fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
                                 .iter()
                                 .map(|arg| from_typed_expr(arg, context))
                                 .collect(),
+                            from_exp_type(&expr.data.data),
                         )
                     }
                 }
@@ -333,13 +373,18 @@ fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
                         .iter()
                         .map(|arg| from_typed_expr(arg, context))
                         .collect(),
+                    from_exp_type(&expr.data.data),
                 ),
             },
         },
-        scoped::SimplifiedExpression::Integer(i) => Simple::Int(i.clone()),
-        scoped::SimplifiedExpression::Variable(id) => Simple::Ident(id.clone()),
+        scoped::SimplifiedExpression::Integer(i) => {
+            Simple::Int(i.clone(), from_exp_type(&expr.data.data))
+        }
+        scoped::SimplifiedExpression::Variable(id) => {
+            Simple::Ident(id.clone(), from_exp_type(&expr.data.data))
+        }
         scoped::SimplifiedExpression::Match(var_node, cases) => Simple::Match(
-            Simple::Ident(var_node.expr.clone()).into(),
+            Simple::Ident(var_node.expr.clone(), from_exp_type(&expr.data.data)).into(),
             cases
                 .iter()
                 .map(|(pattern, exp)| {
@@ -361,7 +406,20 @@ fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
                                                 as i64,
                                             vars.0
                                                 .iter()
-                                                .map(|var| Binder::Variable(var.clone()))
+                                                .enumerate()
+                                                .map(|(i, var)| {
+                                                    Binder::Variable(var.clone(), {
+                                                        context.constructors.get(fid).unwrap();
+                                                        from_type(
+                                                            &context
+                                                                .constructors
+                                                                .get(fid)
+                                                                .unwrap()
+                                                                .args
+                                                                .0[i],
+                                                        )
+                                                    })
+                                                })
                                                 .collect(),
                                         )
                                     }
@@ -372,69 +430,100 @@ fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
                     )
                 })
                 .collect(),
+            from_exp_type(&expr.data.data),
         ),
         scoped::SimplifiedExpression::UTuple(args) => Simple::UTuple(
             args.0
                 .iter()
                 .map(|arg| from_typed_expr(arg, context))
                 .collect(),
+            from_exp_type(&expr.data.data),
         ),
         scoped::SimplifiedExpression::LetEqualIn(bindings, exp, next) if bindings.0.len() == 1 => {
             Simple::Let(
                 bindings.0[0].clone(),
                 from_typed_expr(exp, context).into(),
                 from_typed_expr(next, context).into(),
+                from_exp_type(&expr.data.data),
             )
         }
         scoped::SimplifiedExpression::LetEqualIn(bindings, exp, next) => Simple::LetApp(
             bindings.0.clone(),
             from_typed_expr(exp, context).into(),
             from_typed_expr(next, context).into(),
+            from_exp_type(&expr.data.data),
         ),
+    }
+}
+
+fn from_exp_type(typ: &ExpressionType) -> Type {
+    match typ {
+        ExpressionType::UTuple(vec) => Type::Unboxed(vec.0.iter().map(from_type).collect()),
+        ExpressionType::Type(typ) => from_type(&typ),
+    }
+}
+
+fn from_type(typ: &ast::Type) -> Type {
+    match typ {
+        ast::Type::Int => Type::Int,
+        ast::Type::ADT(_) => Type::Heaped,
     }
 }
 
 pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
     match expr {
-        Simple::Ident(var) => k(var.clone()),
-        Simple::Int(i) => {
+        Simple::Ident(var, typ) => k((var.clone(), typ.clone())),
+        Simple::Int(i, typ) => {
             let fresh = next_var();
-            Body::Let(fresh.clone(), Exp::Int(*i), k(fresh).into())
+            let binding = (fresh, typ.clone());
+            Body::Let(binding.clone(), Exp::Int(*i), k(binding).into())
         }
-        Simple::Operation(op, left, right) => from_simple(left, &move |var1| {
-            from_simple(right, &move |var2| {
+        Simple::Operation(op, left, right, typ) => from_simple(left, &move |var1| {
+            from_simple(right, &move |var2: (String, Type)| {
                 let fresh: String = next_var();
+                let binding = (fresh, typ.clone());
                 Body::Let(
-                    fresh.clone(),
+                    binding.clone(),
                     Exp::Op(*op, var1.clone(), var2),
-                    k(fresh).into(),
+                    k(binding).into(),
                 )
             })
         }),
-        Simple::App(id, inner) => translate_list(inner.clone(), &move |vars| {
+        Simple::App(id, inner, typ) => translate_list(inner.clone(), &move |bindings| {
             let fresh = next_var();
-            Body::Let(fresh.clone(), Exp::App(id.clone(), vars), k(fresh).into())
+            let binding = (fresh, typ.clone());
+            Body::Let(
+                binding.clone(),
+                Exp::App(id.clone(), bindings),
+                k(binding.clone()).into(),
+            )
         }),
-        Simple::Constructor(tag, inner) => translate_list(inner.clone(), &move |vars| {
+        Simple::Constructor(tag, inner, typ) => translate_list(inner.clone(), &move |bindings| {
             let fresh = next_var();
-            Body::Let(fresh.clone(), Exp::Ctor(*tag as u8, vars), k(fresh).into())
+            let binding = (fresh, typ.clone());
+            Body::Let(
+                binding.clone(),
+                Exp::Ctor(*tag as u8, bindings),
+                k(binding).into(),
+            )
         }),
-        Simple::UTuple(inner) => translate_list(inner.clone(), &move |vars| {
+        Simple::UTuple(inner, typ) => translate_list(inner.clone(), &move |vars| {
             let fresh = next_var();
-            Body::Let(fresh.clone(), Exp::UTuple(vars), k(fresh).into())
+            let binding = (fresh, typ.clone());
+            Body::Let(binding.clone(), Exp::UTuple(vars), k(binding).into())
         }),
-        Simple::Match(expr, branches) => {
+        Simple::Match(expr, branches, _) => {
             let mut branches = branches.clone();
             branches.sort_by_key(|((tag, _), _)| *tag);
             from_simple(expr, &move |var| {
                 let mut new_bodies: Vec<(u8, Body)> = vec![];
                 for ((_, binders), expr) in &branches {
-                    let mut body = from_simple(expr, &move |var: String| Body::Ret(var));
+                    let mut body = from_simple(expr, k);
                     for i in (0..binders.len()).rev() {
                         match &binders[i] {
-                            Binder::Variable(binder) => {
+                            Binder::Variable(binder, t) => {
                                 body = Body::Let(
-                                    binder.clone(),
+                                    (binder.clone(), t.clone()),
                                     Exp::Proj(i as u8, var.clone()),
                                     body.into(),
                                 );
@@ -447,17 +536,46 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
                 Body::Match(var, new_bodies)
             })
         }
-        Simple::Let(var, exp, next) => from_simple(exp, &move |var1| {
-            replace_var_body(var1, var, from_simple(next, &move |var2| k(var2).into()))
+        Simple::Let(var, exp, next, _) => from_simple(exp, &move |var1| {
+            replace_var_body(
+                var1,
+                &(var.clone(), get_type(exp)),
+                from_simple(next, &move |var2| k(var2).into()),
+            )
         }),
-        Simple::LetApp(vars, exp, next) => from_simple(exp, &move |var1| {
+        Simple::LetApp(vars, exp, next, _) => from_simple(exp, &move |var1| {
             vars.iter().enumerate().rev().fold(
                 from_simple(next, &move |var2| k(var2).into()),
                 |acc, (i, var)| {
-                    Body::Let(var.clone(), Exp::Proj(i as u8, var1.clone()), acc.into())
+                    Body::Let(
+                        (
+                            var.clone(),
+                            if let Type::Unboxed(vec) = get_type(exp) {
+                                vec[i].clone()
+                            } else {
+                                panic!("Expected UTuple in LetApp binding")
+                            },
+                        ),
+                        Exp::Proj(i as u8, var1.clone()),
+                        acc.into(),
+                    )
                 },
             )
         }),
+    }
+}
+
+fn get_type(expr: &Simple) -> Type {
+    match expr {
+        Simple::Ident(_, typ) => typ.clone(),
+        Simple::Int(_, typ) => typ.clone(),
+        Simple::Operation(_, _, _, typ) => typ.clone(),
+        Simple::Constructor(_, _, typ) => typ.clone(),
+        Simple::App(_, _, typ) => typ.clone(),
+        Simple::Match(_, _, typ) => typ.clone(),
+        Simple::Let(_, _, _, typ) => typ.clone(),
+        Simple::UTuple(_, typ) => typ.clone(),
+        Simple::LetApp(_, _, _, typ) => typ.clone(),
     }
 }
 
@@ -477,7 +595,7 @@ fn translate_list(exprs: Vec<Simple>, k: &dyn Fn(Vec<Var>) -> Body) -> Body {
     }
 }
 
-fn replace_var_body(replacing: String, replacee: &String, body: Body) -> Body {
+fn replace_var_body(replacing: Var, replacee: &Var, body: Body) -> Body {
     match body {
         Body::Ret(var) => Body::Ret(replace_var(var, replacing.clone(), replacee)),
         Body::Let(var, exp, next) => Body::Let(
@@ -501,7 +619,7 @@ fn replace_var_body(replacing: String, replacee: &String, body: Body) -> Body {
     }
 }
 
-fn replace_var_exp(replacing: String, replacee: &String, exp: Exp) -> Exp {
+fn replace_var_exp(replacing: Var, replacee: &Var, exp: Exp) -> Exp {
     match exp {
         Exp::App(id, args) => Exp::App(
             id,
@@ -526,7 +644,7 @@ fn replace_var_exp(replacing: String, replacee: &String, exp: Exp) -> Exp {
     }
 }
 
-fn replace_var(var: String, replacing: String, replacee: &String) -> String {
+fn replace_var(var: Var, replacing: Var, replacee: &Var) -> Var {
     if var == *replacee { replacing } else { var }
 }
 
@@ -571,7 +689,7 @@ fn reuse_all_matches(body: &Body) -> Body {
     }
 }
 
-fn evaluate_reuse_in_case(var: String, len: u8, body: &Body) -> Body {
+fn evaluate_reuse_in_case(var: Var, len: u8, body: &Body) -> Body {
     match body {
         Body::Match(case_var, branches) => Body::Match(
             case_var.clone(),
@@ -592,7 +710,7 @@ fn evaluate_reuse_in_case(var: String, len: u8, body: &Body) -> Body {
             let fresh = next_var();
             let try_replace = insert_reuse(fresh.clone(), len, body);
             if try_replace != *body {
-                Body::Let(fresh, Exp::Reset(var), try_replace.into())
+                Body::Let((fresh, Type::Heaped), Exp::Reset(var), try_replace.into())
             } else {
                 try_replace
             }
@@ -605,7 +723,7 @@ fn insert_reuse(var: String, len: u8, body: &Body) -> Body {
         Body::Let(let_var, exp, next) => match exp {
             Exp::Ctor(tag, vars) if vars.len() as u8 == len => Body::Let(
                 let_var.clone(),
-                Exp::Reuse(var, *tag, vars.clone()),
+                Exp::Reuse((var, Type::Heaped), *tag, vars.clone()),
                 next.clone(),
             ),
             _ => Body::Let(
@@ -629,9 +747,15 @@ fn insert_reuse(var: String, len: u8, body: &Body) -> Body {
 pub fn add_reuse(prog: &Stir) -> Stir {
     prog.iter()
         .map(|func| Function {
+            fip: func.fip,
             id: func.id.clone(),
+            typ: func.typ.clone(),
             args: func.args.clone(),
-            body: reuse_all_matches(&func.body),
+            body: if func.fip {
+                reuse_all_matches(&func.body)
+            } else {
+                func.body.clone()
+            },
         })
         .collect()
 }
@@ -711,9 +835,10 @@ fn collect(body: &Body, map: &HashMap<Constant, Vec<Status>>) -> HashSet<Var> {
 }
 
 pub fn add_rc(prog: &Stir, flag: bool) -> Stir {
+    let ownership = get_ownership(prog);
     if flag {
         prog.iter()
-            .map(|func| insert_rc_fun(func, &get_ownership(prog)))
+            .map(|func| insert_rc_fun(func, &ownership))
             .collect()
     } else {
         let mut ownership = HashMap::new();
@@ -732,7 +857,9 @@ fn insert_rc_fun(func: &Function, beta_map: &HashMap<Constant, Vec<Status>>) -> 
         betal.insert(func.args[i].clone(), *status);
     }
     Function {
+        fip: func.fip,
         id: func.id.clone(),
+        typ: func.typ.clone(),
         args: func.args.clone(),
         body: owned_minus_all(
             func.args.clone(),
@@ -769,16 +896,22 @@ fn insert_rc_body(
             )
         }
         Body::Let(var, exp, next) => match exp {
-            Exp::Proj(_, proj_var) if default_betal(proj_var, betal) == Status::Owned => Body::Let(
-                var.clone(),
-                exp.clone(),
-                Body::Inc(
+            Exp::Proj(_, proj_var)
+                if default_betal(proj_var, betal) == Status::Owned && var.1 == Type::Heaped =>
+            {
+                Body::Let(
                     var.clone(),
-                    owned_minus(proj_var, &insert_rc_body(next, betal, beta_map), betal).into(),
+                    exp.clone(),
+                    Body::Inc(
+                        var.clone(),
+                        owned_minus(proj_var, &insert_rc_body(next, betal, beta_map), betal).into(),
+                    )
+                    .into(),
                 )
-                .into(),
-            ),
-            Exp::Proj(_, proj_var) if default_betal(proj_var, betal) == Status::Borrowed => {
+            }
+            Exp::Proj(_, proj_var)
+                if default_betal(proj_var, betal) == Status::Borrowed || var.1 != Type::Heaped =>
+            {
                 let mut new_betal = betal.clone();
                 new_betal.insert(var.clone(), Status::Borrowed);
                 Body::Let(
@@ -842,7 +975,7 @@ fn insert_rc_body(
                 exp.clone(),
                 insert_rc_body(next, betal, beta_map).into(),
             ),
-            _ => todo!(),
+            _ => panic!("Shouldn't be possible!"),
         },
         _ => todo!(),
     }
@@ -904,13 +1037,18 @@ fn owned_plus(
 ) -> Body {
     if default_betal(&var, betal) == Status::Owned && !live_vars.contains(&var) {
         body.clone()
-    } else {
+    } else if var.1 == Type::Heaped {
         Body::Inc(var.clone(), body.clone().into())
+    } else {
+        body.clone()
     }
 }
 
-fn owned_minus(var: &String, body: &Body, betal: &HashMap<Var, Status>) -> Body {
-    if default_betal(var, betal) == Status::Owned && !free_vars(body).contains(var) {
+fn owned_minus(var: &Var, body: &Body, betal: &HashMap<Var, Status>) -> Body {
+    if default_betal(var, betal) == Status::Owned
+        && !free_vars(body).contains(var)
+        && var.1 != Type::Int
+    {
         Body::Dec(var.clone(), body.clone().into())
     } else {
         body.clone()

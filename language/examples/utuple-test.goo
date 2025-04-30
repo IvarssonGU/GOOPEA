@@ -1,7 +1,16 @@
-() : (Int, Int, Int)
-g = (1,2,3);
+enum List = Nil, Cons(Int, List);
+
+(List, List, List) : (List, List, List)
+g(a,b,c) = (a,b,c);
 
 () : Int
-main = let (a,b,c) = g() in a + b;
+main = let (a,b,c) = g(Cons(5, Nil), Cons(10, Nil), Cons(20, Nil)) in sum(a) + sum(b);
+
+
+List : Int
+sum xs = match xs {
+    Nil: 0,
+    Cons(x, xx): x + sum(xx)
+};
 
 

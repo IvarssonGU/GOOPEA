@@ -3,19 +3,20 @@
 #![feature(mixed_integer_ops_unsigned_sub)]
 
 pub mod ast;
-pub mod core;
+pub mod compiler;
 pub mod error;
 pub mod interpreter;
 mod lexer;
-mod score;
 mod preprocessor;
-pub mod stir;
 
 lalrpop_mod!(pub grammar);
 
-use error::Result;
 use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
-use core::Prog;
+use compiler::{
+    compile::{CompiledProgram, compile_typed},
+    core::Prog,
+};
+use error::Result;
 use interpreter::Interpreter;
 use lalrpop_util::lalrpop_mod;
 use std::cell::RefCell;
@@ -25,20 +26,43 @@ thread_local! {
     static INT_HISTORY: RefCell<Vec<Interpreter>> = RefCell::new(Vec::new());
 }
 
-pub fn compile(code: &str) -> Result<Prog> {
+pub fn compile(code: &str) -> Result<CompiledProgram> {
     let base_program = BaseSliceProgram::new(&code)?;
     let scoped_program = ScopedProgram::new(base_program)?;
     let typed_program = TypedProgram::new(scoped_program)?;
-
-    let pure_ir = stir::from_typed(&typed_program);
-    let pure_reuse = stir::add_reuse(&pure_ir);
-    let pure_rc = stir::add_rc(&pure_reuse, true);
-    let core = score::translate(&pure_rc);
-    Ok(core)
+    let compiled_program = compile_typed(&typed_program);
+    Ok(compiled_program)
 }
 
-pub fn c_code(program: &Prog) -> String {
-    core::output(program).join("\n")
+pub fn c_code(program: &CompiledProgram) -> String {
+    compiler::core::output(&program.core).join("\n")
+}
+
+pub fn stir_str(program: &CompiledProgram) -> String {
+    program
+        .stir
+        .iter()
+        .map(|def| def.to_string())
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+pub fn reuse_str(program: &CompiledProgram) -> String {
+    program
+        .reuse
+        .iter()
+        .map(|def| def.to_string())
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+pub fn rc_str(program: &CompiledProgram) -> String {
+    program
+        .rc
+        .iter()
+        .map(|def| def.to_string())
+        .collect::<Vec<String>>()
+        .join("\n")
 }
 
 // Interpreter stuff

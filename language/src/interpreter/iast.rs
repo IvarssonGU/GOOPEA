@@ -1,5 +1,5 @@
-use crate::core::{Def, Operand, Statement};
-use crate::stir::Operator;
+use crate::compiler::core::{Def, Operand, Statement};
+use crate::compiler::simple::Operator;
 use itertools::Itertools;
 use std::fmt::{Debug, Display, Formatter, Result};
 
@@ -100,7 +100,7 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
             Statement::AssignTagCheck(id, b, operand, i) => {
                 IStatement::AssignTagCheck(id, b, IOperand::from_op(&operand), i)
             }
-            Statement::AssignFunctionCall(id, fid, operands) => {
+            Statement::AssignFunctionCall(id, fid, operands, typ) => {
                 // first add a function call that puts the returned value in a register
                 istatements.push(IStatement::FunctionCall(
                     fid.clone(),
@@ -113,6 +113,8 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
             Statement::Inc(operand) => IStatement::Inc(IOperand::Ident(operand)),
             Statement::Dec(operand) => IStatement::Dec(IOperand::Ident(operand)),
             Statement::AssignUTuple(_, _, _) => todo!(),
+            Statement::DecUTuple(_, _) => todo!(),
+            Statement::AssignUTupleField(_, _, _) => todo!(),
         };
         istatements.push(s);
     }
