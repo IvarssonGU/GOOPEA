@@ -1,5 +1,5 @@
-use crate::core::{Def, Operand, Statement};
-use crate::stir::Operator;
+use crate::compiler::core::{Def, Operand, Statement};
+use crate::compiler::stir::Operator;
 use itertools::Itertools;
 use std::fmt::{Debug, Display, Formatter, Result};
 

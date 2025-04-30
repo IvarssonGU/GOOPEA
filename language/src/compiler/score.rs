@@ -4,8 +4,8 @@ use std::hash::Hash;
 use std::vec;
 
 //score = Stir-to-CORE
-use crate::core::{Def, Operand, Prog, Statement, Type};
-use crate::stir::{Body, Exp, Function, Operator, Stir, Type as StirType};
+use crate::compiler::core::{Def, Operand, Prog, Statement, Type};
+use crate::compiler::stir::{Body, Exp, Stir, Type as StirType};
 
 fn next_var() -> String {
     thread_local!(
@@ -210,13 +210,16 @@ fn translate_body(body: &Body, mut stmts: Vec<Statement>, fid: &String) -> Vec<S
             let mut operands = vec![];
             for (i, branch) in branches.iter().enumerate() {
                 let match_var = next_var();
+                operands.push(Operand::Ident(match_var.clone()));
+                if i > 0 && i == branches.len() - 1 {
+                    break;
+                }
                 stmts.push(Statement::AssignTagCheck(
-                    match_var.clone(),
+                    match_var,
                     branch.0 != 0,
                     Operand::Ident(var.0.clone()),
                     (i as i64) << 1 | 1,
                 ));
-                operands.push(Operand::Ident(match_var));
             }
             for (i, (_, branch)) in branches.iter().enumerate() {
                 let translated = translate_body(branch, vec![], fid);

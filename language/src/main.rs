@@ -14,12 +14,9 @@ use error::Result;
 use lalrpop_util::lalrpop_mod;
 
 pub mod ast;
+pub mod compiler;
 mod error;
 mod lexer;
-
-mod core;
-mod score;
-mod stir;
 
 lalrpop_mod!(pub grammar);
 
@@ -37,20 +34,15 @@ use preprocessor::preprocess;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
-    use core::Def;
-
-    let code = fs::read_to_string(Path::new("examples/utuple-test.goo")).unwrap();
-    //let code = "(): ()\nmain = ()".to_string();
-
+    let code = fs::read_to_string(Path::new("examples/reverse.goo")).unwrap();
     let typed_program = parse_and_validate(&code)
         .map_err(|e| e.to_string())
         .unwrap();
-
-    let pure_ir = stir::from_typed(&typed_program);
-    let pure_reuse = stir::add_reuse(&pure_ir);
-    let pure_rc = stir::add_rc(&pure_reuse, true);
-    let core_ir = score::translate(&pure_rc);
-    let result = core::output(&core_ir);
+    let pure_ir = compiler::stir::from_typed(&typed_program);
+    let pure_reuse = compiler::stir::add_reuse(&pure_ir);
+    let pure_rc = compiler::stir::add_rc(&pure_reuse, true);
+    let core_ir = compiler::score::translate(&pure_rc);
+    let result = compiler::core::output(&core_ir);
     println!("{}", result.join("\n"));
 }
 
@@ -62,7 +54,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    fn parse_example(path: &Path) -> () {
+    fn parse_example(path: &Path) {
         let code = fs::read_to_string(path).unwrap();
         println!(
             "{:?}",

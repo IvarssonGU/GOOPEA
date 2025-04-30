@@ -3,19 +3,17 @@
 #![feature(mixed_integer_ops_unsigned_sub)]
 
 pub mod ast;
-pub mod core;
+pub mod compiler;
 pub mod error;
 mod interpreter;
 mod lexer;
-mod score;
 mod preprocessor;
-pub mod stir;
 
 lalrpop_mod!(pub grammar);
 
-use error::Result;
 use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
-use core::Prog;
+use compiler::core::Prog;
+use error::Result;
 use interpreter::Interpreter;
 use lalrpop_util::lalrpop_mod;
 use std::cell::RefCell;
@@ -30,15 +28,15 @@ pub fn compile(code: &str) -> Result<Prog> {
     let scoped_program = ScopedProgram::new(base_program)?;
     let typed_program = TypedProgram::new(scoped_program)?;
 
-    let pure_ir = stir::from_typed(&typed_program);
-    let pure_reuse = stir::add_reuse(&pure_ir);
-    let pure_rc = stir::add_rc(&pure_reuse, true);
-    let core = score::translate(&pure_rc);
+    let pure_ir = compiler::stir::from_typed(&typed_program);
+    let pure_reuse = compiler::stir::add_reuse(&pure_ir);
+    let pure_rc = compiler::stir::add_rc(&pure_reuse, true);
+    let core = compiler::score::translate(&pure_rc);
     Ok(core)
 }
 
 pub fn c_code(program: &Prog) -> String {
-    core::output(program).join("\n")
+    compiler::core::output(program).join("\n")
 }
 
 // Interpreter stuff

@@ -13,9 +13,7 @@ use crate::ast::{
 
 pub type Stir = Vec<Function>;
 
-type Var = String;
-
-type VarPrim = (String, Type);
+type Var = (String, Type);
 type Constant = String;
 type Tag = u8;
 
@@ -28,9 +26,10 @@ pub enum Type {
 
 #[derive(Debug, Clone)]
 pub struct Function {
+    pub fip: bool,
     pub id: Constant,
     pub typ: Type,
-    pub args: Vec<VarPrim>,
+    pub args: Vec<Var>,
     pub body: Body,
 }
 
@@ -38,29 +37,37 @@ impl Display for Function {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "{} {} = {}",
+            "{}{} =\n{}",
             self.id,
-            self.args
-                .iter()
-                .map(|((var, _))| var.clone())
-                .collect::<Vec<String>>()
-                .join(" "),
-            self.body
+            {
+                let args = self
+                    .args
+                    .iter()
+                    .map(|((var, _))| var.clone())
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                if args.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(" {}", args)
+                }
+            },
+            self.body.pretty_body(2)
         )
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Body {
-    Ret(VarPrim),
-    Let(VarPrim, Exp, Box<Body>),
-    Match(VarPrim, Vec<(u8, Body)>),
-    Inc(VarPrim, Box<Body>),
-    Dec(VarPrim, Box<Body>),
+    Ret(Var),
+    Let(Var, Exp, Box<Body>),
+    Match(Var, Vec<(u8, Body)>),
+    Inc(Var, Box<Body>),
+    Dec(Var, Box<Body>),
 }
 
 impl Body {
-    pub fn member(&self, var: &VarPrim) -> bool {
+    pub fn member(&self, var: &Var) -> bool {
         match self {
             Body::Ret(v) => v == var,
             Body::Let(_, exp, body) => exp.member(var) || body.member(var), //Not sure if this should be like this or as below
@@ -70,55 +77,47 @@ impl Body {
         }
     }
 
-    fn pretty_string(&self, indent: usize) -> String {
+    fn pretty_body(&self, indent: usize) -> String {
+        let tab = " ".repeat(indent);
         match self {
-            Body::Ret(var) => format!("{}ret {}\n", " ".repeat(indent), var.0),
+            Body::Ret(var) => format!("{}ret {}\n", tab, var.0),
             Body::Let(var, exp, body) => format!(
                 "{}let {} = {};\n{}",
                 " ".repeat(indent),
                 var.0,
                 exp,
-                body.pretty_string(indent)
+                body.pretty_body(indent)
             ),
             Body::Match(var, branches) => {
-                let mut result = format!("{}case {} of\n", " ".repeat(indent), var.0);
-                for (i, branch) in branches {
-                    result.push_str(&branch.pretty_string(indent + 2));
+                let mut result = format!("{}match {}\n", tab, var.0);
+                for (i, (_, branch)) in branches.iter().enumerate() {
+                    result.push_str(&format!("{}{} ->\n", " ".repeat(indent + 2), i));
+                    result.push_str(&branch.pretty_body(indent + 4));
                 }
                 result
             }
-            Body::Inc(var, body) => format!(
-                "{}inc {};\n{}",
-                " ".repeat(indent),
-                var.0,
-                body.pretty_string(indent)
-            ),
-            Body::Dec(var, body) => format!(
-                "{}dec {};\n{}",
-                " ".repeat(indent),
-                var.0,
-                body.pretty_string(indent)
-            ),
+            Body::Inc(var, body) => format!("{}inc {};\n{}", tab, var.0, body.pretty_body(indent)),
+            Body::Dec(var, body) => format!("{}dec {};\n{}", tab, var.0, body.pretty_body(indent)),
         }
     }
 }
 
 impl Display for Body {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.pretty_string(0))
+        write!(f, "{}", self.pretty_body(0))
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Exp {
-    App(Constant, Vec<VarPrim>),
-    Ctor(Tag, Vec<VarPrim>),
-    Proj(u8, VarPrim),
-    UTuple(Vec<VarPrim>),
+    App(Constant, Vec<Var>),
+    Ctor(Tag, Vec<Var>),
+    Proj(u8, Var),
+    UTuple(Vec<Var>),
     Int(i64),
-    Op(Operator, VarPrim, VarPrim),
-    Reset(VarPrim),
-    Reuse(VarPrim, Tag, Vec<VarPrim>),
+    Op(Operator, Var, Var),
+    Reset(Var),
+    Reuse(Var, Tag, Vec<Var>),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -128,7 +127,7 @@ pub enum Status {
 }
 
 impl Exp {
-    pub fn member(&self, var: &VarPrim) -> bool {
+    pub fn member(&self, var: &Var) -> bool {
         match self {
             Exp::App(_, vars) => vars.iter().any(|v| v == var),
             Exp::Ctor(_, vars) => vars.iter().any(|v| v == var),
@@ -238,7 +237,7 @@ impl Display for Operator {
 
 #[derive(Clone)]
 pub enum Simple {
-    Ident(Var, Type),
+    Ident(String, Type),
     Int(i64, Type),
     Operation(Operator, Box<Simple>, Box<Simple>, Type),
     Constructor(i64, Vec<Simple>, Type),
@@ -257,7 +256,7 @@ pub enum Binder {
     Wildcard,
 }
 
-fn next_var() -> Var {
+fn next_var() -> String {
     thread_local!(
         static COUNTER: RefCell<usize> = Default::default();
     );
@@ -273,6 +272,7 @@ pub fn from_typed(typed: &TypedProgram) -> Stir {
 
     for (id, func, body) in typed.function_iter() {
         program.push(Function {
+            fip: func.signature.is_fip,
             id: id.clone(),
             typ: from_exp_type(&body.data.data),
             args: func
@@ -471,7 +471,7 @@ fn from_type(typ: &ast::Type) -> Type {
     }
 }
 
-pub fn from_simple(expr: &Simple, k: &dyn Fn(VarPrim) -> Body) -> Body {
+pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
     match expr {
         Simple::Ident(var, typ) => k((var.clone(), typ.clone())),
         Simple::Int(i, typ) => {
@@ -537,10 +537,10 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(VarPrim) -> Body) -> Body {
                 Body::Match(var, new_bodies)
             })
         }
-        Simple::Let(var, exp, next, typ) => from_simple(exp, &move |var1| {
+        Simple::Let(var, exp, next, _) => from_simple(exp, &move |var1| {
             replace_var_body(
                 var1,
-                &(var.clone(), typ.clone()),
+                &(var.clone(), get_type(exp)),
                 from_simple(next, &move |var2| k(var2).into()),
             )
         }),
@@ -580,7 +580,7 @@ fn get_type(expr: &Simple) -> Type {
     }
 }
 
-fn translate_list(exprs: Vec<Simple>, k: &dyn Fn(Vec<VarPrim>) -> Body) -> Body {
+fn translate_list(exprs: Vec<Simple>, k: &dyn Fn(Vec<Var>) -> Body) -> Body {
     if exprs.is_empty() {
         k(vec![])
     } else {
@@ -596,7 +596,7 @@ fn translate_list(exprs: Vec<Simple>, k: &dyn Fn(Vec<VarPrim>) -> Body) -> Body 
     }
 }
 
-fn replace_var_body(replacing: VarPrim, replacee: &VarPrim, body: Body) -> Body {
+fn replace_var_body(replacing: Var, replacee: &Var, body: Body) -> Body {
     match body {
         Body::Ret(var) => Body::Ret(replace_var(var, replacing.clone(), replacee)),
         Body::Let(var, exp, next) => Body::Let(
@@ -620,7 +620,7 @@ fn replace_var_body(replacing: VarPrim, replacee: &VarPrim, body: Body) -> Body 
     }
 }
 
-fn replace_var_exp(replacing: VarPrim, replacee: &VarPrim, exp: Exp) -> Exp {
+fn replace_var_exp(replacing: Var, replacee: &Var, exp: Exp) -> Exp {
     match exp {
         Exp::App(id, args) => Exp::App(
             id,
@@ -645,7 +645,7 @@ fn replace_var_exp(replacing: VarPrim, replacee: &VarPrim, exp: Exp) -> Exp {
     }
 }
 
-fn replace_var(var: VarPrim, replacing: VarPrim, replacee: &VarPrim) -> VarPrim {
+fn replace_var(var: Var, replacing: Var, replacee: &Var) -> Var {
     if var == *replacee { replacing } else { var }
 }
 
@@ -690,7 +690,7 @@ fn reuse_all_matches(body: &Body) -> Body {
     }
 }
 
-fn evaluate_reuse_in_case(var: VarPrim, len: u8, body: &Body) -> Body {
+fn evaluate_reuse_in_case(var: Var, len: u8, body: &Body) -> Body {
     match body {
         Body::Match(case_var, branches) => Body::Match(
             case_var.clone(),
@@ -748,10 +748,15 @@ fn insert_reuse(var: String, len: u8, body: &Body) -> Body {
 pub fn add_reuse(prog: &Stir) -> Stir {
     prog.iter()
         .map(|func| Function {
+            fip: func.fip,
             id: func.id.clone(),
             typ: func.typ.clone(),
             args: func.args.clone(),
-            body: reuse_all_matches(&func.body),
+            body: if func.fip {
+                reuse_all_matches(&func.body)
+            } else {
+                func.body.clone()
+            },
         })
         .collect()
 }
@@ -783,7 +788,7 @@ pub fn get_ownership(prog: &Stir) -> HashMap<Constant, Vec<Status>> {
     map
 }
 
-fn collect(body: &Body, map: &HashMap<Constant, Vec<Status>>) -> HashSet<VarPrim> {
+fn collect(body: &Body, map: &HashMap<Constant, Vec<Status>>) -> HashSet<Var> {
     match body {
         Body::Let(var, e, next) => match e {
             Exp::Int(_) => collect(next, map),
@@ -853,6 +858,7 @@ fn insert_rc_fun(func: &Function, beta_map: &HashMap<Constant, Vec<Status>>) -> 
         betal.insert(func.args[i].clone(), *status);
     }
     Function {
+        fip: func.fip,
         id: func.id.clone(),
         typ: func.typ.clone(),
         args: func.args.clone(),
@@ -866,7 +872,7 @@ fn insert_rc_fun(func: &Function, beta_map: &HashMap<Constant, Vec<Status>>) -> 
 
 fn insert_rc_body(
     body: &Body,
-    betal: &HashMap<VarPrim, Status>,
+    betal: &HashMap<Var, Status>,
     beta_map: &HashMap<Constant, Vec<Status>>,
 ) -> Body {
     match body {
@@ -977,10 +983,10 @@ fn insert_rc_body(
 }
 
 fn cappy(
-    mut vars: Vec<VarPrim>,
+    mut vars: Vec<Var>,
     mut stats: Vec<Status>,
     body: &Body,
-    betal: &HashMap<VarPrim, Status>,
+    betal: &HashMap<Var, Status>,
 ) -> Body {
     let Body::Let(var, exp, next) = body else {
         panic!("Expected a Let body");
@@ -1016,7 +1022,7 @@ fn cappy(
     }
 }
 
-fn default_betal(var: &VarPrim, map: &HashMap<VarPrim, Status>) -> Status {
+fn default_betal(var: &Var, map: &HashMap<Var, Status>) -> Status {
     if let Some(status) = map.get(var) {
         *status
     } else {
@@ -1025,10 +1031,10 @@ fn default_betal(var: &VarPrim, map: &HashMap<VarPrim, Status>) -> Status {
 }
 
 fn owned_plus(
-    var: VarPrim,
-    live_vars: HashSet<VarPrim>,
+    var: Var,
+    live_vars: HashSet<Var>,
     body: &Body,
-    betal: &HashMap<VarPrim, Status>,
+    betal: &HashMap<Var, Status>,
 ) -> Body {
     if default_betal(&var, betal) == Status::Owned && !live_vars.contains(&var) {
         body.clone()
@@ -1039,7 +1045,7 @@ fn owned_plus(
     }
 }
 
-fn owned_minus(var: &VarPrim, body: &Body, betal: &HashMap<VarPrim, Status>) -> Body {
+fn owned_minus(var: &Var, body: &Body, betal: &HashMap<Var, Status>) -> Body {
     if default_betal(var, betal) == Status::Owned
         && !free_vars(body).contains(var)
         && var.1 != Type::Int
@@ -1050,7 +1056,7 @@ fn owned_minus(var: &VarPrim, body: &Body, betal: &HashMap<VarPrim, Status>) -> 
     }
 }
 
-fn owned_minus_all(vars: Vec<VarPrim>, body: &Body, betal: &HashMap<VarPrim, Status>) -> Body {
+fn owned_minus_all(vars: Vec<Var>, body: &Body, betal: &HashMap<Var, Status>) -> Body {
     let mut new_body = body.clone();
     for var in vars {
         new_body = owned_minus(&var, &new_body, betal);
@@ -1058,7 +1064,7 @@ fn owned_minus_all(vars: Vec<VarPrim>, body: &Body, betal: &HashMap<VarPrim, Sta
     new_body
 }
 
-fn free_vars_exp(exp: &Exp, bound: &HashSet<VarPrim>) -> HashSet<VarPrim> {
+fn free_vars_exp(exp: &Exp, bound: &HashSet<Var>) -> HashSet<Var> {
     match exp {
         Exp::App(_, args) => {
             let mut set = HashSet::new();
@@ -1127,7 +1133,7 @@ fn free_vars_exp(exp: &Exp, bound: &HashSet<VarPrim>) -> HashSet<VarPrim> {
     }
 }
 
-fn free_vars_helper(body: &Body, mut bound: HashSet<VarPrim>) -> HashSet<VarPrim> {
+fn free_vars_helper(body: &Body, mut bound: HashSet<Var>) -> HashSet<Var> {
     match body {
         Body::Ret(var) => {
             let mut set = HashSet::new();
@@ -1170,6 +1176,6 @@ fn free_vars_helper(body: &Body, mut bound: HashSet<VarPrim>) -> HashSet<VarPrim
     }
 }
 
-fn free_vars(body: &Body) -> HashSet<VarPrim> {
+fn free_vars(body: &Body) -> HashSet<Var> {
     free_vars_helper(body, HashSet::new())
 }
