@@ -6,7 +6,8 @@ use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
 use crate::compiler::core::{Def, Operand, Prog, Statement};
 use crate::compiler::score;
-use crate::compiler::stir::{self, Operator};
+use crate::compiler::simple::Operator;
+use crate::compiler::stir;
 use crate::preprocessor::preprocess;
 use input::*;
 use itertools::Itertools;
@@ -493,17 +494,14 @@ impl Debug for Data {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn _compile(path: &str, fip: bool) -> Prog {
+    use crate::compiler;
+
     let code = preprocess(Path::new(path));
     let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
-    let mut program = stir::from_typed(&typed_program);
-    if fip {
-        program = stir::add_reuse(&program);
-    }
-    let program = stir::add_rc(&program, true);
-    let core_ir = score::translate(&program);
-    core_ir
+    let compiled = compiler::compile::compile_typed(&typed_program);
+    compiled.core
 }
 
 #[cfg(not(target_arch = "wasm32"))]

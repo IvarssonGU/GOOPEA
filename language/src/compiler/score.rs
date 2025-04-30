@@ -1,11 +1,11 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::hash::Hash;
 use std::vec;
 
 //score = Stir-to-CORE
 use crate::compiler::core::{Def, Operand, Prog, Statement, Type};
-use crate::compiler::stir::{Body, Exp, Stir, Type as StirType};
+use crate::compiler::simple::Type as SType;
+use crate::compiler::stir::{Body, Exp, Stir};
 
 fn next_var() -> String {
     thread_local!(
@@ -62,11 +62,11 @@ fn collect_utuples(body: &Body) -> HashSet<u8> {
     }
 }
 
-fn from_type(typ: &StirType) -> Type {
+fn from_type(typ: &SType) -> Type {
     match typ {
-        StirType::Heaped => Type::Standard,
-        StirType::Int => Type::Standard,
-        StirType::Unboxed(vec) => Type::Value(vec.len() as u8),
+        SType::Heaped => Type::Standard,
+        SType::Int => Type::Standard,
+        SType::Unboxed(vec) => Type::Value(vec.len() as u8),
     }
 }
 
@@ -152,7 +152,7 @@ fn translate_body(body: &Body, mut stmts: Vec<Statement>, fid: &String) -> Vec<S
                     ));
                 }
                 Exp::Proj(field, projectee) => {
-                    if let StirType::Unboxed(_) = projectee.1 {
+                    if let SType::Unboxed(_) = projectee.1 {
                         stmts.push(Statement::AssignUTupleField(
                             var.0.clone(),
                             *field as i64,
@@ -233,7 +233,7 @@ fn translate_body(body: &Body, mut stmts: Vec<Statement>, fid: &String) -> Vec<S
             translate_body(next, stmts, fid)
         }
         Body::Dec(var, next) => {
-            if let StirType::Unboxed(vec) = &var.1 {
+            if let SType::Unboxed(vec) = &var.1 {
                 stmts.push(Statement::DecUTuple(var.0.clone(), vec.len() as u8));
             } else {
                 stmts.push(Statement::Dec(var.0.clone()));

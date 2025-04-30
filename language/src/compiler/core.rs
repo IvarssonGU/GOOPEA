@@ -4,7 +4,7 @@ use std::{
 };
 
 //core = C-Oriented-Representation for Execution
-use crate::compiler::stir::Operator;
+use crate::compiler::simple::Operator;
 
 //Warning this is currently not correct, we will look deeper into this later.
 
