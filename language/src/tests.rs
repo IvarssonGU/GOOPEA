@@ -1,3 +1,10 @@
+use std::path::PathBuf;
+fn test_file(filename: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join(filename)
+}
+
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod tests_parse_lex {
@@ -40,7 +47,7 @@ mod tests_parse_lex {
 
     #[test]
     fn lexer_test_reverse() {
-        assert_eq!(lexer_test(Path::new("examples/reverse.goo")).len(), 68)
+        assert_eq!(lexer_test(Path::new("examples/reverse.goo")).len(), 130)
     }
 
     #[test]
@@ -51,10 +58,38 @@ mod tests_parse_lex {
 
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
-mod tests_interpreter {
-    use crate::interpreter;
+mod tests_preprocessor {
+    use super::test_file;
+    use crate::preprocessor::preprocess;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    fn hash_str(s: &str) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        s.hash(&mut hasher);
+        hasher.finish()
+    }
+
     #[test]
-    fn test1() {
-        interpreter::Interpreter::new();
+    fn preprocessor_1() {
+        let code = preprocess(test_file("test_1.goo"));
+        println!("{code}");
+        assert_eq!(hash_str(&code), 10350114772817975888);
+    }
+}
+
+#[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
+mod tests_interpreter {
+    use super::test_file;
+    use crate::interpreter;
+
+    #[test]
+    fn interpreter_1() {
+        use interpreter::{_compile, Interpreter};
+        let core_ir = _compile(test_file("test_1.goo"), false);
+        let mut interpreter = Interpreter::from_program(&core_ir);
+        interpreter.run_until_done();
+        assert_eq!(interpreter.return_value.unwrap().unwrap_val(), 9865432);
     }
 }

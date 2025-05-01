@@ -1,0 +1,11 @@
+#include list.goo
+#include tree.goo
+
+List: Int
+packDigits(list) = match list {
+    Cons(xs, x): x + 10 * packDigits(xs),
+    Nil: 0
+};
+
+(): Int
+main = let list = randList(42, 10, 10) in packDigits(sortedElems(list));

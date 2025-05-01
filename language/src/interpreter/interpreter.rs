@@ -5,9 +5,9 @@ use crate::ast::base::BaseSliceProgram;
 use crate::ast::scoped::ScopedProgram;
 use crate::ast::typed::TypedProgram;
 use crate::core::{Def, Operand, Prog, Statement};
+use crate::preprocessor::preprocess;
 use crate::score;
 use crate::stir::{self, Operator};
-use crate::preprocessor::preprocess;
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
@@ -43,7 +43,7 @@ impl Data {
         }
     }
 
-    fn unwrap_val(&self) -> i64 {
+    pub fn unwrap_val(&self) -> i64 {
         match self {
             Data::Value(i) => *i,
             Data::Pointer(_) => panic!("Not a value"),
@@ -94,7 +94,7 @@ pub struct Interpreter {
     statement_stack: Vec<VecDeque<IStatement>>,
     local_variables: HashMap<String, Data>,
     variable_stack: Vec<HashMap<String, Data>>,
-    return_value: Option<Data>,
+    pub return_value: Option<Data>,
     steps: u64,
 }
 // init
@@ -496,8 +496,11 @@ impl Debug for Data {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn _compile(path: &str, fip: bool) -> Prog {
-    let code = preprocess(Path::new(path));
+pub fn _compile<P>(path: P, fip: bool) -> Prog
+where
+    P: AsRef<Path>,
+{
+    let code = preprocess(path);
     let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();

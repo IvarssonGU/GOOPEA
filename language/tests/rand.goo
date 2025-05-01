@@ -1,0 +1,22 @@
+#ifnot RAND_LIB
+#def RAND_LIB
+
+Int: Int
+next x = x * 1664525 + 1013904223;
+
+(Int, Int): Int
+fastMod(a, b) = match a >= b {
+    True: let b2 = 2 * b in match a >= b2 {
+        True: fastMod(fastMod(a - b2, b2), b),
+        False: fastMod(a - b, b)
+    },
+    False: a
+};
+
+(Int, Int): Int
+modulo(a, b) = match a >= 0 {
+    True: fastMod(a, b),
+    False: fastMod(b - fastMod(-a, b), b)
+};
+
+#endif RAND_LIB
