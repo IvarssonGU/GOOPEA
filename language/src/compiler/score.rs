@@ -209,11 +209,12 @@ fn translate_body(body: &Body, mut stmts: Vec<Statement>, fid: &String) -> Vec<S
             let mut new_branches = vec![];
             let mut operands = vec![];
             for (i, branch) in branches.iter().enumerate() {
-                let match_var = next_var();
-                operands.push(Operand::Ident(match_var.clone()));
                 if i > 0 && i == branches.len() - 1 {
+                    operands.push(Operand::NonShifted(1));
                     break;
                 }
+                let match_var = next_var();
+                operands.push(Operand::Ident(match_var.clone()));
                 stmts.push(Statement::AssignTagCheck(
                     match_var,
                     branch.0 != 0,
