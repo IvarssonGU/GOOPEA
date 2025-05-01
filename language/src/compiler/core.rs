@@ -1,22 +1,27 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    collections::HashSet,
+    fmt::{Display, Formatter},
+};
 
 //core = C-Oriented-Representation for Execution
-use crate::stir::Operator;
+use crate::compiler::simple::Operator;
 
 //Warning this is currently not correct, we will look deeper into this later.
 
-pub type Prog = Vec<Def>;
+pub type Prog = (Vec<Def>, HashSet<u8>);
 
 #[derive(Debug, Clone)]
 pub struct Def {
     pub id: String,
+    pub typ: Type,
     pub args: Vec<String>,
     pub body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Type {
-    Value,
+    Standard,
+    Value(u8),
     VoidPtrPtr,
     None,
 }
@@ -24,7 +29,8 @@ pub enum Type {
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Value => write!(f, "Value "),
+            Type::Standard => write!(f, "Value "),
+            Type::Value(u) => write!(f, "Value{} ", u),
             Type::VoidPtrPtr => write!(f, "void** "),
             Type::None => write!(f, ""),
         }
@@ -50,11 +56,13 @@ pub enum Statement {
     AssignFromField(String, i64, Operand),
     AssignBinaryOperation(String, Operator, Operand, Operand),
     AssignTagCheck(String, bool, Operand, i64),
-    AssignFunctionCall(String, String, Vec<Operand>),
+    AssignFunctionCall(String, String, Vec<Operand>, Type),
     AssignDropReuse(String, String),
     AssignUTuple(u8, String, Vec<String>),
+    AssignUTupleField(String, i64, Operand),
     Inc(String),
     Dec(String),
+    DecUTuple(String, u8),
 }
 
 pub fn output(prog: &Prog) -> Vec<String> {
@@ -66,7 +74,16 @@ pub fn output(prog: &Prog) -> Vec<String> {
         String::new(),
     ];
 
-    for def in prog {
+    for num in &prog.1 {
+        lines.push("typedef struct {".to_string());
+        for i in 0..*num {
+            lines.push(format!("\tValue elem{};", i));
+        }
+        lines.push(format!("}} Value{};", num));
+        lines.push(String::new());
+    }
+
+    for def in &prog.0 {
         lines.push(output_function_decls(def));
     }
     lines.extend(vec![
@@ -95,6 +112,12 @@ pub fn output(prog: &Prog) -> Vec<String> {
         "\treturn ref;".to_string(),
         "}".to_string(),
         String::new(),
+        "Value decu(Value* ptr, int size) {".to_string(),
+        "\tfor (int i = 0; i < size; i++) {".to_string(),
+        "\t\t dec(ptr[i]);".to_string(),
+        "\t}".to_string(),
+        "}".to_string(),
+        String::new(),
     ]);
     lines.extend(vec![
         "void** drop_reuse(Value ref) {".to_string(),
@@ -112,14 +135,14 @@ pub fn output(prog: &Prog) -> Vec<String> {
         String::new(),
     ]);
 
-    for def in prog {
+    for def in &prog.0 {
         let args_str = def
             .args
             .iter()
             .map(|arg| format!("Value {}", arg))
             .collect::<Vec<_>>()
             .join(", ");
-        lines.push(format!("Value {}({}) {{", def.id.clone(), args_str));
+        lines.push(format!("{}{}({}) {{", def.typ, def.id.clone(), args_str));
         let stmts_as_str = def
             .body
             .iter()
@@ -139,7 +162,7 @@ fn output_function_decls(def: &Def) -> String {
         .map(|arg| format!("Value {}", arg))
         .collect::<Vec<_>>()
         .join(", ");
-    format!("Value {}({});", def.id.clone(), args_str)
+    format!("{}{}({});", def.typ, def.id.clone(), args_str)
 }
 
 fn statement_to_string(stmt: &Statement, depth: usize) -> String {
@@ -211,10 +234,11 @@ fn statement_to_string(stmt: &Statement, depth: usize) -> String {
                 ),
             }
         }
-        Statement::AssignFunctionCall(var, fun, operands) => {
+        Statement::AssignFunctionCall(var, fun, operands, typ) => {
             format!(
-                "{}Value {} = {}({});",
+                "{}{}{} = {}({});",
                 tab,
+                typ,
                 var,
                 fun,
                 operands
@@ -241,9 +265,19 @@ fn statement_to_string(stmt: &Statement, depth: usize) -> String {
         Statement::AssignUTuple(size, var, args) => {
             format!("{}Value{} {} = {{{}}};", tab, size, var, args.join(", "))
         }
+        Statement::AssignUTupleField(var, i, op) => {
+            format!(
+                "{}Value {} = {}.elem{};",
+                tab,
+                var,
+                operand_to_string(op),
+                i
+            )
+        }
 
         Statement::Inc(var) => format!("{}inc({});", tab, var),
         Statement::Dec(var) => format!("{}dec({});", tab, var),
+        Statement::DecUTuple(var, size) => format!("{}decu(&{}, {});", tab, var, size),
     }
 }
 
