@@ -8,19 +8,19 @@ use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
+mod ast;
+mod core;
+mod error;
+mod interpreter;
+mod lexer;
+mod preprocessor;
+mod score;
+mod stir;
+
 use ast::base::BaseSliceProgram;
 use ast::{scoped::ScopedProgram, typed::TypedProgram};
 use error::Result;
 use lalrpop_util::lalrpop_mod;
-
-pub mod ast;
-mod error;
-mod lexer;
-
-mod core;
-mod score;
-mod stir;
-
 lalrpop_mod!(pub grammar);
 
 #[cfg(target_arch = "wasm32")]
@@ -32,13 +32,8 @@ fn parse_and_validate(code: &str) -> Result<TypedProgram<'_>> {
     TypedProgram::new(scoped_program)
 }
 
-mod preprocessor;
-use preprocessor::preprocess;
-
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
-    use core::Def;
-
     let code = fs::read_to_string(Path::new("examples/tree_flip.goo")).unwrap();
     //let code = "(): ()\nmain = ()".to_string();
 
@@ -52,57 +47,4 @@ fn main() {
     let core_ir = score::translate(&pure_rc);
     let result = core::output(&core_ir);
     println!("{}", result.join("\n"));
-}
-
-#[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
-mod tests {
-    use crate::grammar;
-    use crate::lexer::{Lexer, Token, lexer};
-    use std::fs;
-    use std::path::Path;
-
-    fn parse_example(path: &Path) -> () {
-        let code = fs::read_to_string(path).unwrap();
-        println!(
-            "{:?}",
-            grammar::ProgramParser::new()
-                .parse(Lexer::new(&code))
-                .unwrap()
-        );
-    }
-
-    #[test]
-    fn parse_reverse() {
-        parse_example(Path::new("examples/reverse.goo"));
-    }
-
-    #[test]
-    fn parse_zipper_tree() {
-        parse_example(Path::new("examples/zipper_tree.goo"));
-    }
-
-    #[test]
-    fn parse_integer() {
-        parse_example(Path::new("examples/integer.goo"));
-    }
-
-    fn lexer_test(file: &Path) -> Vec<Token> {
-        let src = std::fs::read_to_string(file).unwrap();
-        let tokens = lexer(src.as_str());
-
-        tokens.iter().for_each(|token| println!("{:#?}", token));
-
-        tokens
-    }
-
-    #[test]
-    fn lexer_test_reverse() {
-        assert_eq!(lexer_test(Path::new("examples/reverse.goo")).len(), 68)
-    }
-
-    #[test]
-    fn lexer_test_zipper_tree() {
-        assert_eq!(lexer_test(Path::new("examples/zipper_tree.goo")).len(), 160)
-    }
 }

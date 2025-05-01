@@ -20,6 +20,9 @@ use interpreter::Interpreter;
 use lalrpop_util::lalrpop_mod;
 use std::cell::RefCell;
 
+#[cfg(test)]
+mod tests;
+
 thread_local! {
     static INTERPRETER: RefCell<Interpreter> = RefCell::new(Interpreter::new());
     static INT_HISTORY: RefCell<Vec<Interpreter>> = RefCell::new(Vec::new());
