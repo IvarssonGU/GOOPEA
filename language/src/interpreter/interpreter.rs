@@ -115,7 +115,7 @@ impl Interpreter {
 
     pub fn from_program(program: &Prog) -> Self {
         let mut interpreter = Interpreter::new();
-        for def in program.clone() {
+        for def in program.0.clone() {
             interpreter = interpreter.with_fn(IDef::from_def(&def));
         }
         interpreter = interpreter.with_entry_point("main");
@@ -504,13 +504,8 @@ where
     let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
-    let mut program = stir::from_typed(&typed_program);
-    if fip {
-        program = stir::add_reuse(&program);
-    }
-    let program = stir::add_rc(&program, true);
-    let core_ir = score::translate(&program);
-    core_ir
+    let compiled = compiler::compile::compile_typed(&typed_program);
+    compiled.core
 }
 
 #[cfg(not(target_arch = "wasm32"))]
