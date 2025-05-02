@@ -3,10 +3,7 @@
 #![feature(mixed_integer_ops_unsigned_sub)]
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::{
-    fs,
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 #[cfg(not(target_arch = "wasm32"))]
 use clap::Parser;
@@ -16,6 +13,7 @@ use ast::{scoped::ScopedProgram, typed::TypedProgram};
 use compiler::compile::compile_typed;
 use error::Result;
 use lalrpop_util::lalrpop_mod;
+use preprocessor::preprocess;
 
 pub mod ast;
 pub mod compiler;
@@ -36,7 +34,6 @@ fn parse_and_validate(code: &str) -> Result<TypedProgram<'_>> {
 }
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
 struct Args {
     #[arg(short, long)]
     file: PathBuf,
@@ -57,7 +54,7 @@ fn main() {
     if args.interpret {
         interpreter::interpreter_test(file);
     } else {
-        let code = fs::read_to_string(file).unwrap();
+        let code = preprocess(file);
         let typed_program = parse_and_validate(&code)
             .map_err(|e| e.to_string())
             .unwrap();
