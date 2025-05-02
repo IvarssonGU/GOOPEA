@@ -57,7 +57,8 @@ const label_padding = 2;
 
 const zoom_padding = 50;
 
-let show_header = true;
+let show_header = false;
+let show_vars = false;
 
 function node_width(node) {
     if(!node.data.is_var) return 2 * box_padding + field_width * node.data.fields.length + field_padding * (node.data.fields.length - 1);
@@ -78,11 +79,19 @@ function field_dy(i) {
 }
 
 function var_dx(d) {
-    return -node_width(d) / 2
+    return 0;
 }
 
-function var_dy(d) {
-    return (d.data.label.length > 0 ? label_height + label_padding : 0) - node_height(d) / 2
+function var_dy(node) {
+    return (node.data.label.length > 0 ? (label_height + label_padding) / 2 : 0)
+}
+
+function out_port_dx(i, node) {
+    return field_dx(i) + field_width / 2;
+}
+
+function out_port_dy(i, node) {
+    return field_dy(i) + field_height;
 }
 
 // Create the SVG container.
@@ -114,8 +123,22 @@ function zoomed({transform}) {
 visualization_container.append(svg.node())
 
 d3.select("#showHeaderCheckbox").on("change", update_visualization);
+d3.select("#showVariablesCheckbox").on("change", update_visualization);
 
-function update_visualization() {
+const elk = new ELK({
+    defaultLayoutOptions: {
+      'elk.algorithm': 'layered',
+      'elk.direction': 'DOWN',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '50',
+      'elk.layered.spacing.nodeNode': '20',
+      "elk.portConstraints": "FIXED_POS",
+      "elk.interactiveLayout": "True"
+    }
+});
+
+let prev_node_positions = {}
+
+async function update_visualization() {
     const mem = wasm_bindgen.take_interpreter_memory_snapshot()
 
     const entrance_color = window.getComputedStyle(svg.node()).getPropertyValue('--entrance-color');
@@ -127,10 +150,24 @@ function update_visualization() {
     const now_hiding_headers = !new_show_header && show_header;
     show_header = new_show_header
 
-    const graph = d3.graph()
+    const new_show_vars = d3.select("#showVariablesCheckbox").property("checked");
+    const now_showing_vars = new_show_vars && !show_vars;
+    const now_hiding_vars = !new_show_vars && show_vars;
+    show_vars = new_show_vars
 
-    let mem_nodes = mem.heap.map((fields, i) => {
-        let modified_fields = fields.map((field, i) => {
+    let graph = {
+        id: 'root',
+        layoutOptions: { 'elk.algorithm': 'layered' },
+        children: [],
+        edges: []
+    };
+
+    let links = [];
+    let mem_nodes = new Map();
+    for(let [i, fields] of mem.heap.entries()) {
+        if (fields.length == 0) { continue; }
+
+        fields = fields.map((field, i) => {
             let label = "";
 
             if(i == 0) label = "Tag";
@@ -142,58 +179,116 @@ function update_visualization() {
             return { data: field, index: i }
         })
 
-        if(!show_header) modified_fields.splice(0, 3)
+        if(!show_header) fields.splice(0, 3);
 
-        return { fields: modified_fields, id: i, is_var: false }
-    }).reduce((map, d) => {
-        if(d.fields.length > 0) {
-            map.set(d.id, graph.node(d))
+        let node_id = i.toString();
+        let node = {
+            id: node_id,
+            data: { fields: fields, is_var: false }
+        };
+
+        node.width = node_width(node);
+        node.height = node_height(node);
+
+        node.ports = [{
+            id: `${node_id}[in]`,
+            x: node.width / 2,
+            y: 0,
+        }];
+
+        node.edges = [];
+        for(let j = 0; j < fields.length; j++) {
+            let port_id = `${node_id}[${j}]`;
+
+            node.ports.push({
+                id: port_id,
+                x: out_port_dx(j, node),
+                y: out_port_dy(j, node),
+            });
+
+            if(fields[j].data.is_ptr) {
+                let edge = {
+                    id: `${port_id}-${fields[j].data.val}`,
+                    sources: [port_id],
+                    targets: [`${fields[j].data.val}[in]`]
+                };
+
+                node.edges.push(edge);
+                links.push(edge)
+            }
         }
 
-        return map;
-    }, new Map());
+        graph.children.push(node);
+        mem_nodes.set(i, node);
+    }
 
-    let var_nodes = [...mem.variables.entries().map(([label, data]) => {
+    let var_nodes = [];
+    for(const [label, data] of mem.variables.entries()) {
+        if(!show_vars) continue;
+
         data.label = label;
         data.is_var = true;
-        return graph.node(data)
-    })];
+        
+        let node = {
+            id: label,
+            data: data,
+            ports: []
+        }
+
+        node.ports.push({
+            id: label + "[out]",
+            x: var_dx(node) + field_width / 2,
+            y: var_dy(node) + field_height
+        })
+
+        node.width = node_width(node);
+        node.height = node_height(node);
+
+        console.log(node.height)
+
+        graph.children.push(node);
+        var_nodes.push(node);
+    }
 
     for(const node of var_nodes) {
         if(node.data.is_ptr) {
             let target = mem_nodes.get(node.data.val);
-            graph.link(node, target, { id: node.data.label })
-        }
-    }
-    
-    for(const node of mem_nodes.values()) {
-        for(const [i, d] of node.data.fields.entries()) {
-            if(d.data.is_ptr) {
-                let target = mem_nodes.get(d.data.val);
-                graph.link(node, target, { field_index: i, id: `${node.data.id}#${i + (show_header ? 0 : 3)}` })
-            }
+
+            let edge = {
+                id: `${node.data.label}-${node.data.val}`,
+                sources: [node.id + "[out]"],
+                targets: [target.id + "[in]"]
+            };
+
+            links.push(edge)
+            graph.edges.push(edge)
         }
     }
 
-    const { width: graph_width, height: graph_height } = d3.sugiyama()
-        .nodeSize(d => [node_width(d), node_height(d)])
-        .gap([20, 50])
-        .tweaks([/*d3.tweakFlip("diagonal"), */tweak_endpoints])(graph)
+    prev_node_positions = {};
+    for(const node of graph.children) {
+        prev_node_positions[node.id] = { x: node.x, y: node.y };
+    }
 
-    const padded_graph_height = graph_height + zoom_padding;
+    graph = await elk.layout(graph)
+
+    const graph_width = graph.width;
+    const graph_height = graph.height;
+
     const padded_graph_width = graph_width + zoom_padding;
+    const padded_graph_height = graph_height + zoom_padding;
 
     const mem_selection = zoom_layer.selectAll(".node")
-        .stable_data(mem_nodes.values(), d => d.data.id);
+        .stable_data(mem_nodes.values(), d => d.id);
 
     const var_selection = zoom_layer.selectAll(".var")
         .stable_data(var_nodes, d => d.data.label);
 
     const link_selection = zoom_layer.selectAll(".link")
-        .stable_data(graph.links(), d => d.data.id)
+        .stable_data(links, d => d.id)
 
-    let nothing_exiting = mem_selection.exit().size() == 0 && link_selection.exit().size() == 0 && var_selection.exit().size() == 0 && !now_hiding_headers;
-    let nothing_entering = mem_selection.enter().size() == 0 && link_selection.enter().size() == 0 && var_selection.enter().size() == 0 && !now_showing_headers;
+    let nothing_exiting = mem_selection.exit().size() == 0 && link_selection.exit().size() == 0 && var_selection.exit().size() == 0 && !now_hiding_headers && !now_hiding_vars;
+    let nothing_entering = mem_selection.enter().size() == 0 && link_selection.enter().size() == 0 && var_selection.enter().size() == 0 && !now_showing_headers && !now_showing_vars;
 
     const exit_time = nothing_exiting ? 0 : 500;
     const shift_time = 500;
@@ -235,8 +330,7 @@ function update_visualization() {
     }
 
     function transform_node(selection) {
-        selection
-        .attr("transform", d => `translate(${d.x - node_width(d) / 2},${d.y - node_height(d) / 2})`)
+        selection.attr("transform", d => `translate(${d.x},${d.y})`)
     }
 
     function transform_bounding_box(selection) {
@@ -392,10 +486,10 @@ function update_visualization() {
     link_selection.join(
         function (enter) {
             let link = enter.append("path").attr("class", "link")
-                .attr("d", ({ points }) =>
+                .attr("d", link => 
                     d3.linkVertical()({
-                        source: points[0],
-                        target: points[points.length - 1]
+                        source: [link.sections[0].startPoint.x, link.sections[0].startPoint.y] ,
+                        target: [link.sections[0].endPoint.x, link.sections[0].endPoint.y]
                     })
                 )    
                        
@@ -406,10 +500,10 @@ function update_visualization() {
         function (update) {
             update
                 .transition(node_shift_transition)
-                .attr("d", ({ points }) =>
+                .attr("d", link =>
                     d3.linkVertical()({
-                        source: points[0],
-                        target: points[points.length - 1]
+                        source: [link.sections[0].startPoint.x, link.sections[0].startPoint.y] ,
+                        target: [link.sections[0].endPoint.x, link.sections[0].endPoint.y]
                     })
                 )
                 
@@ -504,26 +598,4 @@ function center_and_size_text(selection, x, y, width, height) {
             .attr("x", x + width / 2)
             .attr("y", y + height / 2 + new_label_font_size / 3.5);
     })
-}
-
-function tweak_endpoints(graph, size) {
-    for(let link of graph.links()) {
-        let [sx, sy] = link.points[0]
-        if(link.source.data.is_var) {
-            sy += var_dy(link.source) + field_height;
-        } else {
-            sx -= node_width(link.source) / 2
-            sx += field_dx(link.data.field_index) + field_width / 2
-
-            sy -= node_height(link.source) / 2
-            sy += field_dy(link.data.field_index) + field_height
-        }
-        link.points[0] = [sx, sy]
-
-        let [tx, ty] = link.points[link.points.length - 1]
-        ty -= node_height(link.target) / 2
-        link.points[link.points.length - 1] = [tx, ty]
-    }
-
-    return size
 }
