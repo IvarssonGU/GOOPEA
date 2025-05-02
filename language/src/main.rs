@@ -39,6 +39,8 @@ struct Args {
     file: PathBuf,
     #[arg(short, long)]
     interpret: bool,
+    #[arg(short, long)]
+    preprocess: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -51,15 +53,22 @@ fn main() {
 
     let args = Args::parse();
     let file = args.file;
-    if args.interpret {
-        interpreter::interpreter_test(file);
-    } else {
-        let code = preprocess(file);
-        let typed_program = parse_and_validate(&code)
-            .map_err(|e| e.to_string())
-            .unwrap();
-        let compiled_program = compile_typed(&typed_program);
-        let result = compiler::core::output(&compiled_program.core);
-        println!("{}", result.join("\n"));
+    match (args.interpret, args.preprocess) {
+        (false, false) => {
+            let code = preprocess(file);
+            let typed_program = parse_and_validate(&code)
+                .map_err(|e| e.to_string())
+                .unwrap();
+            let compiled_program = compile_typed(&typed_program);
+            let result = compiler::core::output(&compiled_program.core);
+            println!("{}", result.join("\n"));
+        }
+        (false, true) => {
+            println!("{}", preprocess(file));
+        }
+        (true, false) => {
+            interpreter::interpreter_test(file);
+        }
+        (true, true) => panic!("cant interpret and preprocess"),
     }
 }
