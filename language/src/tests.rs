@@ -47,7 +47,7 @@ mod tests_parse_lex {
 
     #[test]
     fn lexer_test_reverse() {
-        assert_eq!(lexer_test(Path::new("examples/reverse.goo")).len(), 130)
+        assert_eq!(lexer_test(Path::new("examples/reverse.goo")).len(), 141)
     }
 
     #[test]
@@ -83,10 +83,18 @@ mod tests_preprocessor {
 mod tests_interpreter {
     use super::test_file;
     use crate::interpreter;
+    use interpreter::{_compile, Interpreter};
+
+    #[test]
+    fn interpreter_0() {
+        let core_ir = _compile(test_file("test_0.goo"));
+        let mut interpreter = Interpreter::from_program(&core_ir);
+        interpreter.run_until_done();
+        assert_eq!(interpreter.return_value.unwrap().unwrap_val(), 8);
+    }
 
     #[test]
     fn interpreter_1() {
-        use interpreter::{_compile, Interpreter};
         let core_ir = _compile(test_file("test_1.goo"));
         let mut interpreter = Interpreter::from_program(&core_ir);
         interpreter.run_until_done();
