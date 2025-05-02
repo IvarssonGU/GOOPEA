@@ -57,7 +57,8 @@ const label_padding = 2;
 
 const zoom_padding = 50;
 
-let show_header = true;
+let show_header = false;
+let show_vars = false;
 
 function node_width(node) {
     if(!node.data.is_var) return 2 * box_padding + field_width * node.data.fields.length + field_padding * (node.data.fields.length - 1);
@@ -122,6 +123,7 @@ function zoomed({transform}) {
 visualization_container.append(svg.node())
 
 d3.select("#showHeaderCheckbox").on("change", update_visualization);
+d3.select("#showVariablesCheckbox").on("change", update_visualization);
 
 const elk = new ELK({
     defaultLayoutOptions: {
@@ -147,6 +149,11 @@ async function update_visualization() {
     const now_showing_headers = new_show_header && !show_header;
     const now_hiding_headers = !new_show_header && show_header;
     show_header = new_show_header
+
+    const new_show_vars = d3.select("#showVariablesCheckbox").property("checked");
+    const now_showing_vars = new_show_vars && !show_vars;
+    const now_hiding_vars = !new_show_vars && show_vars;
+    show_vars = new_show_vars
 
     let graph = {
         id: 'root',
@@ -215,7 +222,10 @@ async function update_visualization() {
         mem_nodes.set(i, node);
     }
 
-    let var_nodes = [...mem.variables.entries().map(([label, data]) => {
+    let var_nodes = [];
+    for(const [label, data] of mem.variables.entries()) {
+        if(!show_vars) continue;
+
         data.label = label;
         data.is_var = true;
         
@@ -237,9 +247,8 @@ async function update_visualization() {
         console.log(node.height)
 
         graph.children.push(node);
-
-        return node;
-    })];
+        var_nodes.push(node);
+    }
 
     for(const node of var_nodes) {
         if(node.data.is_ptr) {
@@ -278,8 +287,8 @@ async function update_visualization() {
     const link_selection = zoom_layer.selectAll(".link")
         .stable_data(links, d => d.id)
 
-    let nothing_exiting = mem_selection.exit().size() == 0 && link_selection.exit().size() == 0 && var_selection.exit().size() == 0 && !now_hiding_headers;
-    let nothing_entering = mem_selection.enter().size() == 0 && link_selection.enter().size() == 0 && var_selection.enter().size() == 0 && !now_showing_headers;
+    let nothing_exiting = mem_selection.exit().size() == 0 && link_selection.exit().size() == 0 && var_selection.exit().size() == 0 && !now_hiding_headers && !now_hiding_vars;
+    let nothing_entering = mem_selection.enter().size() == 0 && link_selection.enter().size() == 0 && var_selection.enter().size() == 0 && !now_showing_headers && !now_showing_vars;
 
     const exit_time = nothing_exiting ? 0 : 500;
     const shift_time = 500;
