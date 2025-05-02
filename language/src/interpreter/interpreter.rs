@@ -87,7 +87,7 @@ pub struct Interpreter {
     statement_stack: Vec<VecDeque<IStatement>>,
     local_variables: HashMap<String, Data>,
     variable_stack: Vec<HashMap<String, Data>>,
-    pub return_value: Option<Data>,
+    return_value: Option<Data>,
     steps: u64,
 }
 // init
@@ -391,6 +391,14 @@ impl Interpreter {
 
     pub fn get_function_names_stack(&self) -> Vec<String> {
         self.function_names_stack.clone()
+    }
+
+    pub fn get_return_value(&self) -> Option<Data> {
+        self.return_value
+    }
+
+    pub fn get_statements(&self) -> Vec<IStatement> {
+        self.statements.clone().into_iter().collect::<Vec<_>>()
     }
 
     pub fn get_variables_raw(&self) -> Vec<(String, Data)> {

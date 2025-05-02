@@ -90,7 +90,7 @@ mod tests_interpreter {
         let core_ir = _compile(test_file("test_0.goo"));
         let mut interpreter = Interpreter::from_program(&core_ir);
         interpreter.run_until_done();
-        assert_eq!(interpreter.return_value.unwrap().unwrap_val(), 8);
+        assert_eq!(interpreter.get_return_value().unwrap().unwrap_val(), 8);
     }
 
     #[test]
@@ -98,6 +98,6 @@ mod tests_interpreter {
         let core_ir = _compile(test_file("test_1.goo"));
         let mut interpreter = Interpreter::from_program(&core_ir);
         interpreter.run_until_done();
-        assert_eq!(interpreter.return_value.unwrap().unwrap_val(), 9865432);
+        assert_eq!(interpreter.get_return_value().unwrap().unwrap_val(), 9865432);
     }
 }
