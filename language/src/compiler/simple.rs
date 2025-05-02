@@ -13,7 +13,7 @@ pub enum Type {
     Unboxed(Vec<Type>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Simple {
     Ident(String, Type),
     Int(i64, Type),
@@ -153,14 +153,12 @@ pub fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
                 ),
             },
         },
-        scoped::SimplifiedExpression::Integer(i) => {
-            Simple::Int(i.clone(), from_exp_type(&expr.data.data))
-        }
+        scoped::SimplifiedExpression::Integer(i) => Simple::Int(*i, from_exp_type(&expr.data.data)),
         scoped::SimplifiedExpression::Variable(id) => {
             Simple::Ident(id.clone(), from_exp_type(&expr.data.data))
         }
         scoped::SimplifiedExpression::Match(var_node, cases) => Simple::Match(
-            Simple::Ident(var_node.expr.clone(), from_exp_type(&expr.data.data)).into(),
+            Simple::Ident(var_node.expr.clone(), from_exp_type(&var_node.data.data)).into(),
             cases
                 .iter()
                 .map(|(pattern, exp)| {
@@ -235,7 +233,7 @@ pub fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
 pub fn from_exp_type(typ: &ExpressionType) -> Type {
     match typ {
         ExpressionType::UTuple(vec) => Type::Unboxed(vec.0.iter().map(from_type).collect()),
-        ExpressionType::Type(typ) => from_type(&typ),
+        ExpressionType::Type(typ) => from_type(typ),
     }
 }
 

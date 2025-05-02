@@ -266,12 +266,12 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
             replace_var_body(
                 var1,
                 &(var.clone(), get_type(exp)),
-                from_simple(next, &move |var2| k(var2).into()),
+                from_simple(next, &move |var2| k(var2)),
             )
         }),
         Simple::LetApp(vars, exp, next, _) => from_simple(exp, &move |var1| {
             vars.iter().enumerate().rev().fold(
-                from_simple(next, &move |var2| k(var2).into()),
+                from_simple(next, &move |var2| k(var2)),
                 |acc, (i, var)| {
                     Body::Let(
                         (
