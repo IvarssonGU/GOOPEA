@@ -91,7 +91,7 @@ impl CompiledProgramWrapper {
     }
 
     pub fn start_interpreter(&self) {
-        language::load_interpreter(&self.0.core)
+        language::load_interpreter(&self.0)
     }
 
     pub fn get_stir_str(&self) -> String {
@@ -116,7 +116,7 @@ pub fn compile(arg: &str) -> ResultWrapper {
 
 #[wasm_bindgen]
 pub fn start_interpreter(arg: &str) {
-    language::load_interpreter(&language::compile(arg).unwrap().core)
+    language::load_interpreter(&language::compile(arg).unwrap())
 }
 
 #[wasm_bindgen]
