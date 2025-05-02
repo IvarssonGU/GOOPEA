@@ -228,6 +228,12 @@ fn statement_to_string(stmt: &Statement, depth: usize) -> String {
                     "{}Value {} = ({} / ({} - 1)) << 1 | 1;",
                     tab, id, left, right
                 ),
+                Operator::Mod => {
+                    format!(
+                        "{}Value {} = (({} >> 1) % ({} >> 1)) << 1 | 1;",
+                        tab, id, left, right
+                    )
+                }
                 op => format!(
                     "{}Value {} = ({} {} {}) << 1 | 1;",
                     tab, id, left, op, right

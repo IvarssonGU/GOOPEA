@@ -282,6 +282,7 @@ impl Interpreter {
                         Operator::Sub => lhs - rhs,
                         Operator::Mul => lhs * rhs,
                         Operator::Div => lhs / rhs,
+                        Operator::Mod => lhs % rhs,
                     };
                     self.local_variables.insert(id, Data::Value(val));
                 }

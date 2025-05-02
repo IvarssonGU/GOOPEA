@@ -26,11 +26,9 @@ pub fn compile_typed(typed: &TypedProgram) -> CompiledProgram {
                 .zip(func.signature.argument_type.0.iter())
                 .map(|(var, typ)| (var.clone(), from_type(typ)))
                 .collect(),
-            body: {
-                let simple = from_typed_expr(body, typed);
-                println!("Simple: {:#?}", simple);
-                remove_dead_bindings(from_simple(&simple, &|var| Body::Ret(var)))
-            },
+            body: remove_dead_bindings(from_simple(&from_typed_expr(body, typed), &|var| {
+                Body::Ret(var)
+            })),
         });
     }
     let reuse = crate::compiler::reuse::add_reuse(&stir);

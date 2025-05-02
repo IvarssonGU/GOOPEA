@@ -46,6 +46,7 @@ pub enum Operator {
     Sub,
     Mul,
     Div,
+    Mod,
 }
 
 impl Display for Operator {
@@ -61,6 +62,7 @@ impl Display for Operator {
             Operator::Sub => write!(f, "-"),
             Operator::Mul => write!(f, "*"),
             Operator::Div => write!(f, "/"),
+            Operator::Mod => write!(f, "%"),
         }
     }
 }
@@ -124,6 +126,12 @@ pub fn from_typed_expr(expr: &TypedNode, context: &TypedProgram) -> Simple {
             ),
             "!=" => Simple::Operation(
                 Operator::NotEqual,
+                from_typed_expr(&args.0[0], context).into(),
+                from_typed_expr(&args.0[1], context).into(),
+                from_exp_type(&expr.data.data),
+            ),
+            "%" => Simple::Operation(
+                Operator::Mod,
                 from_typed_expr(&args.0[0], context).into(),
                 from_typed_expr(&args.0[1], context).into(),
                 from_exp_type(&expr.data.data),
