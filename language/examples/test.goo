@@ -1,5 +1,4 @@
-#include list.goo
-#include tree.goo
+#include ../tests/list.goo
 
 () : List
-main = let list = randList(42, 10, 100) in dumbSort(list);
+main = randList(42, 10, 100);

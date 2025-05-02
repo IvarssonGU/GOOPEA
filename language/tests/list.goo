@@ -59,7 +59,7 @@ rangeList(start, stop) = match start <= stop {
 (Int, Int, Int): List
 randList(seed, len, mod) = match len > 0 {
     True: let a = next seed in 
-        Cons(modulo(a, mod), randList(a, len - 1, mod)),
+        Cons(a % mod, randList(a, len - 1, mod)),
     False: Nil
 };
 
