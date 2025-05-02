@@ -78,6 +78,11 @@ impl Data {
     }
 }
 
+fn make63bit(i: i64) -> i64 {
+    let msb_c = (i >> 62) & 1;
+    (i & !(1 << 63)) | (msb_c << 63)
+}
+
 #[derive(Clone)]
 pub struct Interpreter {
     functions: HashMap<String, IDef>,
@@ -128,7 +133,7 @@ impl Interpreter {
 // running
 impl Interpreter {
     fn eval_op(&self, op: &IOperand) -> i64 {
-        match op {
+        make63bit(match op {
             IOperand::Ident(id) => self.get_local_var(id).unwrap_val(),
             IOperand::Int(i) => *i,
             IOperand::Negate(id) => {
@@ -138,7 +143,7 @@ impl Interpreter {
                     0
                 }
             }
-        }
+        })
     }
 
     fn op_to_data(&self, op: &IOperand) -> Data {
@@ -284,7 +289,7 @@ impl Interpreter {
                         Operator::Div => lhs / rhs,
                         Operator::Mod => lhs % rhs,
                     };
-                    self.local_variables.insert(id, Data::Value(val));
+                    self.local_variables.insert(id, Data::Value(make63bit(val)));
                 }
                 IStatement::AssignTagCheck(id, b, iop, i) => {
                     let i = i >> 1; // bruh
@@ -491,7 +496,7 @@ impl Debug for Interpreter {
 impl Debug for Data {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Data::Value(i) => write!(f, "{}", i),
+            Data::Value(i) => write!(f, "{}", make63bit(*i)),
             Data::Pointer(p) => write!(f, "<{}>", p),
         }
     }
