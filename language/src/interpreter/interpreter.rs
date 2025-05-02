@@ -502,9 +502,11 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test(src: &str) {
-    println!("fip?");
-    let core_ir = _compile(src);
+pub fn interpreter_test<P>(path: P)
+where
+    P: AsRef<Path>,
+{
+    let core_ir = _compile(path);
 
     let mut interpreter = Interpreter::from_program(&core_ir);
 
