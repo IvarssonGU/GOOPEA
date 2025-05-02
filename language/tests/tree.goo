@@ -20,14 +20,14 @@ insert(tree, value) = match tree {
 
 (BST, List): BST
 insertList(tree, list) = match list {
-    Cons(xs, x): insertList(insert(tree, x), xs),
+    Cons(x, xs): insertList(insert(tree, x), xs),
     Nil: tree
 };
 
 BST: List
 flatten(tree) = match tree {
     Empty: Nil,
-    Node(left, x, right): concatList(concatList(flatten(left), Cons(Nil, x)), flatten(right))
+    Node(left, x, right): concatList(concatList(flatten(left), Cons(x, Nil)), flatten(right))
 };
 
 List: List

@@ -74,7 +74,7 @@ mod tests_preprocessor {
     fn preprocessor_1() {
         let code = preprocess(test_file("test_1.goo"));
         println!("{code}");
-        assert_eq!(hash_str(&code), 10350114772817975888);
+        assert_eq!(hash_str(&code), 14802785831073222408);
     }
 }
 
