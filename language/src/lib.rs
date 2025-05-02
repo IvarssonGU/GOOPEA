@@ -73,7 +73,7 @@ pub fn rc_str(program: &CompiledProgram) -> String {
 // restore return memory step1 finish
 // state   state  state  state state
 
-pub fn load_interpreter(program: &Prog) {
+pub fn load_interpreter(program: &CompiledProgram) {
     let interpreter = Interpreter::from_program(program);
     INTERPRETER.set(interpreter);
 }

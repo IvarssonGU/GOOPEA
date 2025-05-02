@@ -19,6 +19,7 @@ pub mod compiler;
 mod error;
 mod interpreter;
 mod lexer;
+pub mod preprocessor;
 
 lalrpop_mod!(pub grammar);
 

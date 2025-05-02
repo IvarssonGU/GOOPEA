@@ -87,7 +87,7 @@ mod tests_interpreter {
     #[test]
     fn interpreter_1() {
         use interpreter::{_compile, Interpreter};
-        let core_ir = _compile(test_file("test_1.goo"), false);
+        let core_ir = _compile(test_file("test_1.goo"));
         let mut interpreter = Interpreter::from_program(&core_ir);
         interpreter.run_until_done();
         assert_eq!(interpreter.return_value.unwrap().unwrap_val(), 9865432);

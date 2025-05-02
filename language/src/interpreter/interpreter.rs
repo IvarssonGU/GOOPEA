@@ -1,13 +1,9 @@
 use super::historymagic::{HMT, HistoryMagic};
 use super::iast::*;
 use super::mempeek::MemObj;
-use crate::ast::base::BaseSliceProgram;
-use crate::ast::scoped::ScopedProgram;
-use crate::ast::typed::TypedProgram;
-use crate::core::{Def, Operand, Prog, Statement};
+use crate::ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
+use crate::compiler::{self, compile::CompiledProgram, simple::Operator};
 use crate::preprocessor::preprocess;
-use crate::score;
-use crate::stir::{self, Operator};
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
@@ -17,9 +13,6 @@ use std::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 use std::{fmt, vec};
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::fs;
 
 #[derive(Clone, Copy)]
 pub enum Data {
@@ -113,9 +106,9 @@ impl Interpreter {
         }
     }
 
-    pub fn from_program(program: &Prog) -> Self {
+    pub fn from_program(program: &CompiledProgram) -> Self {
         let mut interpreter = Interpreter::new();
-        for def in program.0.clone() {
+        for def in program.core.clone().0 {
             interpreter = interpreter.with_fn(IDef::from_def(&def));
         }
         interpreter = interpreter.with_entry_point("main");
@@ -152,14 +145,14 @@ impl Interpreter {
         match op {
             IOperand::Ident(id) => self.get_local_var(id),
             IOperand::Int(i) => Data::Value(*i),
-            IOperand::Negate(id) => panic!("Hoppsan"),
+            IOperand::Negate(_) => panic!("Hoppsan"),
         }
     }
 
     fn get_local_var(&self, id: &str) -> Data {
         self.local_variables
             .get(id)
-            .expect("Variable not in scope")
+            .expect(&format!("Variable {id} not in scope"))
             .clone()
     }
 
@@ -496,7 +489,7 @@ impl Debug for Data {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn _compile<P>(path: P, fip: bool) -> Prog
+pub fn _compile<P>(path: P) -> CompiledProgram
 where
     P: AsRef<Path>,
 {
@@ -505,22 +498,13 @@ where
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
     let compiled = compiler::compile::compile_typed(&typed_program);
-    compiled.core
+    compiled
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test(src: &str) {
     println!("fip?");
-    let core_ir = match input::<String>("").as_str() {
-        "fip" => {
-            println!("fip!");
-            _compile(src, true)
-        }
-        _ => {
-            println!("not fip =(");
-            _compile(src, false)
-        }
-    };
+    let core_ir = _compile(src);
 
     let mut interpreter = Interpreter::from_program(&core_ir);
 
@@ -640,7 +624,7 @@ fn _run_step_over(h: &mut HistoryMagic<Interpreter>) {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test_brutal(src: &str) {
-    let core_ir = _compile(src, true);
+    let core_ir = _compile(src);
     let mut interpreter = Interpreter::from_program(&core_ir);
 
     let mut history = Vec::new();
@@ -655,7 +639,7 @@ pub fn interpreter_test_brutal(src: &str) {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test_magic(src: &str) {
-    let core_ir = _compile(src, true);
+    let core_ir = _compile(src);
     let interpreter = Interpreter::from_program(&core_ir);
 
     let mut history = HistoryMagic::from_init(100, interpreter);
@@ -669,7 +653,7 @@ pub fn interpreter_test_magic(src: &str) {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test_nosave(src: &str) {
-    let core_ir = _compile(src, true);
+    let core_ir = _compile(src);
     let mut interpreter = Interpreter::from_program(&core_ir);
 
     let now = Instant::now();
@@ -681,7 +665,7 @@ pub fn interpreter_test_nosave(src: &str) {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn interpreter_test_save1000(src: &str) {
-    let core_ir = _compile(src, true);
+    let core_ir = _compile(src);
     let mut interpreter = Interpreter::from_program(&core_ir);
 
     let n = 1000;
