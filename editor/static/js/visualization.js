@@ -78,11 +78,11 @@ function field_dy(i) {
 }
 
 function var_dx(d) {
-    return -node_width(d) / 2
+    return 0;
 }
 
 function var_dy(node) {
-    return (node.data.label.length > 0 ? label_height + label_padding : 0) - node_height(node) / 2
+    return (node.data.label.length > 0 ? (label_height + label_padding) / 2 : 0)
 }
 
 function out_port_dx(i, node) {
@@ -126,18 +126,15 @@ d3.select("#showHeaderCheckbox").on("change", update_visualization);
 const elk = new ELK({
     defaultLayoutOptions: {
       'elk.algorithm': 'layered',
-      // keep layering direction consistent
       'elk.direction': 'DOWN',
-      // spacing
       'elk.layered.spacing.nodeNodeBetweenLayers': '50',
       'elk.layered.spacing.nodeNode': '20',
-      //'org.eclipse.elk.layered.layering.strategy': 'INTERACTIVE',
-      //'org.eclipse.elk.layered.nodePlacement.strategy': "INTERACTIVE",
-      "org.eclipse.elk.portConstraints": "FIXED_POS"
+      "elk.portConstraints": "FIXED_POS",
+      "elk.interactiveLayout": "True"
     }
 });
 
-let prev_elk_node_positions = {}
+let prev_node_positions = {}
 
 async function update_visualization() {
     const mem = wasm_bindgen.take_interpreter_memory_snapshot()
@@ -151,15 +148,18 @@ async function update_visualization() {
     const now_hiding_headers = !new_show_header && show_header;
     show_header = new_show_header
 
-    let elk_graph = {
+    let graph = {
         id: 'root',
         layoutOptions: { 'elk.algorithm': 'layered' },
-        children: []
+        children: [],
+        edges: []
     };
 
-    let elk_links = [];
-    let elk_mem_nodes = [];
+    let links = [];
+    let mem_nodes = new Map();
     for(let [i, fields] of mem.heap.entries()) {
+        if (fields.length == 0) { continue; }
+
         fields = fields.map((field, i) => {
             let label = "";
 
@@ -179,12 +179,6 @@ async function update_visualization() {
             id: node_id,
             data: { fields: fields, is_var: false }
         };
-
-        if(prev_elk_node_positions[node_id] != undefined) {
-            let { x, y } = prev_elk_node_positions[node_id];
-            node.x = x;
-            node.y = y;
-        }
 
         node.width = node_width(node);
         node.height = node_height(node);
@@ -209,93 +203,80 @@ async function update_visualization() {
                 let edge = {
                     id: `${port_id}-${fields[j].data.val}`,
                     sources: [port_id],
-                    targets: [elk_mem_nodes[fields[j].data.val].id+"[in]"]
+                    targets: [`${fields[j].data.val}[in]`]
                 };
 
                 node.edges.push(edge);
-                elk_links.push(edge)
+                links.push(edge)
             }
         }
 
-        elk_graph.children.push(node);
-        elk_mem_nodes.push(node);
+        graph.children.push(node);
+        mem_nodes.set(i, node);
     }
-
-    console.log(elk_graph)
-    elk_graph = await elk.layout(elk_graph)
-
-    prev_elk_node_positions = {};
-    for(const node of elk_graph.children) {
-        prev_elk_node_positions[node.id] = { x: node.x, y: node.y };
-    }
-
-    /*const graph = d3.graph()
-
-    let mem_nodes = mem.heap.map((fields, i) => {
-        let modified_fields = fields.map((field, i) => {
-            let label = "";
-
-            if(i == 0) label = "Tag";
-            else if (i == 1) label = "Size";
-            else if (i == 2) label = "Refs";
-
-            field.label = label;
-        
-            return { data: field, index: i }
-        })
-
-        if(!show_header) modified_fields.splice(0, 3)
-
-        return { fields: modified_fields, id: i, is_var: false }
-    }).reduce((map, d) => {
-        if(d.fields.length > 0) {
-            map.set(d.id, graph.node(d))
-        }
-
-        return map;
-    }, new Map());
 
     let var_nodes = [...mem.variables.entries().map(([label, data]) => {
         data.label = label;
         data.is_var = true;
-        return graph.node(data)
+        
+        let node = {
+            id: label,
+            data: data,
+            ports: []
+        }
+
+        node.ports.push({
+            id: label + "[out]",
+            x: var_dx(node) + field_width / 2,
+            y: var_dy(node) + field_height
+        })
+
+        node.width = node_width(node);
+        node.height = node_height(node);
+
+        console.log(node.height)
+
+        graph.children.push(node);
+
+        return node;
     })];
 
     for(const node of var_nodes) {
         if(node.data.is_ptr) {
             let target = mem_nodes.get(node.data.val);
-            graph.link(node, target, { id: node.data.label })
-        }
-    }
-    
-    for(const node of mem_nodes.values()) {
-        for(const [i, d] of node.data.fields.entries()) {
-            if(d.data.is_ptr) {
-                let target = mem_nodes.get(d.data.val);
-                graph.link(node, target, { field_index: i, id: `${node.data.id}#${i + (show_header ? 0 : 3)}` })
-            }
+
+            let edge = {
+                id: `${node.data.label}-${node.data.val}`,
+                sources: [node.id + "[out]"],
+                targets: [target.id + "[in]"]
+            };
+
+            links.push(edge)
+            graph.edges.push(edge)
         }
     }
 
-    const { width: graph_width, height: graph_height } = d3.sugiyama()
-        .nodeSize(d => [node_width(d), node_height(d)])
-        .gap([20, 50])
-        .tweaks([tweak_endpoints])(graph)*/
+    prev_node_positions = {};
+    for(const node of graph.children) {
+        prev_node_positions[node.id] = { x: node.x, y: node.y };
+    }
 
-    const graph_width = elk_graph.width;
-    const graph_height = elk_graph.height;
+    graph = await elk.layout(graph)
+
+    const graph_width = graph.width;
+    const graph_height = graph.height;
 
     const padded_graph_width = graph_width + zoom_padding;
     const padded_graph_height = graph_height + zoom_padding;
 
     const mem_selection = zoom_layer.selectAll(".node")
-        .stable_data(elk_mem_nodes, d => d.id);
+        .stable_data(mem_nodes.values(), d => d.id);
 
     const var_selection = zoom_layer.selectAll(".var")
-        .stable_data([], d => d.data.label);
+        .stable_data(var_nodes, d => d.data.label);
 
     const link_selection = zoom_layer.selectAll(".link")
-        .stable_data(elk_links, d => d.id)
+        .stable_data(links, d => d.id)
 
     let nothing_exiting = mem_selection.exit().size() == 0 && link_selection.exit().size() == 0 && var_selection.exit().size() == 0 && !now_hiding_headers;
     let nothing_entering = mem_selection.enter().size() == 0 && link_selection.enter().size() == 0 && var_selection.enter().size() == 0 && !now_showing_headers;
