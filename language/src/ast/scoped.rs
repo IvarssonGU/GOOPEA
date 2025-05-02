@@ -270,13 +270,13 @@ impl<'i> From<BaseSliceNode<'i>>
                         new_cases,
                     ),
                     _ => SimplifiedExpression::LetEqualIn(
-                        UTuple(vec!["<temp>".to_string()]),
+                        UTuple(vec!["_".to_string()]),
                         Box::new((*expr).into()),
                         Box::new(ExpressionNode {
                             data: node.data.clone(),
                             expr: SimplifiedExpression::Match(
                                 ExpressionNode {
-                                    expr: "<temp>".to_string(),
+                                    expr: "_".to_string(),
                                     data: node.data.clone(),
                                 },
                                 new_cases,
