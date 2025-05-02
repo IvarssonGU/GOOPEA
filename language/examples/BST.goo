@@ -1,6 +1,6 @@
-enum Tree = Empty, Node(Int, Tree, Int, Tree);
-enum List = Nil, Cons(Int, List);
+#include ../tests/list.goo
 
+enum Tree = Empty, Node(Int, Tree, Int, Tree);
 
 (Int, Tree) : Tree
 insert(value, tree) = match tree {
@@ -86,7 +86,5 @@ splitInvariant tree = match tree {
     }
 };
 
-
-
 () : Int
-main = sum(inorder(fromList(build(100))));
+main = sum(inorder(fromList(randList(249,1000, 599))));

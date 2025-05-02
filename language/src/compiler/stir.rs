@@ -59,7 +59,7 @@ impl Body {
             Body::Ret(v) => v == var,
             Body::Let(_, exp, body) => exp.member(var) || body.member(var), //Not sure if this should be like this or as below
             //Body::Let(v, exp, body) => v == var || exp.member(var) || body.member(var),
-            Body::Match(_, branches) => branches.iter().any(|(i, b)| b.member(var)),
+            Body::Match(_, branches) => branches.iter().any(|(_, b)| b.member(var)),
             _ => todo!(),
         }
     }
@@ -194,6 +194,15 @@ pub fn next_var() -> String {
         *c
     });
     format!("fresh{}", current)
+}
+
+pub fn reset_var_counter() {
+    thread_local!(
+        static COUNTER: RefCell<usize> = Default::default();
+    );
+    COUNTER.with_borrow_mut(|c| {
+        *c = 0;
+    });
 }
 
 pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
