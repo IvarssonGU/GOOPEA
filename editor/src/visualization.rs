@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use language::{interpreter::Interpreter, perform_on_interpreter};
 use serde::Serialize;
+use serde_wasm_bindgen::preserve::serialize;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 use language::interpreter::Data as InterpreterData;
@@ -13,15 +14,25 @@ pub struct MemorySnapshot {
     pub call_stack: Vec<String>
 }
 
+pub struct BigInt(i64);
+
+impl Serialize for BigInt {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        serializer.collect_str(&self.0)
+    }
+}
+
 #[derive(Serialize)]
 pub struct Data {
     pub is_ptr: bool,
-    pub val: i64
+    pub val: BigInt
 }
 
 impl Data {
-    pub fn new_ptr(x: i64) -> Data { Data { is_ptr: true, val: x } }
-    pub fn new_int(x: i64) -> Data { Data { is_ptr: false, val: x } }
+    pub fn new_ptr(x: i64) -> Data { Data { is_ptr: true, val: BigInt(x) } }
+    pub fn new_int(x: i64) -> Data { Data { is_ptr: false, val: BigInt(x) } }
 }
 
 impl From<InterpreterData> for Data {
