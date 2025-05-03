@@ -14,25 +14,15 @@ pub struct MemorySnapshot {
     pub call_stack: Vec<String>
 }
 
-pub struct BigInt(i64);
-
-impl Serialize for BigInt {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer {
-        serializer.collect_str(&self.0)
-    }
-}
-
 #[derive(Serialize)]
 pub struct Data {
     pub is_ptr: bool,
-    pub val: BigInt
+    pub val: String
 }
 
 impl Data {
-    pub fn new_ptr(x: i64) -> Data { Data { is_ptr: true, val: BigInt(x) } }
-    pub fn new_int(x: i64) -> Data { Data { is_ptr: false, val: BigInt(x) } }
+    pub fn new_ptr(x: i64) -> Data { Data { is_ptr: true, val: x.to_string() } }
+    pub fn new_int(x: i64) -> Data { Data { is_ptr: false, val: x.to_string() } }
 }
 
 impl From<InterpreterData> for Data {

@@ -48,6 +48,8 @@ pub enum ErrorReason {
     UnknownADTInType(AID),
     #[error("The program is missing a main function")]
     MissingMainFunction,
+    //#[error("Function marked with FIP ")]
+    //MissingMainFunction,
 
     #[error("Missmatched return types of match statement")]
     MissmatchedTypesInMatchCases,

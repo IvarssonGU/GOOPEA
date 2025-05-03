@@ -155,9 +155,14 @@ async function update_visualization() {
     const now_hiding_vars = !new_show_vars && show_vars;
     show_vars = new_show_vars
 
+    const svg_size = svg.node().getBoundingClientRect();
+
     let graph = {
         id: 'root',
-        layoutOptions: { 'elk.algorithm': 'layered' },
+        layoutOptions: { 
+            'elk.algorithm': 'layered',
+            'elk.aspectRatio': (svg_size.width - zoom_padding * 2) / (svg_size.height - zoom_padding * 2)
+        },
         children: [],
         edges: []
     };
@@ -198,7 +203,7 @@ async function update_visualization() {
 
         node.edges = [];
         for(let j = 0; j < fields.length; j++) {
-            let port_id = `${node_id}[${j}]`;
+            let port_id = `${node_id}[${j + (show_header ? 0 : 3)}]`;
 
             node.ports.push({
                 id: port_id,
@@ -244,15 +249,13 @@ async function update_visualization() {
         node.width = node_width(node);
         node.height = node_height(node);
 
-        console.log(node.height)
-
         graph.children.push(node);
         var_nodes.push(node);
     }
 
     for(const node of var_nodes) {
         if(node.data.is_ptr) {
-            let target = mem_nodes.get(node.data.val);
+            let target = mem_nodes.get(parseInt(node.data.val));
 
             let edge = {
                 id: `${node.data.label}-${node.data.val}`,
@@ -556,19 +559,17 @@ async function update_visualization() {
 
     let zoom_scale;
 
-    const size = svg.node().getBoundingClientRect();
-
     //Check if the graph has positive area
     if(graph_width * graph_height > 0) {
-        const horizontal_scale = size.width / padded_graph_width;
-        const vertical_scale = size.height / padded_graph_height;
+        const horizontal_scale = svg_size.width / padded_graph_width;
+        const vertical_scale = svg_size.height / padded_graph_height;
         zoom_scale = Math.min(horizontal_scale, vertical_scale);
     } else {
         zoom_scale = 1;
     }
 
-    let vertical_padding = (size.height - zoom_scale * graph_height) / 2;
-    let horizontal_padding = (size.width - zoom_scale * graph_width) / 2;
+    let vertical_padding = (svg_size.height - zoom_scale * graph_height) / 2;
+    let horizontal_padding = (svg_size.width - zoom_scale * graph_width) / 2;
 
     node_shift_transition
     .call(zoom.transform, d3.zoomIdentity.translate(horizontal_padding, vertical_padding).scale(zoom_scale), [horizontal_padding, vertical_padding])
@@ -586,12 +587,14 @@ function center_and_size_text(selection, x, y, width, height) {
         if(label.text().length == 0) return;
     
         let label_bbox = label.node().getBBox();
-        let label_scale = Math.min(
-            width / label_bbox.width,
-            height / label_bbox.height
+        console.log(selection.text())
+        console.log(label_bbox);
+        let label_scale = Math.max(
+            label_bbox.width / width,
+            label_bbox.height / height
         );
     
-        let new_label_font_size = Math.floor(height * label_scale);
+        let new_label_font_size = Math.floor(height / label_scale);
     
         label
             .style("font-size", new_label_font_size + "px")
