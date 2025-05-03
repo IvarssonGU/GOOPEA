@@ -36,6 +36,8 @@ window.onbeforeunload = function() {
     } else {
         localStorage.setItem("theme", "default");
     }
+
+    save_example(1);
 };
 
 //change example showed from dropdown selection
@@ -210,26 +212,29 @@ main = print (inc Dog);
 
 Int: ()
 print x = ();`);
-            output_field.value = "output here";
+            output_field.value = `ERROR: Wrong argument type for function call of 'inc'. Expected (Int), but got (Animal)
+
+Occured at 7:15-7:22
+
+7. main = print (inc Dog);`;
             break;
         case "utuple":
             code_field.setValue( 
 `enum Maybe = Nothing, Just Int;
 
-(): (Int, Int)
-nums = (Nothing, 5 * 2 + 9 * 20);
+(): (Maybe, Maybe)
+nums = (Nothing, Just (5 * 2 + 9 * 20));
 
 (): Int
 main = let (a, b) = nums() in match a {
-    Nothing: b,
-    Just x: x * b + b
+    Nothing: match b { Just b: b, Nothing: 0},
+    Just x: match b { Just b: x * b + b, Nothing: 0}
 };`);
             output_field.value = "";
             break;
         case "zipper-tree":
             code_field.setValue( 
-`// this is a test file
-enum Tree = 
+`enum Tree = 
     Bin(Tree, Tree),
     Tip Int;
 
@@ -242,7 +247,7 @@ fip (Tree, TZipper): Tree
 down(t, ctx) =
     match t {
         Bin(l, r):
-            down(l, BinL(ctx, r)), //Down comment
+            down(l, BinL(ctx, r)),
         Tip x: app(Tip(x + 1), ctx)
     };
 
@@ -257,7 +262,7 @@ app(t, ctx) =
     };
 
 fip Tree: Tree
-tmap t = down(t, Top);`);
+main t = down(t, Top);`);
             output_field.value = "output here";
             break;
         default:
@@ -302,36 +307,3 @@ function save_example(opt) {
 
     change_page(opt);
 }
-
-
-//slideshow -------------unused for now, leaving jic
-// let slide_index = 0;
-// show_slide(slide_index);
-
-// function change_slide(n) {
-//     show_slide(slide_index += n);
-// }
-
-// function show_slide(i) {
-//     let slides = document.getElementsByClassName("slide");
-
-//     //make it circular
-//     if (i >= slides.length) {
-//         slide_index = 0;
-//     }
-//     if (i < 0) {
-//         slide_index = slides.length - 1;
-//     }
-
-//     for (x = 0; x < slides.length; x++) {
-//         slides[x].style.display = 'none';
-//     }
-
-//     slides[slide_index].style.display = "block";
-// }
-
-// document.addEventListener("keydown", (event) => {
-//     if (event.ctrlKey && event.key === 's') {
-//         event.preventDefault();
-//     }
-// });

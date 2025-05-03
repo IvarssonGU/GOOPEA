@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // continuous_compilation();
+    continuous_compilation();
 });
 
 window.onbeforeunload = function() {
@@ -161,6 +161,7 @@ async function compile_and_populate() {
         stir_value = prog.get_stir_str();
         reuse_value = prog.get_reuse_str();
         rc_value = prog.get_rc_str();
+        debug_textarea.value = "";
 
         error_free = true;
     } else {
