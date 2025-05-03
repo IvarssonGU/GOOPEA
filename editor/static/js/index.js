@@ -96,7 +96,17 @@ document.addEventListener("DOMContentLoaded", () => {
     debug_textarea.value = "";
 
     if ("code" in localStorage) {
-        editor.setValue(localStorage.getItem("code"));
+        if ("exported" in localStorage) {
+            if (localStorage.getItem("exported") === "true") {
+                editor.setValue(localStorage.getItem("exported_code"));
+                document.getElementById("restore-button").classList.toggle("hide");
+                localStorage.setItem("exported", "false");
+            } else {
+                editor.setValue(localStorage.getItem("code"));
+            }
+        } else {
+            editor.setValue(localStorage.getItem("code"));
+        }
     }
 
     if ("theme" in localStorage) {
@@ -251,6 +261,12 @@ function update_runtime(runtime) {
 function clear_button_clicked() {
     editor.setValue("");
     output_textarea.innerHTML = "";
+}
+
+function restore_code() {
+    editor.setValue(localStorage.getItem("code"));
+    continuous_compilation();
+    document.getElementById("restore-button").classList.toggle("hide");
 }
 
 async function debug_button_clicked() {

@@ -298,7 +298,8 @@ function change_example_editor_theme(opt) {
 }
 
 async function export_code() {
-    localStorage.setItem("code", code_field.getValue());
+    localStorage.setItem("exported_code", code_field.getValue());
+    localStorage.setItem("exported", "true");
     save_example(0); //switches to editor page immediately
 }
 
