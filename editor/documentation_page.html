@@ -85,8 +85,6 @@
 			<td>
 				<button class="toggle-header">Language</button>
 				<div class="toggle-content">
-					<p>See Examples page for context</p>
-
 					<table width="100%">
 						<tr>
 							<td>
@@ -123,10 +121,93 @@
 										also case-sensitive.
 									</p>
 									
-									<p class="tabbed"><mark><b>match</b></mark>: Pattern matching!! Check out "complex match" example!!!</p>
-									<p class="tabbed multiline"><mark><b>enum</b></mark>: Creates a user-defined datatype. The name of an enum starts with a capital letter. 
-										See examples "Complex match" and "Multiple return values"</p>
-									<p class="tabbed"><mark><b>let _ in _</b></mark>: declare a variable (first _) in <i>stuff</i></p>
+									<!-- <p class="tabbed"><mark><b>match</b></mark>: Pattern matching!! Check out "complex match" example!!!</p> -->
+									<button class="toggle-header subsection subsub"><mark><b>match</b></mark>: Pattern matching!!</button>
+									<div class="toggle-content">
+										<table id="doc-table" class="tabbed" width="100%">
+											<tr>
+												<td>
+													<p>Take, for example, this snippet from "complex match" example:</p>
+												</td>
+											</tr>
+											<tr>
+												<td class="code-snippet-cell">
+													<span style="white-space: pre-wrap;">Int: Int
+fib i = match i {
+	0: 1,
+	1: 1,
+	n: fib (i-1) + fib(i-2)
+};</span>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<p><mark>fib i</mark> will return 1 if i=0 or i=1 (that is to say, i matches the values 0 or 1), and fib (i-1) + fib(i-2) in all other cases</p>
+												</td>
+											</tr>
+										</table>
+									</div>
+									<!-- <p class="tabbed"><mark><b>let _ in _</b></mark>: let "variable = the return value of function" (first _) in "this context" (second _)</p> -->
+									<button class="toggle-header subsection subsub"><mark><b>let _ in _</b></mark>: let "variable = the return value of function" in "this context"</button>
+									<div class="toggle-content">
+										<table id="doc-table" class="tabbed" width="100%">
+											<tr>
+												<td>
+													<p>Take, for example, these snippets from the "complex match" and "utuple" examples:</p>
+												</td>
+											</tr>
+											<tr>
+												<td class="code-snippet-cell">
+													<span style="white-space: pre-wrap;">(): Int
+letUnbox = let x = 3 in x;
+</span>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<p>This is essentially <mark>letUnbox = 3</mark> or <mark>letUnbox = x</mark> if we already know that x = 3</p>
+												</td>
+											</tr>
+											<tr>
+												<td class="code-snippet-cell">
+													<span style="white-space: pre-wrap;">main = let (a, b) = nums() in match a {
+Nothing: match b { Just b: b, Nothing: 0},
+Just x: match b { Just b: x * b + b, Nothing: 0}
+};</span>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<p>As <mark>nums()</mark> returns (Nothing, 5 * 2 + 9 * 20), <mark>(a, b) = nums() = (Nothing, 190)</mark>, 
+													and then main says <mark>match a</mark> which will then match the Nothing, and (through another match) return b (190)</p>
+												</td>
+											</tr>
+										</table>
+									</div>
+									<!-- <p class="tabbed multiline"><mark><b>enum</b></mark>: Creates a user-defined datatype. The name of an enum starts with a capital letter. 
+										See examples "Complex match" and "Multiple return values"</p> -->
+									<button class="toggle-header subsection subsub"><mark><b>enum</b></mark>: Creates a user-defined datatype. The name of an enum starts with a capital letter</p></button>
+									<div class="toggle-content">
+										<table id="doc-table" class="tabbed" width="100%">
+											<tr>
+												<td>
+													<p>Take, for example, this snippet from "multiple return values" example:</p>
+												</td>
+											</tr>
+											<tr>
+												<td class="code-snippet-cell">
+													<span style="white-space: pre-wrap;">enum List = Nil, Cons(List, Int);
+enum Maybe = None, Some Int;</span>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<p>A function that returns a <mark>Maybe</mark> returns either <mark>None</mark> or <mark>Some _</mark> where _ is any Int</p>
+													<p>Declaring a list can be as short as List(Cons(Nil, 5)) or as long as the one in the Treeflip example's build function</p>
+												</td>
+											</tr>
+										</table>
+									</div>
 									<p class="tabbed"><mark><b>fip</b></mark>: declare a function to use fip, see "a function's type declaration"</p>
 									<p class="tabbed"><mark><b>Int</b></mark>: integer datatype</p>
 								</div>
@@ -142,7 +223,7 @@
 										highlighting because of it:
 									</p>
 
-									<table id="constructors-table" class="tabbed" width="100%">
+									<table id="doc-table" class="tabbed" width="100%">
 										<tr>
 											<td>
 												<p><mark><b>Cons</b></mark></p>
@@ -153,10 +234,161 @@
 											<td>
 												<p><mark><b>Empty</b></mark></p>
 												<p><mark><b>Nil</b></mark></p>
+												<p><mark><b>None</b></mark></p>
 												<p><mark><b>Nothing</b></mark></p>
 											</td>
 										</tr>
 									</table>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection">Other functions</button>
+								<div class="toggle-content">
+									<p> Here are some other prewritten functions that you can paste into your code if you want, sorted by what they pertain to</p>
+
+									<table>
+										<tr>
+											<td>
+												<button class="toggle-header subsection subsub"><mark><b>List</b></mark></button>
+												<div class="toggle-content">
+													<table id="doc-table" class="tabbed" width="100%">
+														<tr>
+															<td class="code-snippet-cell">
+																<span style="white-space: pre-wrap;">enum List = Nil, Cons(Int, List);
+
+(List, List): List
+reverseHelper(list, acc) = match list {
+	Nil: acc,
+	Cons(x, xs): reverseHelper(xs, Cons(x, acc))
+};
+
+List: List
+reverseList list = reverseHelper(list, Nil);
+
+List: Int
+sumList list = match list {
+	Nil: 0,
+	Cons(x, xs): x + sumList xs
+};
+
+List: Int
+lenList list = match list {
+	Nil: 0,
+	Cons(x, xs): 1 + lenList xs
+};
+
+(List, Int): List
+appendList(list, a) = match list {
+	Nil: Cons(a, Nil),
+	Cons(x, xs): Cons(x, appendList(xs, a))
+};
+
+(List, List): List
+concatList(list1, list2) = match list1 {
+	Nil: list2,
+	Cons(x, xs): Cons(x, concatList(xs, list2))
+};
+
+(Int, Int): List
+rangeListp(start, stop) = match start <= stop {
+	True: Cons(start, rangeListp((start + 1), stop)),
+	False: Nil
+};
+
+(Int, Int): List
+rangeListn(start, stop) = match start >= stop {
+	True: Cons(start, rangeListn((start - 1), stop)),
+	False: Nil
+};
+
+(Int, Int): List
+rangeList(start, stop) = match start <= stop {
+	True: rangeListp(start, stop),
+	False: rangeListn(start, stop)
+};
+
+(Int, Int, Int): List
+randList(seed, len, mod) = match len > 0 {
+	True: let a = next seed in 
+		Cons((a % mod + mod) % mod, randList(a, len - 1, mod)),
+	False: Nil
+};</span>
+															</td>
+														</tr>
+													</table>
+												</div>
+											</td>
+										</tr>
+										<tr>
+											<td>
+												<button class="toggle-header subsection subsub"><mark><b>Rand</b></mark></button>
+												<div class="toggle-content">
+													<table id="doc-table" class="tabbed" width="100%">
+														<tr>
+															<td class="code-snippet-cell">
+																<span style="white-space: pre-wrap;">Int: Int
+next x = x * 1664525 + 1013904223;</span>
+															</td>
+														</tr>
+													</table>
+												</div>
+											</td>
+										</tr>
+										<tr>
+											<td>
+												<button class="toggle-header subsection subsub"><mark><b>Tree</b></mark></button>
+												<div class="toggle-content">
+													<table id="doc-table" class="tabbed" width="100%">
+														<tr>
+															<td class="code-snippet-cell">
+																<span style="white-space: pre-wrap;">enum BST = Empty, Node(BST, Int, BST);
+
+(BST, Int): BST
+insert(tree, value) = match tree {
+	Empty: Node(Empty, value, Empty),
+	Node(left, x, right): match value == x {
+		True: Node(left, x, right),
+		False: match value < x {
+			True: Node(insert(left, value), x, right),
+			False: Node(left, x, insert(right, value))
+		}
+	}
+};
+
+(BST, List): BST
+insertList(tree, list) = match list {
+	Cons(x, xs): insertList(insert(tree, x), xs),
+	Nil: tree
+};
+
+BST: List
+flatten(tree) = match tree {
+	Empty: Nil,
+	Node(left, x, right): concatList(concatList(flatten(left), Cons(x, Nil)), flatten(right))
+};
+
+List: List
+sortedElems(list) = let tree = insertList(Empty, list) in flatten(tree);</span>
+															</td>
+														</tr>
+													</table>
+												</div>
+											</td>
+										</tr>
+									</table>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<button class="toggle-header subsection">Intermediate Representations (IRs)</button>
+								<div class="toggle-content">
+									<p class="multiline"> An intermediate representation is a step the compiler makes between the source code
+										and the target code language. The three IRs for GOOPEA can be viewed in the "Editor" page under the "Compilation" tab.
+										Note: the Reuse IR is only different from Stir if there is something to reuse.
+									</p>
 								</div>
 							</td>
 						</tr>

@@ -34,139 +34,34 @@
                         <option value="type-error">Type error</option>
                         <option value="utuple">Utuple</option>
                         <option value="zipper-tree">Zipper tree</option>
+                        <option value="bools">Bools</option>
+                        <option value="dag">Dag</option>
+                        <option value="inorder">Inorder</option>
+                        <option value="rdt">Reuse different type</option>
                     </select>
                     <button onclick="export_code()" class="styled-button">View in editor</button>
                 </th>
-                <th>Diagram</th>
+                <th>Output</th>
             </tr>
             <tr>
                 <td class="example-code-cell">
                     <textarea id="code-field"></textarea>
                 </td>
-                <td rowspan="3" id="example-diagrams-cell">
-                    <!-- <div class="example1-diagrams">
-                        <div class="slide">
-                            <div class="numbering">1/27</div>
-                            <img src="example-diagrams/example1/img_00.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">2/27</div>
-                            <img src="example-diagrams/example1/img_01.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">3/27</div>
-                            <img src="example-diagrams/example1/img_02.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">4/27</div>
-                            <img src="example-diagrams/example1/img_03.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">5/27</div>
-                            <img src="example-diagrams/example1/img_04.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">6/27</div>
-                            <img src="example-diagrams/example1/img_05.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">7/27</div>
-                            <img src="example-diagrams/example1/img_06.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">8/27</div>
-                            <img src="example-diagrams/example1/img_07.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">9/27</div>
-                            <img src="example-diagrams/example1/img_08.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">10/27</div>
-                            <img src="example-diagrams/example1/img_09.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">11/27</div>
-                            <img src="example-diagrams/example1/img_10.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">12/27</div>
-                            <img src="example-diagrams/example1/img_11.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">13/27</div>
-                            <img src="example-diagrams/example1/img_12.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">14/27</div>
-                            <img src="example-diagrams/example1/img_13.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">15/27</div>
-                            <img src="example-diagrams/example1/img_14.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">16/27</div>
-                            <img src="example-diagrams/example1/img_15.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">17/27</div>
-                            <img src="example-diagrams/example1/img_16.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">18/27</div>
-                            <img src="example-diagrams/example1/img_17.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">19/27</div>
-                            <img src="example-diagrams/example1/img_18.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">20/27</div>
-                            <img src="example-diagrams/example1/img_19.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">21/27</div>
-                            <img src="example-diagrams/example1/img_20.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">22/27</div>
-                            <img src="example-diagrams/example1/img_21.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">23/27</div>
-                            <img src="example-diagrams/example1/img_22.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">24/27</div>
-                            <img src="example-diagrams/example1/img_23.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">25/27</div>
-                            <img src="example-diagrams/example1/img_24.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">26/27</div>
-                            <img src="example-diagrams/example1/img_25.png" style="width:100%">
-                        </div>
-                        <div class="slide">
-                            <div class="numbering">27/27</div>
-                            <img src="example-diagrams/example1/img_26.png" style="width:100%">
-                        </div> -->
-
-                        <!-- <a class="prev-arrow" onclick="change_slide(-1)">&larr;</a>
-                        <a class="next-arrow" onclick="change_slide(1)">&rarr;</a>
-                    </div> -->
+                <!-- <td id="example-diagrams-cell">
+                    
+                </td> -->
+                <td class="example-output-cell">
+                    <textarea id="output-field" readonly="true"></textarea>
                 </td>
             </tr>
-            <tr>
+            <!-- <tr>
                 <th id="output-title-cell">Result</th>
             </tr>
             <tr>
                 <td class="example-output-cell">
                     <textarea id="output-field" readonly="true"></textarea>
                 </td>
-            </tr>
+            </tr> -->
         </table>
 
     </div>

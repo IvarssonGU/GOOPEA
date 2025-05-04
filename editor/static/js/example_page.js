@@ -36,6 +36,8 @@ window.onbeforeunload = function() {
     } else {
         localStorage.setItem("theme", "default");
     }
+
+    save_example(1);
 };
 
 //change example showed from dropdown selection
@@ -44,16 +46,31 @@ function example_dropdown_changed() {
         case "reverse":
             code_field.setValue( 
 `enum List = Nil, Cons(List, Int);
-    
-fip (List, List): List
-reverseHelper(list, acc) =
-        match list {
-            Nil: acc,
-            Cons(xs, x): reverseHelper(xs, Cons(acc, x))
-        };
 
-fip List: List
-reverseList list = reverseHelper(list, Nil);`);
+Int: List
+build x = match x == 0 {
+    True: Nil,
+    False: Cons(build(x - 1), x)
+};
+    
+(List, List): List
+reverseHelper(list, acc) =
+    match list {
+        Nil: acc,
+        Cons(xs, x): reverseHelper(xs, Cons(acc, x))
+    };
+
+List: List
+reverseList list = reverseHelper(list, Nil);
+
+List: Int
+sum list = match list {
+    Nil: 0,
+    Cons(rest, value): value + sum(rest)
+};
+
+(): Int
+main = sum(reverseList(build(100)));`);
             output_field.value = "reverseList(Cons(1, Cons(2, Cons(3, Nil))))) = Cons(3, Cons(2, Cons(1, Nil)))";
             break;
         case "treeflip":
@@ -106,13 +123,9 @@ sum tree = match tree {
     Node(left, value, right): sum(left) + value + sum(right)
 };
 
-Tree: Tree
-flip tree = match tree {
-    Empty: Empty,
-    Node(left, value, right): Node(flip(right), value, flip(left))
-};
-
 (Tree, Tree): Tree
+ 
+
 combine (a, b) = match a {
     Empty: match b {
         Empty: Empty,
@@ -124,8 +137,14 @@ combine (a, b) = match a {
     }
 };
 
+Tree: Tree
+flip tree = match tree {
+    Empty: Empty,
+    Node(left, value, right): Node(flip(right), value, flip(left))
+};
+
 (): Int
-main = sum(combine(build(), flip(build())));`);
+main = sum(flip(combine(flip(build()), build())));`);
             output_field.value = "570";
             break;
         case "arithmetic":
@@ -137,7 +156,7 @@ getMinusFive = -5;
 subtract = 2 - 1;
 
 (): Int
-main = 3 * (1 + 15/5) - (6/(2+1))*6;`);
+main = 3 * (1 + 15/5) % (6/(2+1))*6;`);
             output_field.value = "0";
             break;
         case "complex-match":
@@ -210,26 +229,33 @@ main = print (inc Dog);
 
 Int: ()
 print x = ();`);
-            output_field.value = "output here";
+            output_field.value = `ERROR: Wrong argument type for function call of 'inc'. Expected (Int), but got (Animal)
+
+Occured at 7:15-7:22
+
+7. main = print (inc Dog);`;
             break;
         case "utuple":
             code_field.setValue( 
-`enum Maybe = Nothing, Just Int;
+`enum List = Nil, Cons(Int, List);
 
-(): (Int, Int)
-nums = (Nothing, 5 * 2 + 9 * 20);
+(List, List, List) : (List, List, List)
+g(a,b,c) = (a,b,c);
 
-(): Int
-main = let (a, b) = nums() in match a {
-    Nothing: b,
-    Just x: x * b + b
+() : Int
+main = let (a,b,c) = g(Cons(5, Nil), Cons(10, Nil), Cons(20, Nil)) in sum(a) + sum(b);
+
+
+List : Int
+sum xs = match xs {
+    Nil: 0,
+    Cons(x, xx): x + sum(xx)
 };`);
             output_field.value = "";
             break;
         case "zipper-tree":
             code_field.setValue( 
-`// this is a test file
-enum Tree = 
+`enum Tree = 
     Bin(Tree, Tree),
     Tip Int;
 
@@ -242,7 +268,7 @@ fip (Tree, TZipper): Tree
 down(t, ctx) =
     match t {
         Bin(l, r):
-            down(l, BinL(ctx, r)), //Down comment
+            down(l, BinL(ctx, r)),
         Tip x: app(Tip(x + 1), ctx)
     };
 
@@ -257,8 +283,73 @@ app(t, ctx) =
     };
 
 fip Tree: Tree
-tmap t = down(t, Top);`);
+main t = down(t, Top);`);
             output_field.value = "output here";
+            break;
+        case "bools":
+            code_field.setValue( 
+`Int: Int
+fib x = match (x <= 1) {
+    True: 1,
+    False: fib(x-1) + fib(x-2)
+};
+
+() : Int
+main = fib(10);`);
+            output_field.value = "";
+            break;
+        case "dag":
+            code_field.setValue( 
+`enum Node = Data(Int), Child(Node), Children(Node, Node);
+
+Node: Node
+build x = Children(Child(x), Child(x));
+
+Node: ()
+print x = ();
+  
+(): ()
+main = print (build (Data 5));`);
+            output_field.value = "0";
+            break;
+        case "inorder":
+            code_field.setValue( 
+`enum Tree = Empty, Node(Tree, Int, Tree);
+enum List = Nil, Cons(Int, List);
+
+
+(List,List) : List
+concat(xs, ys) = match xs {
+    Nil: ys,
+    Cons(x,xx): Cons(x, Concat(xx, ys))
+};
+
+Tree : List
+inorder tree = match tree {
+    Empty: Nil,
+    Node(left, value, right): Concat(Inorder(left), Cons(value, Inorder(right)))
+};`);
+            output_field.value = "0";
+            break;
+        case "rdt":
+            code_field.setValue( 
+`enum Pair = Pair(Int, Int);
+enum List = Nil, Cons(Int, List);
+
+List: Pair
+from_List xs = match xs {
+    Nil: Pair(0, 0),
+    Cons(x, xx): Pair(x, x)
+};
+
+Pair: Int
+toInt(p) = match p {
+    Pair(x, y): x * y
+};
+
+() : Int
+main = toInt(from_List(Cons(7, Cons(2, Cons(3, Nil)))));`);
+            output_field.value = "0";
             break;
         default:
             code_field.setValue( 
@@ -293,7 +384,8 @@ function change_example_editor_theme(opt) {
 }
 
 async function export_code() {
-    localStorage.setItem("code", code_field.getValue());
+    localStorage.setItem("exported_code", code_field.getValue());
+    localStorage.setItem("exported", "true");
     save_example(0); //switches to editor page immediately
 }
 
@@ -302,36 +394,3 @@ function save_example(opt) {
 
     change_page(opt);
 }
-
-
-//slideshow -------------unused for now, leaving jic
-// let slide_index = 0;
-// show_slide(slide_index);
-
-// function change_slide(n) {
-//     show_slide(slide_index += n);
-// }
-
-// function show_slide(i) {
-//     let slides = document.getElementsByClassName("slide");
-
-//     //make it circular
-//     if (i >= slides.length) {
-//         slide_index = 0;
-//     }
-//     if (i < 0) {
-//         slide_index = slides.length - 1;
-//     }
-
-//     for (x = 0; x < slides.length; x++) {
-//         slides[x].style.display = 'none';
-//     }
-
-//     slides[slide_index].style.display = "block";
-// }
-
-// document.addEventListener("keydown", (event) => {
-//     if (event.ctrlKey && event.key === 's') {
-//         event.preventDefault();
-//     }
-// });

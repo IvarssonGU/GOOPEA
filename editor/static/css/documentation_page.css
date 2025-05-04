@@ -2,13 +2,14 @@ body {
     font-family: 'Courier New', Courier, monospace;
     background-color: var(--background);
     color: var(--text-color);
+    text-align: left;
 }
 
 p.multiline {
     line-height: 1.5;
 }
 
-#constructors-table td {
+#doc-table td {
     vertical-align: top;
 }
 
@@ -37,6 +38,7 @@ p.multiline {
     font-weight: bold;
     margin-top: 15px;
     color: var(--text-color);
+    text-align: left;
 }
 
 .toggle-header::before{
@@ -55,6 +57,10 @@ p.multiline {
 .subsection {
     font-size: 18px;
     margin-top: 15px;
+}
+.subsub {
+    font-size: medium;
+    font-weight: normal;
 }
 
 .control-button {
@@ -78,6 +84,10 @@ p {
 }
 #constructors-header {
     color: var(--constructors);
+}
+
+.code-snippet-cell {
+    background-color: var(--smallest-color);
 }
 
 /* debugging purposes */

@@ -23,14 +23,15 @@
 	<div class="container">
 		<table width="100%" id="container-table">
 			<tr>
-				<th>Code</th>
+				<th style="width:max-content;">Code</th>
 				<th id="button-cell">
+					<button onclick="restore_code()" id="restore-button" class="styled-button hide">Restore code</button>
 					<button onclick="clear_button_clicked()" class="styled-button">Clear</button>
 					<button onclick="compile_button_clicked()" id="compile-button" class="styled-button">Compile</button>
 					<button onclick="debug_button_clicked()" id="debug-button" class="styled-button">Debug</button>
 					<button onclick="run_button_clicked()" id="run-button" class="styled-button">Run</button>
 				</th>
-				<td colspan="2" rowspan="2" id="output-cell">
+				<td colspan="2" rowspan="2" id="output-cell" width="50%">
 					<!-- tab buttons -->
 					<button onclick="switch_tab(0)" class="tab-button styled-button current-tab" id="output-tab-button">Output</button>
 					<button onclick="switch_tab(1)" class="tab-button styled-button" id="debug-tab-button">Debugging</button>
