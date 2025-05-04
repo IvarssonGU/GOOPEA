@@ -41,6 +41,8 @@ struct Args {
     interpret: bool,
     #[arg(short, long)]
     preprocess: bool,
+    #[arg(short, long)]
+    benchmark: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -67,7 +69,11 @@ fn main() {
             println!("{}", preprocess(file));
         }
         (true, false) => {
-            interpreter::interpreter_test(file);
+            if args.benchmark {
+                interpreter::interpreter_bench(file);
+            } else {
+                interpreter::interpreter_test(file);
+            }
         }
         (true, true) => panic!("cant interpret and preprocess"),
     }

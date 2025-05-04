@@ -242,7 +242,7 @@ impl Interpreter {
                         self.variable_stack.pop().expect("this should not happen");
                     self.function_names_stack.pop();
                 }
-                IStatement::Print(ioperand) => println!("> {}", self.eval_op(&ioperand)),
+                IStatement::Print(ioperand) => println!("> {:?}", ioperand),
                 IStatement::Inc(ioperand) => {
                     let id = ioperand.unwrap_id();
                     let data = self.get_local_var(&id);
@@ -568,6 +568,21 @@ where
             }
         }
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_bench<P>(path: P)
+where
+    P: AsRef<Path>,
+{
+    let core_ir = _compile(path);
+    let mut interpreter = Interpreter::from_program(&core_ir);
+    let now = Instant::now();
+    interpreter.run_until_done();
+    let elapsed = now.elapsed();
+    let steps = interpreter.steps;
+    println!("{steps} steps in {:03} ms", elapsed.as_micros() as f64 / 1000.);
+    println!("{} steps/s", (steps as u128 * 1_000_000) / elapsed.as_micros());
 }
 
 impl HMT for Interpreter {
