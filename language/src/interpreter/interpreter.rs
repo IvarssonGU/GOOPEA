@@ -90,8 +90,8 @@ pub struct Interpreter {
     function_names_stack: Vec<String>,
     statements: VecDeque<IStatement>,
     statement_stack: Vec<VecDeque<IStatement>>,
-    local_variables: HashMap<String, Data>,
-    variable_stack: Vec<HashMap<String, Data>>,
+    local_variables: HashMap<u64, Data>,
+    variable_stack: Vec<HashMap<u64, Data>>,
     return_value: Option<Data>,
     steps: u64,
 }
@@ -114,7 +114,7 @@ impl Interpreter {
     pub fn from_program(program: &CompiledProgram) -> Self {
         let mut interpreter = Interpreter::new();
         for def in program.core.clone().0 {
-            interpreter = interpreter.with_fn(IDef::from_def(&def));
+            interpreter = interpreter.with_fn(IDef::from_def(def));
         }
         interpreter = interpreter.with_entry_point("main");
         interpreter
@@ -134,10 +134,10 @@ impl Interpreter {
 impl Interpreter {
     fn eval_op(&self, op: &IOperand) -> i64 {
         make63bit(match op {
-            IOperand::Ident(id) => self.get_local_var(id).unwrap_val(),
+            IOperand::Ident(id) => self.get_local_var(*id).unwrap_val(),
             IOperand::Int(i) => *i,
             IOperand::Negate(id) => {
-                if self.get_local_var(id)._unwrap_raw() == 0 {
+                if self.get_local_var(*id)._unwrap_raw() == 0 {
                     1
                 } else {
                     0
@@ -148,15 +148,15 @@ impl Interpreter {
 
     fn op_to_data(&self, op: &IOperand) -> Data {
         match op {
-            IOperand::Ident(id) => self.get_local_var(id),
+            IOperand::Ident(id) => self.get_local_var(*id),
             IOperand::Int(i) => Data::Value(*i),
             IOperand::Negate(_) => panic!("Hoppsan"),
         }
     }
 
-    fn get_local_var(&self, id: &str) -> Data {
+    fn get_local_var(&self, id: u64) -> Data {
         self.local_variables
-            .get(id)
+            .get(&id)
             .expect(&format!("Variable {id} not in scope"))
             .clone()
     }
@@ -199,9 +199,9 @@ impl Interpreter {
             "Function '{}' should be in functions but is not",
             name
         ));
-        self.function_names_stack.push(f.id.clone());
-        // std::mem::take could make it faster
-        self.statement_stack.push(self.statements.clone());
+        self.function_names_stack.push(name.to_string());
+        self.statement_stack.push(std::mem::take(&mut self.statements));
+        // take does not make it faster here
         self.variable_stack.push(self.local_variables.clone());
 
         self.statements = f.body.clone().into();
@@ -233,7 +233,7 @@ impl Interpreter {
                 }
                 IStatement::AssignMalloc(id, w) => {
                     let ptr = self.malloc(w as usize);
-                    self.local_variables.insert(id.clone(), ptr);
+                    self.local_variables.insert(id, ptr);
                 }
                 IStatement::Return(ioperand) => {
                     self.return_value = Some(self.op_to_data(&ioperand));
@@ -243,20 +243,20 @@ impl Interpreter {
                     self.function_names_stack.pop();
                 }
                 IStatement::Print(ioperand) => println!("> {:?}", match ioperand {
-                    IOperand::Ident(id) => self.get_local_var(&id),
+                    IOperand::Ident(id) => self.get_local_var(id),
                     IOperand::Negate(_) => panic!("Should not happen"),
                     IOperand::Int(i) => Data::Value(i),
                 }),
                 IStatement::Inc(ioperand) => {
                     let id = ioperand.unwrap_id();
-                    let data = self.get_local_var(&id);
+                    let data = self.get_local_var(id);
                     if let Data::Pointer(ptr) = data {
                         self.inc(ptr);
                     }
                 }
                 IStatement::Dec(ioperand) => {
                     let id = ioperand.unwrap_id();
-                    let data = self.get_local_var(&id);
+                    let data = self.get_local_var(id);
                     if let Data::Pointer(ptr) = data {
                         self.dec(ptr);
                     }
@@ -267,13 +267,13 @@ impl Interpreter {
                     self.local_variables.insert(id, val);
                 }
                 IStatement::AssignToField(id, i, ioperand) => {
-                    let ptr = self.get_local_var(&id).unwrap_ptr();
+                    let ptr = self.get_local_var(id).unwrap_ptr();
                     let val = self.op_to_data(&ioperand);
                     self.heap[ptr][i as usize] = val;
                 }
                 IStatement::AssignFromField(id, i, ioperand) => {
                     let name = ioperand.unwrap_id();
-                    let ptr = self.get_local_var(&name).unwrap_ptr();
+                    let ptr = self.get_local_var(name).unwrap_ptr();
                     let val = self.heap[ptr][i as usize];
                     self.local_variables.insert(id, val);
                 }
@@ -298,7 +298,7 @@ impl Interpreter {
                 IStatement::AssignTagCheck(id, b, iop, i) => {
                     let val = if b {
                         let name = iop.unwrap_id();
-                        let data = self.get_local_var(&name);
+                        let data = self.get_local_var(name);
                         data.is_ptr() && i == self.heap[data.unwrap_ptr()][0].unwrap_val()
                     } else {
                         i == self.op_to_data(&iop)._unwrap_raw()
@@ -313,7 +313,7 @@ impl Interpreter {
                     self.return_value = None;
                 }
                 IStatement::AssignDropReuse(id, id1) => {
-                    let reff = self.get_local_var(&id1);
+                    let reff = self.get_local_var(id1);
                     let ptr = reff.unwrap_ptr();
                     if self.heap[ptr][2].unwrap_val() == 1 {
                         for i in 3..self.heap[ptr].len() {
@@ -330,11 +330,11 @@ impl Interpreter {
                 IStatement::AssignUTuple(len, id, items) => {
                     let ptr = self.malloc(len);
                     self.local_variables.insert(id, ptr);
-                    let data = items.iter().map(|_id| self.get_local_var(_id)).collect();
+                    let data = items.iter().map(|_id| self.get_local_var(*_id)).collect();
                     self.heap[ptr.unwrap_ptr()] = data;
                 }
                 IStatement::DecUTuple(id) => {
-                    let ptr = self.get_local_var(&id);
+                    let ptr = self.get_local_var(id);
                     for data in self.heap[ptr.unwrap_ptr()].clone().iter() {
                         if let Data::Pointer(_ptr) = data {
                             self.dec(*_ptr);
@@ -344,7 +344,7 @@ impl Interpreter {
                 }
                 IStatement::AssignUTupleField(id, i, ioperand) => {
                     let tuple_id = ioperand.unwrap_id();
-                    let ptr = self.get_local_var(&tuple_id);
+                    let ptr = self.get_local_var(tuple_id);
                     let data = self.heap[ptr.unwrap_ptr()][i];
                     self.local_variables.insert(id, data);
                 }
@@ -431,17 +431,17 @@ impl Interpreter {
         self.statements.clone().into_iter().collect::<Vec<_>>()
     }
 
-    pub fn get_variables_raw(&self) -> Vec<(String, Data)> {
+    pub fn get_variables_raw(&self) -> Vec<(u64, Data)> {
         let mut list = self.local_variables.clone().into_iter().collect_vec();
         list.sort_by(|(a, _), (b, _)| a.cmp(b));
         list
     }
 
     pub fn get_variable_json(&self, id: &str) -> String {
-        if !self.local_variables.contains_key(id) {
+        if !self.local_variables.contains_key(&hash(id)) {
             return "{}".to_string();
         }
-        MemObj::from_data(&self.get_local_var(id), &self.heap).as_json()
+        MemObj::from_data(&self.get_local_var(hash(&id)), &self.heap).as_json()
     }
 }
 
@@ -579,7 +579,7 @@ where
                 );
                 println!("{}", shit.as_json());
             }
-            x if interpreter.local_variables.contains_key(x) => {
+            x if interpreter.local_variables.contains_key(&hash(&x)) => {
                 let json = interpreter.get_variable_json(x);
                 println!("{}", json);
             }
