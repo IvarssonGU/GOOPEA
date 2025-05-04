@@ -223,9 +223,10 @@ impl Interpreter {
                         if self.eval_op(&operand) == 1 {
                             // beautiful code🦀
                             // inside_if ++ old_code
-                            let mut new_list = statements.clone();
-                            new_list.extend(self.statements.clone().into_iter());
-                            self.statements = new_list.into();
+                            self.statements.reserve(statements.len());
+                            for elem in statements.into_iter().rev() {
+                                self.statements.push_front(elem);
+                            }
                             break;
                         }
                     }
@@ -241,7 +242,11 @@ impl Interpreter {
                         self.variable_stack.pop().expect("this should not happen");
                     self.function_names_stack.pop();
                 }
-                IStatement::Print(ioperand) => println!("> {:?}", ioperand),
+                IStatement::Print(ioperand) => println!("> {:?}", match ioperand {
+                    IOperand::Ident(id) => self.get_local_var(&id),
+                    IOperand::Negate(_) => panic!("Should not happen"),
+                    IOperand::Int(i) => Data::Value(i),
+                }),
                 IStatement::Inc(ioperand) => {
                     let id = ioperand.unwrap_id();
                     let data = self.get_local_var(&id);
