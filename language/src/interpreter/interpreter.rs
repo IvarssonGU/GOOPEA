@@ -324,6 +324,27 @@ impl Interpreter {
                         self.local_variables.insert(id, Data::Value(0));
                     }
                 }
+                IStatement::AssignUTuple(len, id, items) => {
+                    let ptr = self.malloc(len);
+                    self.local_variables.insert(id, ptr);
+                    let data = items.iter().map(|_id| self.get_local_var(_id)).collect();
+                    self.heap[ptr.unwrap_ptr()] = data;
+                }
+                IStatement::DecUTuple(id) => {
+                    let ptr = self.get_local_var(&id);
+                    for data in self.heap[ptr.unwrap_ptr()].clone().iter() {
+                        if let Data::Pointer(_ptr) = data {
+                            self.dec(*_ptr);
+                        }
+                    }
+                    self.clean_memory();
+                }
+                IStatement::AssignUTupleField(id, i, ioperand) => {
+                    let tuple_id = ioperand.unwrap_id();
+                    let ptr = self.get_local_var(&tuple_id);
+                    let data = self.heap[ptr.unwrap_ptr()][i];
+                    self.local_variables.insert(id, data);
+                }
             }
         }
         s

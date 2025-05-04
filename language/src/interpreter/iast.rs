@@ -63,6 +63,9 @@ pub enum IStatement {
     AssignDropReuse(String, String),
     Inc(IOperand),
     Dec(IOperand),
+    AssignUTuple(usize, String, Vec<String>),
+    DecUTuple(String),
+    AssignUTupleField(String, usize, IOperand),
 }
 
 fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
@@ -112,9 +115,11 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
             Statement::AssignDropReuse(a, b) => IStatement::AssignDropReuse(a, b),
             Statement::Inc(operand) => IStatement::Inc(IOperand::Ident(operand)),
             Statement::Dec(operand) => IStatement::Dec(IOperand::Ident(operand)),
-            Statement::AssignUTuple(_, _, _) => todo!(),
-            Statement::DecUTuple(_, _) => todo!(),
-            Statement::AssignUTupleField(_, _, _) => todo!(),
+            Statement::AssignUTuple(n, id, fields) => IStatement::AssignUTuple(n as usize, id, fields),
+            Statement::DecUTuple(id, _) => IStatement::DecUTuple(id),
+            Statement::AssignUTupleField(id, i, op) => {
+                IStatement::AssignUTupleField(id, i as usize, IOperand::from_op(&op))
+            }
         };
         istatements.push(s);
     }
@@ -150,7 +155,10 @@ impl Display for IStatement {
                 ioperands.iter().map(|iop| format!("{iop}")).collect_vec()
             ),
             IStatement::AssignReturnvalue(id) => write!(f, "{id} = _ret_"),
-            IStatement::AssignDropReuse(_, _) => write!(f, "DropReuse"),
+            IStatement::AssignDropReuse(id1, id2) => write!(f, "DropReuse {} {}", id1, id2),
+            IStatement::AssignUTuple(_, id, items) => write!(f, "{} = {:?}", id, items),
+            IStatement::DecUTuple(id) => write!(f, "DecUTuple({})", id),
+            IStatement::AssignUTupleField(id, i, ioperand) => write!(f, "{} = {}.{}", id, ioperand, i),
         }
     }
 }
