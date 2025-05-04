@@ -101,9 +101,9 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
                 )
             }
             Statement::AssignTagCheck(id, b, operand, i) => {
-                IStatement::AssignTagCheck(id, b, IOperand::from_op(&operand), i)
+                IStatement::AssignTagCheck(id, b, IOperand::from_op(&operand), i >> 1)
             }
-            Statement::AssignFunctionCall(id, fid, operands, typ) => {
+            Statement::AssignFunctionCall(id, fid, operands, _) => {
                 // first add a function call that puts the returned value in a register
                 istatements.push(IStatement::FunctionCall(
                     fid.clone(),
@@ -115,7 +115,9 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
             Statement::AssignDropReuse(a, b) => IStatement::AssignDropReuse(a, b),
             Statement::Inc(operand) => IStatement::Inc(IOperand::Ident(operand)),
             Statement::Dec(operand) => IStatement::Dec(IOperand::Ident(operand)),
-            Statement::AssignUTuple(n, id, fields) => IStatement::AssignUTuple(n as usize, id, fields),
+            Statement::AssignUTuple(n, id, fields) => {
+                IStatement::AssignUTuple(n as usize, id, fields)
+            }
             Statement::DecUTuple(id, _) => IStatement::DecUTuple(id),
             Statement::AssignUTupleField(id, i, op) => {
                 IStatement::AssignUTupleField(id, i as usize, IOperand::from_op(&op))
@@ -148,7 +150,17 @@ impl Display for IStatement {
             IStatement::AssignBinaryOperation(id, operator, ioperand, ioperand1) => {
                 write!(f, "{id} = {} {operator} {}", ioperand, ioperand1)
             }
-            IStatement::AssignTagCheck(id, _, _, _) => write!(f, "{id} = if else bruhmagic"),
+            IStatement::AssignTagCheck(id, b, ioperand, i) => {
+                write!(
+                    f,
+                    "{id} = {}",
+                    if *b {
+                        format!("tag({}) == {}", ioperand, i)
+                    } else {
+                        format!("{} == {}", ioperand, i)
+                    }
+                )
+            }
             IStatement::FunctionCall(id, ioperands) => write!(
                 f,
                 "call {id}{:?}",
@@ -158,7 +170,9 @@ impl Display for IStatement {
             IStatement::AssignDropReuse(id1, id2) => write!(f, "DropReuse {} {}", id1, id2),
             IStatement::AssignUTuple(_, id, items) => write!(f, "{} = {:?}", id, items),
             IStatement::DecUTuple(id) => write!(f, "DecUTuple({})", id),
-            IStatement::AssignUTupleField(id, i, ioperand) => write!(f, "{} = {}.{}", id, ioperand, i),
+            IStatement::AssignUTupleField(id, i, ioperand) => {
+                write!(f, "{} = {}.{}", id, ioperand, i)
+            }
         }
     }
 }
@@ -186,41 +200,29 @@ impl Display for IDef {
             match s {
                 IStatement::IfExpr(items) => {
                     let n_cases = items.len();
-
                     for (i, (operand, statements)) in items.iter().enumerate() {
                         write!(f, "{}", "    ".repeat(indent))?;
-
                         writeln!(f, "{} {}:", if i == 0 { "if" } else { "else if" }, operand)?;
-
                         let n_statements = statements.len();
-
                         for (j, statement) in statements.iter().enumerate() {
                             write_indent(f, statement.clone(), indent + 1)?;
-
                             if i < n_cases - 1 || j < n_statements - 1 {
                                 writeln!(f, "")?;
                             }
                         }
                     }
                 }
-
                 _ => {
                     write!(f, "{}", "    ".repeat(indent))?;
-
                     write!(f, "{}", s)?;
                 }
             }
-
             Ok(())
         }
-
         writeln!(f, "function {}{:?}:", self.id, self.args)?;
-
         let len = self.body.len();
-
         for (i, statement) in self.body.iter().enumerate() {
             write_indent(f, statement.clone(), 1)?;
-
             if i < len - 1 {
                 writeln!(f, "")?;
             }

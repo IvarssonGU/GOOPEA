@@ -168,7 +168,6 @@ impl Interpreter {
                 return Data::Pointer(n);
             }
         }
-
         self.heap.push(vec![Data::Value(0); width]);
         Data::Pointer(self.heap.len() - 1)
     }
@@ -292,11 +291,10 @@ impl Interpreter {
                     self.local_variables.insert(id, Data::Value(make63bit(val)));
                 }
                 IStatement::AssignTagCheck(id, b, iop, i) => {
-                    let i = i >> 1; // bruh
                     let val = if b {
                         let name = iop.unwrap_id();
-                        let shit = self.get_local_var(&name);
-                        shit.is_ptr() && i == self.heap[shit.unwrap_ptr()][0].unwrap_val()
+                        let data = self.get_local_var(&name);
+                        data.is_ptr() && i == self.heap[data.unwrap_ptr()][0].unwrap_val()
                     } else {
                         i == self.op_to_data(&iop)._unwrap_raw()
                     } as i64;
@@ -542,16 +540,13 @@ where
     P: AsRef<Path>,
 {
     let core_ir = _compile(path);
-
     let mut interpreter = Interpreter::from_program(&core_ir);
-
     let mut history = Vec::new();
     loop {
         print!("{}[2J", 27 as char);
         println!("{:?}", interpreter);
         println!("m, r, s, b, p, enter");
         let input: String = input("");
-
         match input.as_str() {
             "m" => {
                 history.push(interpreter.clone());
@@ -602,8 +597,11 @@ where
     interpreter.run_until_done();
     let elapsed = now.elapsed();
     let steps = interpreter.steps;
-    println!("{steps} steps in {:03} ms", elapsed.as_micros() as f64 / 1000.);
-    println!("{} steps/s", (steps as u128 * 1_000_000) / elapsed.as_micros());
+    println!("{steps} steps in {} ms", elapsed.as_micros() as f64 / 1000.);
+    println!(
+        "{} steps/s",
+        (steps as u128 * 1_000_000) / elapsed.as_micros()
+    );
 }
 
 impl HMT for Interpreter {
