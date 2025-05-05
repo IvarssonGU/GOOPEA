@@ -193,7 +193,7 @@ pub fn next_var() -> String {
         *c += 1;
         *c
     });
-    format!("fresh{}", current)
+    format!("v{}", current)
 }
 
 pub fn reset_var_counter() {
@@ -336,7 +336,8 @@ fn replace_var_body(replacing: Var, replacee: &Var, body: Body) -> Body {
                 })
                 .collect(),
         ),
-        _ => panic!("Does not exist at this stage"),
+        Body::Inc(_, _) => panic!("Should not exist at this stage"),
+        Body::Dec(_, _) => panic!("Should not exist at this stage"),
     }
 }
 
@@ -361,7 +362,13 @@ fn replace_var_exp(replacing: Var, replacee: &Var, exp: Exp) -> Exp {
             replace_var(var1, replacing.clone(), replacee),
             replace_var(var2, replacing.clone(), replacee),
         ),
-        _ => panic!("Does not exist at this stage"),
+        Exp::UTuple(vars) => Exp::UTuple(
+            vars.iter()
+                .map(|arg| replace_var(arg.clone(), replacing.clone(), replacee))
+                .collect(),
+        ),
+        Exp::Reset(_) => panic!("Should not exist at this stage"),
+        Exp::Reuse(_, _, _) => panic!("Should not exist at this stage"),
     }
 }
 
@@ -386,7 +393,8 @@ pub fn remove_dead_bindings(body: Body) -> Body {
                 .map(|(cons_len, branch)| (*cons_len, remove_dead_bindings(branch.clone())))
                 .collect(),
         ),
-        _ => panic!("Does not exist at this stage"),
+        Body::Inc(_, _) => panic!("Should not exist at this stage"),
+        Body::Dec(_, _) => panic!("Should not exist at this stage"),
     }
 }
 
