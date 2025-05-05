@@ -296,7 +296,7 @@ fib x = match (x <= 1) {
 
 () : Int
 main = fib(10);`);
-            output_field.value = "";
+            output_field.value = "89";
             break;
         case "dag":
             code_field.setValue( 
@@ -304,13 +304,10 @@ main = fib(10);`);
 
 Node: Node
 build x = Children(Child(x), Child(x));
-
-Node: ()
-print x = ();
   
 (): ()
-main = print (build (Data 5));`);
-            output_field.value = "0";
+main = build (Data 5);`);
+            output_field.value = "Children(Child(data 5), Child(Data 5))";
             break;
         case "inorder":
             code_field.setValue( 
@@ -321,15 +318,18 @@ enum List = Nil, Cons(Int, List);
 (List,List) : List
 concat(xs, ys) = match xs {
     Nil: ys,
-    Cons(x,xx): Cons(x, Concat(xx, ys))
+    Cons(x,xx): Cons(x, concat(xx, ys))
 };
 
 Tree : List
 inorder tree = match tree {
     Empty: Nil,
-    Node(left, value, right): Concat(Inorder(left), Cons(value, Inorder(right)))
-};`);
-            output_field.value = "0";
+    Node(left, value, right): concat(inorder(left), Cons(value, inorder(right)))
+};
+      
+(): List
+main = inorder(Node(Node(Node(Empty, 1, Empty), 2, Node(Empty, 3, Empty)), 4, Node(Empty, 5, Empty)));`);
+            output_field.value = "Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))";
             break;
         case "rdt":
             code_field.setValue( 
@@ -349,7 +349,7 @@ toInt(p) = match p {
 
 () : Int
 main = toInt(from_List(Cons(7, Cons(2, Cons(3, Nil)))));`);
-            output_field.value = "0";
+            output_field.value = "49";
             break;
         default:
             code_field.setValue( 
