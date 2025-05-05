@@ -1,41 +1,28 @@
 use crate::compiler::core::{Def, Operand, Statement};
 use crate::compiler::simple::Operator;
 use itertools::Itertools;
-use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Debug, Display, Formatter, Result};
-use std::hash::{Hash, Hasher};
-
-pub fn hash(s: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-   // println!("x: {s}");
-    s.hash(&mut hasher);
-    hasher.finish()
-}
-
-fn reverse_hash(n: u64) -> String {
-    "".to_string()
-}
 
 #[derive(Debug, Clone)]
 pub enum IOperand {
-    Ident(u64),
-    Negate(u64),
+    Ident(String),
+    Negate(String),
     Int(i64),
 }
 
 impl IOperand {
     pub fn from_op(operand: &Operand) -> Self {
         match operand {
-            Operand::Ident(id) => Self::Ident(hash(id)),
+            Operand::Ident(id) => Self::Ident(id.clone()),
             Operand::Int(i) => Self::Int(*i),
             Operand::NonShifted(i) => Self::Int(*i),
-            Operand::Negate(id) => IOperand::Negate(hash(id)),
+            Operand::Negate(id) => IOperand::Negate(id.clone()),
         }
     }
 
-    pub fn unwrap_id(&self) -> u64 {
+    pub fn unwrap_id(&self) -> String {
         match self {
-            IOperand::Ident(s) => *s,
+            IOperand::Ident(s) => s.clone(),
             IOperand::Int(_) => panic!("Not an identifier"),
             IOperand::Negate(_) => panic!("Not an identifier"),
         }
@@ -65,20 +52,20 @@ pub enum IStatement {
     IfExpr(Vec<(IOperand, Vec<IStatement>)>),
     Return(IOperand),
     Print(IOperand),
-    AssignMalloc(u64, u32),
-    Assign(u64, IOperand),
-    AssignToField(u64, i64, IOperand),
-    AssignFromField(u64, i64, IOperand),
-    AssignBinaryOperation(u64, Operator, IOperand, IOperand),
-    AssignTagCheck(u64, bool, IOperand, i64),
+    AssignMalloc(String, u32),
+    Assign(String, IOperand),
+    AssignToField(String, i64, IOperand),
+    AssignFromField(String, i64, IOperand),
+    AssignBinaryOperation(String, Operator, IOperand, IOperand),
+    AssignTagCheck(String, bool, IOperand, i64),
     FunctionCall(String, Vec<IOperand>),
-    AssignReturnvalue(u64),
-    AssignDropReuse(u64, u64),
+    AssignReturnvalue(String),
+    AssignDropReuse(String, String),
     Inc(IOperand),
     Dec(IOperand),
-    AssignUTuple(usize, u64, Vec<u64>),
-    DecUTuple(u64),
-    AssignUTupleField(u64, usize, IOperand),
+    AssignUTuple(usize, String, Vec<String>),
+    DecUTuple(String),
+    AssignUTupleField(String, usize, IOperand),
 }
 
 fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
@@ -95,26 +82,26 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
             ),
             Statement::Return(operand) => IStatement::Return(IOperand::from_op(&operand)),
             Statement::Print(operand) => IStatement::Print(IOperand::from_op(&operand)),
-            Statement::AssignMalloc(_, id, n) => IStatement::AssignMalloc(hash(&id), n as u32 + 3),
+            Statement::AssignMalloc(_, id, n) => IStatement::AssignMalloc(id, n as u32 + 3),
             Statement::Assign(_, id, operand) => {
-                IStatement::Assign(hash(&id), IOperand::from_op(&operand))
+                IStatement::Assign(id, IOperand::from_op(&operand))
             }
             Statement::AssignToField(id, i, operand) => {
-                IStatement::AssignToField(hash(&id), i, IOperand::from_op(&operand))
+                IStatement::AssignToField(id, i, IOperand::from_op(&operand))
             }
             Statement::AssignFromField(id, i, operand) => {
-                IStatement::AssignFromField(hash(&id), i, IOperand::from_op(&operand))
+                IStatement::AssignFromField(id, i, IOperand::from_op(&operand))
             }
             Statement::AssignBinaryOperation(id, operator, operand, operand1) => {
                 IStatement::AssignBinaryOperation(
-                    hash(&id),
+                    id.clone(),
                     operator.clone(),
                     IOperand::from_op(&operand),
                     IOperand::from_op(&operand1),
                 )
             }
             Statement::AssignTagCheck(id, b, operand, i) => {
-                IStatement::AssignTagCheck(hash(&id), b, IOperand::from_op(&operand), i >> 1)
+                IStatement::AssignTagCheck(id, b, IOperand::from_op(&operand), i >> 1)
             }
             Statement::AssignFunctionCall(id, fid, operands, _) => {
                 // first add a function call that puts the returned value in a register
@@ -123,19 +110,17 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
                     operands.iter().map(IOperand::from_op).collect(),
                 ));
                 // then assign the value to the identifier
-                IStatement::AssignReturnvalue(hash(&id))
+                IStatement::AssignReturnvalue(id.clone())
             }
-            Statement::AssignDropReuse(a, b) => IStatement::AssignDropReuse(hash(&a), hash(&b)),
-            Statement::Inc(operand) => IStatement::Inc(IOperand::Ident(hash(&operand))),
-            Statement::Dec(operand) => IStatement::Dec(IOperand::Ident(hash(&operand))),
-            Statement::AssignUTuple(n, id, fields) => IStatement::AssignUTuple(
-                n as usize,
-                hash(&id),
-                fields.into_iter().map(|ids| hash(&ids)).collect(),
-            ),
-            Statement::DecUTuple(id, _) => IStatement::DecUTuple(hash(&id)),
+            Statement::AssignDropReuse(a, b) => IStatement::AssignDropReuse(a, b),
+            Statement::Inc(operand) => IStatement::Inc(IOperand::Ident(operand)),
+            Statement::Dec(operand) => IStatement::Dec(IOperand::Ident(operand)),
+            Statement::AssignUTuple(n, id, fields) => {
+                IStatement::AssignUTuple(n as usize, id, fields)
+            }
+            Statement::DecUTuple(id, _) => IStatement::DecUTuple(id),
             Statement::AssignUTupleField(id, i, op) => {
-                IStatement::AssignUTupleField(hash(&id), i as usize, IOperand::from_op(&op))
+                IStatement::AssignUTupleField(id, i as usize, IOperand::from_op(&op))
             }
         };
         istatements.push(s);
@@ -195,15 +180,15 @@ impl Display for IStatement {
 #[derive(Debug, Clone)]
 pub struct IDef {
     pub id: String,
-    pub args: Vec<u64>,
+    pub args: Vec<String>,
     pub body: Vec<IStatement>,
 }
 
 impl IDef {
-    pub fn from_def(def: Def) -> Self {
+    pub fn from_def(def: &Def) -> Self {
         IDef {
-            id: def.id,
-            args: def.args.iter().map(|arg| hash(arg)).collect(),
+            id: def.id.clone(),
+            args: def.args.clone(),
             body: from_statements(def.body.clone()),
         }
     }
