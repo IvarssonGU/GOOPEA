@@ -18,6 +18,7 @@ let reuse_value = "Click Compile, Run, or Debug to view reuse";
 let rc_value = "Click Compile, Run, or Debug to view rc";
 
 let error_highlight = null;
+let debugging = false;
 
 //establish codemirror editor
 var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
@@ -31,7 +32,9 @@ var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     styleSelectedText: true,
 });
 
-editor.setSize("100%", "100%");
+if (!navigator.userAgent.includes("Chrome")) {
+    editor.setSize("100%", "100%");
+}
 editor.on('keyup', function () {
     continuous_compilation();
 })
@@ -66,6 +69,7 @@ function autocomplete_hints(cm) {
 //loading and unloading
 document.addEventListener("DOMContentLoaded", () => {
     output_textarea.innerHTML = "";
+    debugging = false;
     selected_changed(0);
     selected_changed(1);
     selected_changed(2);
@@ -271,6 +275,7 @@ function restore_code() {
 
 async function debug_button_clicked() {
     await wasm_bindgen('./pkg/editor_bg.wasm');
+    // let debug_buttons = document.getElementsByClassName("debug-button");
 
     let code = editor.getValue();
     localStorage.setItem("code", code);
@@ -283,7 +288,11 @@ async function debug_button_clicked() {
         if (visualization_div.classList.contains("hide")) visualization_div.classList.toggle("hide");
         update_visualization();
 
+        debugging = true;
+        // if (debugging) for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
+        
         switch_tab(1);
+
     } else {
         if (debug_textarea.classList.contains("hide")) debug_textarea.classList.toggle("hide");
         if (!visualization_div.classList.contains("hide")) visualization_div.classList.toggle("hide");
@@ -359,7 +368,7 @@ function switch_tab(opt) {
     }
     if (debug_tab_button.classList.contains("current-tab")) {
         debug_tab_button.classList.toggle("current-tab");
-        for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
+        if (debugging && !debug_buttons[0].classList.contains("hide")) for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
         document.getElementById("debug-container").classList.toggle("hide");
     }
     if (compiler_button.classList.contains("current-tab")) {
@@ -382,7 +391,7 @@ function switch_tab(opt) {
             break;
         case 1: //switch to debugging
             debug_tab_button.classList.toggle("current-tab");
-            for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
+            if (debugging && debug_buttons[0].classList.contains("hide")) for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
             document.getElementById("debug-container").classList.toggle("hide");
             localStorage.setItem("tab", "debug");
             break;
