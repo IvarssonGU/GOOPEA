@@ -427,6 +427,30 @@ impl Interpreter {
         self.return_value
     }
 
+    fn get_heap_format(&self, ptr: usize) -> String {
+        let data = self.heap[ptr].clone();
+        let tag =  data[0].unwrap_val() >> 1;
+        let tag = ('A' as u8) + tag as u8;
+        let tag = tag as char;
+        let rest = data.iter().skip(3).map(|x| match x {
+            Data::Value(val) => format!("{}", val),
+            Data::Pointer(ptr) => self.get_heap_format(*ptr)
+        }).join(", ");
+        format!("[{}: {}]", tag, rest)
+    }
+
+    pub fn get_return_format(&self) -> String {
+        if let Some(data) = self.get_return_value() {
+            if data.is_val() {
+                format!("{}", data.unwrap_val())
+            } else {
+                self.get_heap_format(data.unwrap_ptr())
+            }
+        } else {
+            panic!("Dont use this when the interpreter has not finished");
+        }
+    }
+
     pub fn get_statements(&self) -> Vec<IStatement> {
         self.statements.clone().into_iter().collect::<Vec<_>>()
     }
