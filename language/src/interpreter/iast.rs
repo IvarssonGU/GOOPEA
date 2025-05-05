@@ -81,7 +81,7 @@ fn from_statements(statements: Vec<Statement>) -> Vec<IStatement> {
                     .collect(),
             ),
             Statement::Return(operand) => IStatement::Return(IOperand::from_op(&operand)),
-            Statement::Print(operand) => IStatement::Print(IOperand::from_op(&operand)),
+            Statement::Print(operand) => IStatement::Return(IOperand::from_op(&operand)),
             Statement::AssignMalloc(_, id, n) => IStatement::AssignMalloc(id, n as u32 + 3),
             Statement::Assign(_, id, operand) => {
                 IStatement::Assign(id, IOperand::from_op(&operand))
