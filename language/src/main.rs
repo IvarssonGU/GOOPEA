@@ -70,7 +70,8 @@ fn main() {
         }
         (true, false) => {
             if args.benchmark {
-                interpreter::interpreter_bench(file);
+                interpreter::interpreter_bench(&file);
+                interpreter::interpreter_bench_peak_mem(file);
             } else {
                 interpreter::interpreter_test(file);
             }

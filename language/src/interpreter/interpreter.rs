@@ -182,6 +182,10 @@ impl Interpreter {
         self.heap.truncate(i + 1);
     }
 
+    fn get_allocated_mem_size(&self) -> usize {
+        self.heap.iter().map(|entry| entry.len()).sum()
+    }
+
     fn dec(&mut self, ptr: usize) {
         self.heap[ptr][2].dec();
         if self.heap[ptr][2].unwrap_val() == 0 {
@@ -242,11 +246,14 @@ impl Interpreter {
                         self.variable_stack.pop().expect("this should not happen");
                     self.function_names_stack.pop();
                 }
-                IStatement::Print(ioperand) => println!("> {:?}", match ioperand {
-                    IOperand::Ident(id) => self.get_local_var(&id),
-                    IOperand::Negate(_) => panic!("Should not happen"),
-                    IOperand::Int(i) => Data::Value(i),
-                }),
+                IStatement::Print(ioperand) => println!(
+                    "> {:?}",
+                    match ioperand {
+                        IOperand::Ident(id) => self.get_local_var(&id),
+                        IOperand::Negate(_) => panic!("Should not happen"),
+                        IOperand::Int(i) => Data::Value(i),
+                    }
+                ),
                 IStatement::Inc(ioperand) => {
                     let id = ioperand.unwrap_id();
                     let data = self.get_local_var(&id);
@@ -429,13 +436,17 @@ impl Interpreter {
 
     fn get_heap_format(&self, ptr: usize) -> String {
         let data = self.heap[ptr].clone();
-        let tag =  data[0].unwrap_val() >> 1;
+        let tag = data[0].unwrap_val() >> 1;
         let tag = ('A' as u8) + tag as u8;
         let tag = tag as char;
-        let rest = data.iter().skip(3).map(|x| match x {
-            Data::Value(val) => format!("{}", val),
-            Data::Pointer(ptr) => self.get_heap_format(*ptr)
-        }).join(", ");
+        let rest = data
+            .iter()
+            .skip(3)
+            .map(|x| match x {
+                Data::Value(val) => format!("{}", val),
+                Data::Pointer(ptr) => self.get_heap_format(*ptr),
+            })
+            .join(", ");
         format!("[{}: {}]", tag, rest)
     }
 
@@ -631,6 +642,21 @@ where
         "{} steps/s",
         (steps as u128 * 1_000_000) / elapsed.as_micros()
     );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_bench_peak_mem<P>(path: P)
+where
+    P: AsRef<Path>,
+{
+    let core_ir = _compile(path);
+    let mut interpreter = Interpreter::from_program(&core_ir);
+    let mut max_mem = 0;
+    while let Some(_) = interpreter.step() {
+        max_mem = max_mem.max(interpreter.get_allocated_mem_size());
+    }
+    
+    println!("Peak memory was {} words", max_mem);
 }
 
 impl HMT for Interpreter {

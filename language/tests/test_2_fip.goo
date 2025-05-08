@@ -8,7 +8,7 @@ init(n) = match n > 0 {
     True: Cons(n - 1, 0, init(n - 1))
 };
 
-(Int, DualList): DualList
+fip (Int, DualList): DualList
 insert(x, list) = match list {
     Nil: Nil,
     Cons(n, y, xs): match x == n {
