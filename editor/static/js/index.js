@@ -231,13 +231,13 @@ async function run_button_clicked() {
         }
         output_textarea.innerHTML = output_value;
 
-        //show only the final debug print
+        //run until done interpreter
         wasm_bindgen.start_interpreter(code);
-        update_visualization();
+        wasm_bindgen.get_run();
 
         switch_tab(0);
     } else {
-        write_error_message();//`<span style=\"white-space: pre-wrap;\">${compiler_message}</span>`;
+        write_error_message();
 
         switch_tab(0);
     }

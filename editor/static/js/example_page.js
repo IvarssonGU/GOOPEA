@@ -71,7 +71,7 @@ sum list = match list {
 
 (): Int
 main = sum(reverseList(build(100)));`);
-            output_field.value = "reverseList(Cons(1, Cons(2, Cons(3, Nil))))) = Cons(3, Cons(2, Cons(1, Nil)))";
+            output_field.value = "reverses a List of 100 Ints";
             break;
         case "treeflip":
             code_field.setValue(
@@ -157,7 +157,7 @@ subtract = 2 - 1;
 
 (): Int
 main = 3 * (1 + 15/5) % (6/(2+1))*6;`);
-            output_field.value = "0";
+            output_field.value = "1";
             break;
         case "complex-match":
             code_field.setValue( 
@@ -212,10 +212,13 @@ next list = match list {
 
 List: (List, Maybe, Maybe)
 next_twice list = 
-    let (list, x1) = next list in 
-        let (list, x2) = next list in 
-            (list, x1, x2);`);
-            output_field.value = "output here";
+    let (list, x1) = next list in //(Cons(Cons(Cons(Nil, 3), 4), 5), 6)
+        let (list, x2) = next list in //(Cons(Cons(Nil, 3), 4), 5)
+            (list, x1, x2); //(Cons(Cons(Nil, 3), 4), 6, 5)
+            
+(): (List, Maybe, Maybe)
+main = next_twice(Cons(Cons(Cons(Cons(Nil, 3), 4), 5), 6));`);
+            output_field.value = "(Cons(Cons(Nil, 3), 4), 6, 5)";
             break;
         case "type-error":
             code_field.setValue( 
@@ -283,8 +286,53 @@ app(t, ctx) =
     };
 
 fip Tree: Tree
-main t = down(t, Top);`);
-            output_field.value = "output here";
+tmap t = down(t, Top);
+
+fip (): Tree
+main = tmap(Bin(Tip 1, Bin(Tip 2, Tip 3)));`);
+            output_field.value = `Bin(Tip 2, Bin(Tip 3, Tip 4))
+            
+walkthrough (note: numbered Tips to keep track of them):
+main = tmap(Bin(Tip1 1, Bin(Tip2 2, Tip3 3)));
+
+down(Bin(Tip1 1, Bin(Tip2 2, Tip3 3)), Top)
+  Bin l,r
+  	l = Tip1 1
+  	r = Bin(Tip2 2, Tip3 3)
+down(Tip1 1, BinL(Top, Bin(Tip2 2, Tip3 3)))
+  Tip x
+  	x = 1
+app(Tip1 1+1, BinL(Top, Bin(Tip2 2, Tip3 3)))
+  BinL up,r
+  	up = Top
+  	r = Bin(Tip2 2, Tip3 3)
+down(Bin(Tip2 2, Tip3 3), BinR(Tip1 2, Top))
+  Bin l,r
+  	l = Tip2 2
+  	r = Tip3 3
+down(Tip2 2, BinL(BinR(Tip1 2, Top), Tip3 3))
+  Tip x
+  	x = 2
+app(Tip2 2+1, BinL(BinR(Tip1 2, Top), Tip3 3))
+  BinL up,r
+  	up = BinR(Tip1 2, Top)
+    r = Tip3 3
+down(Tip3 3, BinR(Tip2 3, BinR(Tip1 2, Top)))
+  Tip x
+  	x = 3
+app(Tip3 4, BinR(Tip2 3, BinR(Tip1 2, Top)))
+  BinR l,up
+  	l = Tip2 3
+  	up = BinR(Tip1 2, Top)
+app(Bin(Tip2 3, Tip3 4), BinR(Tip1 2, Top))
+  BinR l,up
+  	l = Tip1 2
+  	up = Top
+app(Bin(Tip1 2, Bin(Tip2 3, Tip3 4)), Top)
+  Top t
+  	t = Bin(Tip1 2, Bin(Tip2 3, Tip3 4))
+      
+==> main = Bin(Tip1 2, Bin(Tip2 3, Tip3 4))`;
             break;
         case "bools":
             code_field.setValue( 
