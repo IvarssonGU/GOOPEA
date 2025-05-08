@@ -652,10 +652,15 @@ where
     let core_ir = _compile(path);
     let mut interpreter = Interpreter::from_program(&core_ir);
     let mut max_mem = 0;
-    while let Some(_) = interpreter.step() {
-        max_mem = max_mem.max(interpreter.get_allocated_mem_size());
+    while let Some(x) = interpreter.step() {
+        match x {
+            IStatement::AssignMalloc(_, _) | IStatement::AssignUTuple(_, _, _) => {
+                max_mem = max_mem.max(interpreter.get_allocated_mem_size());
+            }
+            _ => ()
+        }
     }
-    
+
     println!("Peak memory was {} words", max_mem);
 }
 

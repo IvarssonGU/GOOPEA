@@ -27,4 +27,4 @@ insertions(seed, n, mod, acc) = match n > 0 {
 testRng(seed, n, mod) = let list = init(mod) in insertions(seed, n, mod, list);
 
 (): DualList
-main = testRng(42, 1000, 10);
+main = testRng(42, 10000, 10);
