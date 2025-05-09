@@ -12,7 +12,7 @@ pub struct CompiledProgram {
     pub core: Prog,
 }
 
-pub fn compile_typed(typed: &TypedProgram) -> CompiledProgram {
+fn from_typed(typed: &TypedProgram) -> Stir {
     stir::reset_var_counter();
     let mut stir = vec![];
     for (id, func, body) in typed.function_iter() {
@@ -33,12 +33,29 @@ pub fn compile_typed(typed: &TypedProgram) -> CompiledProgram {
         });
         from_typed_expr(body, typed);
     }
+    stir
+}
+
+pub fn compile_typed(typed: &TypedProgram) -> CompiledProgram {
+    let stir = from_typed(typed);
     let reuse = crate::compiler::reuse::add_reuse(&stir);
     let rc = crate::compiler::rc::add_rc(&reuse, true);
     let core = crate::compiler::score::translate(&rc);
     CompiledProgram {
         stir,
         reuse,
+        rc,
+        core,
+    }
+}
+
+pub fn compile_with_scoped_rc(typed: &TypedProgram) -> CompiledProgram {
+    let stir = from_typed(typed);
+    let rc = crate::compiler::rc::add_rc(&stir, false);
+    let core = crate::compiler::score::translate(&rc);
+    CompiledProgram {
+        stir: stir.clone(),
+        reuse: stir,
         rc,
         core,
     }
