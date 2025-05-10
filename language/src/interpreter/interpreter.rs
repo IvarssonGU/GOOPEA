@@ -2,7 +2,7 @@ use super::historymagic::{HMT, HistoryMagic};
 use super::iast::*;
 use super::mempeek::MemObj;
 use crate::ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
-use crate::compiler::{self, compile::CompiledProgram, simple::Operator};
+use crate::compiler::{self, compile::CompiledProgram, crux::Operator};
 use crate::preprocessor::preprocess;
 use input::*;
 use itertools::Itertools;
@@ -657,7 +657,7 @@ where
             IStatement::AssignMalloc(_, _) | IStatement::AssignUTuple(_, _, _) => {
                 max_mem = max_mem.max(interpreter.get_allocated_mem_size());
             }
-            _ => ()
+            _ => (),
         }
     }
 

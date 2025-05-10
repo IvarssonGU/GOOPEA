@@ -1,5 +1,5 @@
 use super::core::Prog;
-use super::simple::{from_exp_type, from_type, from_typed_expr};
+use super::crux::{from_exp_type, from_type, from_typed_expr};
 use super::stir::remove_dead_bindings;
 use super::stir::{self, Stir};
 use super::stir::{Body, Function, from_simple};

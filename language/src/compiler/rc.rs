@@ -1,5 +1,5 @@
 use crate::compiler::borrow::{Status, get_ownership};
-use crate::compiler::simple::Type;
+use crate::compiler::crux::Type;
 use crate::compiler::stir::{Body, Constant, Exp, Function, Stir, Var, free_vars};
 use std::collections::{HashMap, HashSet};
 

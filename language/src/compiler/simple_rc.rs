@@ -1,7 +1,7 @@
 use std::{collections::HashSet, vec};
 
 use super::{
-    simple::Type,
+    crux::Type,
     stir::{Body, Exp, Function, Stir, Var},
 };
 

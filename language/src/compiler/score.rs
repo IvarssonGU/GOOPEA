@@ -4,7 +4,7 @@ use std::vec;
 
 //score = Stir-to-CORE
 use crate::compiler::core::{Def, Operand, Prog, Statement, Type};
-use crate::compiler::simple::Type as SType;
+use crate::compiler::crux::Type as SType;
 use crate::compiler::stir::{Body, Exp, Stir};
 
 fn next_var() -> String {

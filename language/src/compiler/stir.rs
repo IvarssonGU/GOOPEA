@@ -1,6 +1,6 @@
 use core::panic;
 //stir = Sequentially-Transformed-Intermediate-Representation
-use crate::compiler::simple::{Binder, Operator, Simple, Type, get_type};
+use crate::compiler::crux::{Binder, Crux, Operator, Type, get_type};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter, Result};
@@ -205,15 +205,15 @@ pub fn reset_var_counter() {
     });
 }
 
-pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
+pub fn from_simple(expr: &Crux, k: &dyn Fn(Var) -> Body) -> Body {
     match expr {
-        Simple::Ident(var, typ) => k((var.clone(), typ.clone())),
-        Simple::Int(i, typ) => {
+        Crux::Ident(var, typ) => k((var.clone(), typ.clone())),
+        Crux::Int(i, typ) => {
             let fresh = next_var();
             let binding = (fresh, typ.clone());
             Body::Let(binding.clone(), Exp::Int(*i), k(binding).into())
         }
-        Simple::Operation(op, left, right, typ) => from_simple(left, &move |var1| {
+        Crux::Operation(op, left, right, typ) => from_simple(left, &move |var1| {
             from_simple(right, &move |var2: (String, Type)| {
                 let fresh: String = next_var();
                 let binding = (fresh, typ.clone());
@@ -224,7 +224,7 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
                 )
             })
         }),
-        Simple::App(id, inner, typ) => translate_list(inner.clone(), &move |bindings| {
+        Crux::App(id, inner, typ) => translate_list(inner.clone(), &move |bindings| {
             let fresh = next_var();
             let binding = (fresh, typ.clone());
             Body::Let(
@@ -233,7 +233,7 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
                 k(binding.clone()).into(),
             )
         }),
-        Simple::Constructor(tag, inner, typ) => translate_list(inner.clone(), &move |bindings| {
+        Crux::Constructor(tag, inner, typ) => translate_list(inner.clone(), &move |bindings| {
             let fresh = next_var();
             let binding = (fresh, typ.clone());
             Body::Let(
@@ -242,12 +242,12 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
                 k(binding).into(),
             )
         }),
-        Simple::UTuple(inner, typ) => translate_list(inner.clone(), &move |vars| {
+        Crux::UTuple(inner, typ) => translate_list(inner.clone(), &move |vars| {
             let fresh = next_var();
             let binding = (fresh, typ.clone());
             Body::Let(binding.clone(), Exp::UTuple(vars), k(binding).into())
         }),
-        Simple::Match(expr, branches, _) => {
+        Crux::Match(expr, branches, _) => {
             let mut branches = branches.clone();
             branches.sort_by_key(|((tag, _), _)| *tag);
             from_simple(expr, &move |var| {
@@ -271,14 +271,14 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
                 Body::Match(var, new_bodies)
             })
         }
-        Simple::Let(var, exp, next, _) => from_simple(exp, &move |var1| {
+        Crux::Let(var, exp, next, _) => from_simple(exp, &move |var1| {
             replace_var_body(
                 var1,
                 &(var.clone(), get_type(exp)),
                 from_simple(next, &move |var2| k(var2)),
             )
         }),
-        Simple::LetApp(vars, exp, next, _) => from_simple(exp, &move |var1| {
+        Crux::LetApp(vars, exp, next, _) => from_simple(exp, &move |var1| {
             vars.iter().enumerate().rev().fold(
                 from_simple(next, &move |var2| k(var2)),
                 |acc, (i, var)| {
@@ -300,7 +300,7 @@ pub fn from_simple(expr: &Simple, k: &dyn Fn(Var) -> Body) -> Body {
     }
 }
 
-fn translate_list(exprs: Vec<Simple>, k: &dyn Fn(Vec<Var>) -> Body) -> Body {
+fn translate_list(exprs: Vec<Crux>, k: &dyn Fn(Vec<Var>) -> Body) -> Body {
     if exprs.is_empty() {
         k(vec![])
     } else {

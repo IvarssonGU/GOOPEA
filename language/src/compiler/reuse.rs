@@ -1,4 +1,4 @@
-use crate::compiler::simple::Type;
+use crate::compiler::crux::Type;
 use crate::compiler::stir::{Body, Exp, Function, Stir, Var, next_var};
 
 fn reuse_all_matches(body: &Body) -> Body {
