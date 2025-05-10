@@ -129,3 +129,7 @@ pub fn restore_interpreter() {
 pub fn perform_on_interpreter<T>(f: impl FnOnce(&Interpreter) -> T) -> T {
     INTERPRETER.with_borrow(f)
 }
+
+pub fn get_interpreter_return() -> String {
+    INTERPRETER.with_borrow(|interpreter| format!("{:?}", interpreter.get_return_format()))
+}

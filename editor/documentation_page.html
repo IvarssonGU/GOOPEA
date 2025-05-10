@@ -392,8 +392,9 @@ sortedElems(list) = let tree = insertList(Empty, list) in flatten(tree);</span>
 								<button class="toggle-header subsection">Intermediate Representations (IRs)</button>
 								<div class="toggle-content">
 									<p class="multiline"> An intermediate representation is a step the compiler makes between the source code
-										and the target code language. The three IRs for GOOPEA can be viewed in the "Editor" page under the "Compilation" tab.
-										Note: the Reuse IR is only different from Stir if there is something to reuse.
+										and the target code language. The three IRs for GOOPEA can be viewed in the "Editor" page under the "Compilation" tab: 
+										stir (Sequentially Transformed IR), rc (RefCounted), and reuse.
+										Note: the reuse IR is only different from stir if there is something to reuse.
 									</p>
 								</div>
 							</td>

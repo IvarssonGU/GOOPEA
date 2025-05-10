@@ -157,3 +157,8 @@ pub fn get_until_return() -> String {
 pub fn get_state() -> String {
     language::get_interpreter_state()
 }
+
+#[wasm_bindgen]
+pub fn get_interpreter_output() -> String {
+    language::get_interpreter_return()
+}

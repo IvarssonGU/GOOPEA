@@ -70,8 +70,15 @@ sum list = match list {
 };
 
 (): Int
-main = sum(reverseList(build(100)));`);
-            output_field.value = "reverses a List of 100 Ints";
+main = sum(reverseList(build(100)));
+
+// (): List
+//main = reverseList(Cons(Cons(Cons(Nil, 1), 2), 3));`);
+            output_field.value = `5050
+
+// [A: [A: [A: 0, 3], 2], 1]
+// aka Cons(Cons(Cons(Nil, 3), 2), 1)
+// note that the 0 is because Nil is the first definition of List and the 3, 2, 1 are just Ints`;
             break;
         case "treeflip":
             code_field.setValue(
@@ -157,7 +164,7 @@ subtract = 2 - 1;
 
 (): Int
 main = 3 * (1 + 15/5) % (6/(2+1))*6;`);
-            output_field.value = "1";
+            output_field.value = "0";
             break;
         case "complex-match":
             code_field.setValue( 
@@ -169,35 +176,20 @@ convert x = match x {
     Dog: Cat
 };
 
-(): Int
-matchUnbox = match (1, 2) {
-    (x, y): x + y
-};
-
 (): (Int, Int)
 coord = (7, 5);
 
 (): Int
 letUnbox = let x = 3 in x;
 
-(): Int
-matchUnbox2 = match coord {
-    (x, y): x - y
-};
-
-Int: Int
-fib i = match i {
-    0: 1,
-    1: 1,
-    n: fib (i-1) + fib(i - 2)
-};
-
 (): Animal
 main = match convert Cat {
     Cat: Cat,
     Dog: Dog
 };`);
-            output_field.value = "Dog";
+            output_field.value = `1
+
+Dog is the 2nd of the two values of enum Animal`;
             break;
         case "mrv":
             code_field.setValue( 
@@ -228,15 +220,12 @@ Int: Int
 inc x = x + 1;
 
 (): Int
-main = print (inc Dog);
-
-Int: ()
-print x = ();`);
+main = inc Dog;`);
             output_field.value = `ERROR: Wrong argument type for function call of 'inc'. Expected (Int), but got (Animal)
 
-Occured at 7:15-7:22
+Occured at 7:8-7:15
 
-7. main = print (inc Dog);`;
+7. main = inc Dog;`;
             break;
         case "utuple":
             code_field.setValue( 
@@ -254,7 +243,7 @@ sum xs = match xs {
     Nil: 0,
     Cons(x, xx): x + sum(xx)
 };`);
-            output_field.value = "";
+            output_field.value = "15";
             break;
         case "zipper-tree":
             code_field.setValue( 
@@ -290,7 +279,9 @@ tmap t = down(t, Top);
 
 fip (): Tree
 main = tmap(Bin(Tip 1, Bin(Tip 2, Tip 3)));`);
-            output_field.value = `Bin(Tip 2, Bin(Tip 3, Tip 4))
+            output_field.value = `[A: [A: 2], [A: [A: 3], [A: 4]]]
+            
+which is the same as Bin(Tip 2, Bin(Tip 3, Tip 4))
             
 walkthrough (note: numbered Tips to keep track of them):
 main = tmap(Bin(Tip1 1, Bin(Tip2 2, Tip3 3)));
@@ -355,7 +346,9 @@ build x = Children(Child(x), Child(x));
   
 (): ()
 main = build (Data 5);`);
-            output_field.value = "Children(Child(data 5), Child(Data 5))";
+            output_field.value = `[B: [A: [A: 5]], [A: [A: 5]]]
+            
+aka Children(Child(data 5), Child(Data 5))`;
             break;
         case "inorder":
             code_field.setValue( 
@@ -377,7 +370,9 @@ inorder tree = match tree {
       
 (): List
 main = inorder(Node(Node(Node(Empty, 1, Empty), 2, Node(Empty, 3, Empty)), 4, Node(Empty, 5, Empty)));`);
-            output_field.value = "Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))";
+            output_field.value = `[A: 1, [A: 2, [A: 3, [A: 4, [A: 5, 0]]]]]
+            
+aka Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))`;
             break;
         case "rdt":
             code_field.setValue( 

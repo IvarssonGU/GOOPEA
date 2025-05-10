@@ -39,6 +39,16 @@ editor.on('keyup', function () {
     continuous_compilation();
 })
 
+// for (elem in document.getElementsByClassName("diff-views")) {
+//     elem.addEventListener("scroll", (e) => {
+//         if (e.target === document.getElementById("diff1")) {
+//             sync_scroll(e.target, document.getElementById("diff2"))
+//         } else {
+//             sync_scroll(e.target, document.getElementById("diff1"))
+//         }
+//     });
+// }
+
 function autocomplete_hints(cm) {
     let replaced_with_space = editor.getValue().replace(/(\s|[^A-Za-z_\d*]|(?<![A-Za-z_])\d+(?![A-Za-z_]))+/g, ' ');
     replaced_with_space = replaced_with_space.concat(" match let in fip enum Int"); //keywords
@@ -219,10 +229,14 @@ async function run_button_clicked() {
     localStorage.setItem("code", code);
 
     if (await compile_and_populate()) {
-        let run_value = "output not implemented" //<-- get output on this line
+        //run until done interpreter
+        wasm_bindgen.start_interpreter(code);
+        wasm_bindgen.get_run();
+
+        let run_value = wasm_bindgen.get_interpreter_output();
         let output_value = "";
         if (run_value === "") {
-            output_value = `${compiler_message}`;
+            output_value = `<span style=\"color: green;\">${compiler_message}</span>`;
         } else {
             output_value = 
 `<span style=\"white-space: pre-line;\">${run_value}
@@ -230,10 +244,6 @@ async function run_button_clicked() {
 <span style=\"color: green;\">${compiler_message}</span></span>`;
         }
         output_textarea.innerHTML = output_value;
-
-        //run until done interpreter
-        wasm_bindgen.start_interpreter(code);
-        wasm_bindgen.get_run();
 
         switch_tab(0);
     } else {
@@ -495,6 +505,14 @@ function copy_step() {
     navigator.clipboard.writeText(document.getElementById("steps").value);
     setTimeout(function() {copied_ack.classList.toggle("appearing");}, 1000); //untoggles after 1s
 }
+
+// function sync_scroll(scrolled, other) {
+//     other.scrollTo({
+//         top: scrolled.scrollTop,
+//         left: 0,
+//         behavior: "instant",
+//     });
+// }
 
 //changes theme of codemirror editor
 function change_editor_theme(opt) {
