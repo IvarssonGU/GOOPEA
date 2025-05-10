@@ -94,23 +94,21 @@ fn insert_rc_body(body: &Body, mut set: HashSet<Var>) -> Body {
 }
 
 fn add_inc(vars: Vec<Var>, body: &Body) -> Body {
-    let result = vars.iter().fold(body.clone(), |body, var| {
+    vars.iter().fold(body.clone(), |body, var| {
         if var.1 == Type::Heaped {
             Body::Inc(var.clone(), Box::new(body))
         } else {
             body
         }
-    });
-    result
+    })
 }
 
 fn add_dec(vars: Vec<Var>, body: &Body, retvar: &Var) -> Body {
-    let result = vars.iter().fold(body.clone(), |body, var| {
+    vars.iter().fold(body.clone(), |body, var| {
         if var.1 != Type::Int && var != retvar {
             Body::Dec(var.clone(), Box::new(body))
         } else {
             body
         }
-    });
-    result
+    })
 }

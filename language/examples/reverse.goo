@@ -1,26 +1,26 @@
-enum List = Nil, Cons(List, Int);
+enum List = Nil, Cons(Int, List);
 
 Int: List
 build x = match x == 0 {
     True: Nil,
-    False: Cons(build(x - 1), x)
+    False: Cons(x, build(x - 1))
 };
     
 fip (List, List): List
-reverseHelper(list, acc) =
+rev_h(list, acc) =
     match list {
         Nil: acc,
-        Cons(xs, x): reverseHelper(xs, Cons(acc, x))
+        Cons(x, xs): rev_h(xs, Cons(x, acc))
     };
 
 fip List: List
-reverseList list = reverseHelper(list, Nil);
+rev list = rev_h(list, Nil);
 
 List: Int
 sum list = match list {
     Nil: 0,
-    Cons(rest, value): value + sum(rest)
+    Cons(value, rest): value + sum(rest)
 };
 
 (): Int
-main = sum(reverseList(build(100)));
+main = sum(rev(build(100)));
