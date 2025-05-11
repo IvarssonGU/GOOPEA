@@ -15,23 +15,20 @@ fn insert_rc_fun(func: &Function) -> Function {
         id: func.id.clone(),
         typ: func.typ.clone(),
         args: func.args.clone(),
-        body: insert_rc_body(&func.body, func.args.iter().cloned().collect()),
+        body: insert_rc_body(&func.body, HashSet::new()),
     }
 }
 
 fn insert_rc_body(body: &Body, mut set: HashSet<Var>) -> Body {
     match body {
-        Body::Ret(var) => add_dec(set.into_iter().collect(), body, var),
+        Body::Ret(var) => add_dec(set, body, var),
         Body::Let(var, expr, next) => match expr {
-            Exp::App(_, vars) => {
+            Exp::App(_, _) => {
                 set.insert(var.clone());
-                add_inc(
-                    vars.clone(),
-                    &Body::Let(
-                        var.clone(),
-                        expr.clone(),
-                        Box::new(insert_rc_body(next, set)),
-                    ),
+                Body::Let(
+                    var.clone(),
+                    expr.clone(),
+                    Box::new(insert_rc_body(next, set)),
                 )
             }
             Exp::Ctor(_, vars) => {
@@ -46,16 +43,7 @@ fn insert_rc_body(body: &Body, mut set: HashSet<Var>) -> Body {
                 )
             }
             Exp::Proj(_, _) => {
-                set.insert(var.clone());
-                Body::Let(
-                    var.clone(),
-                    expr.clone(),
-                    if var.1 == Type::Heaped {
-                        add_inc(vec![var.clone()], &insert_rc_body(next, set)).into()
-                    } else {
-                        insert_rc_body(next, set).into()
-                    },
-                )
+                Body::Let(var.clone(), expr.clone(), insert_rc_body(next, set).into())
             }
             Exp::Int(_) => Body::Let(
                 var.clone(),
@@ -78,8 +66,8 @@ fn insert_rc_body(body: &Body, mut set: HashSet<Var>) -> Body {
                     ),
                 )
             }
-            Exp::Reset(_) => panic!("Reset not supported"),
-            Exp::Reuse(_, _, _) => panic!("Reuse not supported"),
+            Exp::Reset(_) => panic!("Should not be possible"),
+            Exp::Reuse(_, _, _) => panic!("Should not be possible"),
         },
         Body::Match(var, branches) => Body::Match(
             var.clone(),
@@ -103,8 +91,13 @@ fn add_inc(vars: Vec<Var>, body: &Body) -> Body {
     })
 }
 
-fn add_dec(vars: Vec<Var>, body: &Body, retvar: &Var) -> Body {
-    vars.iter().fold(body.clone(), |body, var| {
+fn add_dec(vars: HashSet<Var>, body: &Body, retvar: &Var) -> Body {
+    let ret = if !vars.contains(retvar) && retvar.1 == Type::Heaped {
+        Body::Inc(retvar.clone(), Box::new(body.clone()))
+    } else {
+        body.clone()
+    };
+    vars.iter().fold(ret, |body, var| {
         if var.1 != Type::Int && var != retvar {
             Body::Dec(var.clone(), Box::new(body))
         } else {

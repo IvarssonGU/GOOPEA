@@ -51,7 +51,7 @@ pub fn compile_typed(typed: &TypedProgram) -> CompiledProgram {
 
 pub fn compile_with_scoped_rc(typed: &TypedProgram) -> CompiledProgram {
     let stir = from_typed(typed);
-    let rc = crate::compiler::simple_rc::add_rc(&stir);
+    let rc = crate::compiler::scoped_rc::add_rc(&stir);
     let core = crate::compiler::score::translate(&rc);
     CompiledProgram {
         stir: stir.clone(),

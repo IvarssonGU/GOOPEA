@@ -4,6 +4,6 @@ pub mod core;
 pub mod crux;
 pub mod rc;
 pub mod reuse;
+pub mod scoped_rc;
 pub mod score;
-pub mod simple_rc;
 pub mod stir;

@@ -6,14 +6,14 @@ build x = match x == 0 {
     False: Cons(x, build(x - 1))
 };
     
-fip (List, List): List
+(List, List): List
 rev_h(list, acc) =
     match list {
         Nil: acc,
         Cons(x, xs): rev_h(xs, Cons(x, acc))
     };
 
-fip List: List
+List: List
 rev list = rev_h(list, Nil);
 
 List: Int
