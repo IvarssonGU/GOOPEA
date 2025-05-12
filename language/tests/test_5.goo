@@ -1,0 +1,22 @@
+enum List = Nil, Cons(Int, List);
+
+enum Option = None, Some(Int);
+
+enum Iter = Range(Int, Int);
+
+Iter: (Option, Iter)
+next(iter) = match iter {
+    Range(curr, stop): match curr < stop {
+        True:  (Some(curr), Range(curr + 1, stop)),
+        False: (None,       Range(curr,     stop))
+    }
+};
+
+Iter: List
+fromIter(iter) = let (o, iter2) = next iter in match o {
+    Some(x): Cons(x, fromIter iter2),
+    None: Nil
+};
+
+(): List
+main = fromIter(Range(-2, 2));

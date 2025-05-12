@@ -136,4 +136,15 @@ mod tests_interpreter {
             "[A: 0, [A: 1, [A: 2, [A: 3, [A: [E: 5], 1]]]]]"
         );
     }
+
+    #[test]
+    fn interpreter_5() {
+        let core_ir = _compile(test_file("test_5.goo"));
+        let mut interpreter = Interpreter::from_program(&core_ir);
+        interpreter.run_until_done();
+        assert_eq!(
+            interpreter.get_return_format(),
+            "[B: -2, [B: -1, [B: 0, [B: 1, 0]]]]"
+        );
+    }
 }

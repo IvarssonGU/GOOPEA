@@ -455,10 +455,14 @@ impl Interpreter {
     }
 
     fn get_tuple_format(&self, ptr: usize) -> String {
-        let shit = self.heap[ptr].iter().skip(1).map(|data| match data {
-            Data::Value(x) => format!("{x}"),
-            Data::Pointer(p) => self.get_heap_format(*p),
-        }).join(", ");
+        let shit = self.heap[ptr]
+            .iter()
+            .skip(1)
+            .map(|data| match data {
+                Data::Value(x) => format!("{x}"),
+                Data::Pointer(p) => self.get_heap_format(*p),
+            })
+            .join(", ");
 
         format!("({})", shit)
     }
