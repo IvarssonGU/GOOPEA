@@ -440,7 +440,7 @@ impl Interpreter {
 
     fn get_heap_format(&self, ptr: usize) -> String {
         let data = self.heap[ptr].clone();
-        let tag = data[0].unwrap_val() >> 1;
+        let tag = data[0].unwrap_val();
         let tag = ('A' as u8) + tag as u8;
         let tag = tag as char;
         let rest = data

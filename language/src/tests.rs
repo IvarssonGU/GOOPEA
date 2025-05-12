@@ -111,7 +111,7 @@ mod tests_interpreter {
         interpreter.run_until_done();
         assert_eq!(
             interpreter.get_return_format(),
-            "[A: 2, [A: 3, [A: 4, [A: 6, [A: 5, 0]]]]]"
+            "[B: 2, [B: 3, [B: 4, [B: 6, [B: 5, 0]]]]]"
         );
     }
 
@@ -122,7 +122,18 @@ mod tests_interpreter {
         interpreter.run_until_done();
         assert_eq!(
             interpreter.get_return_format(),
-            "([A: [A: 0, 3], 4], [A: 6], [A: 5])"
+            "([B: [B: 0, 3], 4], [B: 6], [B: 5])"
+        );
+    }
+
+    #[test]
+    fn interpreter_4() {
+        let core_ir = _compile(test_file("test_4.goo"));
+        let mut interpreter = Interpreter::from_program(&core_ir);
+        interpreter.run_until_done();
+        assert_eq!(
+            interpreter.get_return_format(),
+            "[A: 0, [A: 1, [A: 2, [A: 3, [A: [E: 5], 1]]]]]"
         );
     }
 }

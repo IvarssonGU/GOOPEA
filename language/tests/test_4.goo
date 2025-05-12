@@ -1,0 +1,6 @@
+enum Card = Ace, King, Queen, Knight, Numeric(Int);
+
+enum ListCard = Cons(Card, ListCard), Nil;
+
+(): ListCard
+main = Cons(Ace, Cons(King, Cons(Queen, Cons(Knight, Cons(Numeric(5), Nil)))));
