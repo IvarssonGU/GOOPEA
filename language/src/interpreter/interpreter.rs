@@ -468,15 +468,19 @@ impl Interpreter {
         format!("({})", shit)
     }
 
+    fn get_data_format(&self, data: Data) -> String {
+        if data.is_val() {
+            format!("{}", data.unwrap_val())
+        } else if self.heap[data.unwrap_ptr()][0].unwrap_val() == -1 {
+            self.get_tuple_format(data.unwrap_ptr())
+        } else {
+            self.get_heap_format(data.unwrap_ptr())
+        }
+    }
+
     pub fn get_return_format(&self) -> String {
         if let Some(data) = self.get_return_value() {
-            if data.is_val() {
-                format!("{}", data.unwrap_val())
-            } else if self.heap[data.unwrap_ptr()][0].unwrap_val() == -1 {
-                self.get_tuple_format(data.unwrap_ptr())
-            } else {
-                self.get_heap_format(data.unwrap_ptr())
-            }
+            self.get_data_format(data)
         } else {
             panic!("Dont use this when the interpreter has not finished");
         }
@@ -603,7 +607,7 @@ where
     let mut interpreter = Interpreter::from_program(&core_ir);
     let mut history = Vec::new();
     loop {
-        print!("{}[2J", 27 as char);
+        println!("\n\n\n");
         println!("{:?}", interpreter);
         println!("m, r, s, b, p, enter");
         let input: String = input("");
@@ -628,15 +632,14 @@ where
                 interpreter.run_until_next_ptr();
             }
             x if x.parse::<usize>().is_ok() => {
-                let shit = MemObj::from_data(
-                    &Data::Pointer(x.parse::<usize>().unwrap()),
-                    &interpreter.heap,
-                );
-                println!("{}", shit.as_json());
+                let data = Data::Pointer(x.parse().unwrap());
+                let s = interpreter.get_data_format(data);
+                println!("{s}");
             }
             x if interpreter.local_variables.contains_key(x) => {
-                let json = interpreter.get_variable_json(x);
-                println!("{}", json);
+                let data = interpreter.get_local_var(x);
+                let s = interpreter.get_data_format(data);
+                println!("{s}");
             }
             _ => {
                 history.push(interpreter.clone());
