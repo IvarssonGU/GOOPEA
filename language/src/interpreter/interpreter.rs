@@ -345,12 +345,13 @@ impl Interpreter {
                     self.heap[ptr.unwrap_ptr()] = data;
                 }
                 IStatement::DecUTuple(id) => {
-                    let ptr = self.get_local_var(&id);
-                    for data in self.heap[ptr.unwrap_ptr()].clone().iter().skip(1) {
+                    let ptr = self.get_local_var(&id).unwrap_ptr();
+                    for data in self.heap[ptr].clone().iter().skip(1) {
                         if let Data::Pointer(_ptr) = data {
                             self.dec(*_ptr);
                         }
                     }
+                    self.heap[ptr] = Vec::new();
                     self.clean_memory();
                 }
                 IStatement::AssignUTupleField(id, i, ioperand) => {
