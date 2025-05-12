@@ -1,0 +1,30 @@
+#include rand.goo
+
+enum DualList = Nil, Cons(Int, Int, DualList);
+
+Int: DualList
+init(n) = match n > 0 {
+    False: Nil,
+    True: Cons(n - 1, 0, init(n - 1))
+};
+
+(Int, DualList): DualList
+insert(x, list) = match list {
+    Nil: Nil,
+    Cons(n, y, xs): match x == n {
+        True: Cons(n, y + 1, xs),
+        False: Cons(n, y, insert(x, xs))
+    }
+};
+
+(Int, Int, Int, DualList): DualList
+insertions(seed, n, mod, acc) = match n > 0 {
+    False: acc,
+    True: let x = next seed in let acc2 = insert((x % mod + mod) % mod, acc) in insertions(x, n - 1, mod, acc2)
+};
+
+(Int, Int, Int): DualList
+testRng(seed, n, mod) = let list = init(mod) in insertions(seed, n, mod, list);
+
+(): DualList
+main = testRng(42, 10000, 10);

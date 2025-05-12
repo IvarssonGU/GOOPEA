@@ -74,7 +74,7 @@ mod tests_preprocessor {
     fn preprocessor_1() {
         let code = preprocess(test_file("test_1.goo"));
         println!("{code}");
-        assert_eq!(hash_str(&code), 11794355065231048709);
+        assert_eq!(hash_str(&code), 5588971259074190600);
     }
 }
 
@@ -98,6 +98,20 @@ mod tests_interpreter {
         let core_ir = _compile(test_file("test_1.goo"));
         let mut interpreter = Interpreter::from_program(&core_ir);
         interpreter.run_until_done();
-        assert_eq!(interpreter.get_return_value().unwrap().unwrap_val(), 9865432);
+        assert_eq!(
+            interpreter.get_return_value().unwrap().unwrap_val(),
+            12345789
+        );
+    }
+
+    #[test]
+    fn interpreter_2() {
+        let core_ir = _compile(test_file("test_2.goo"));
+        let mut interpreter = Interpreter::from_program(&core_ir);
+        interpreter.run_until_done();
+        assert_eq!(
+            interpreter.get_return_format(),
+            "[A: 2, [A: 3, [A: 4, [A: 6, [A: 5, 0]]]]]"
+        );
     }
 }
