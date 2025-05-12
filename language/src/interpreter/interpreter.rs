@@ -335,14 +335,18 @@ impl Interpreter {
                     }
                 }
                 IStatement::AssignUTuple(len, id, items) => {
-                    let ptr = self.malloc(len);
+                    let ptr = self.malloc(1 + len);
                     self.local_variables.insert(id, ptr);
-                    let data = items.iter().map(|_id| self.get_local_var(_id)).collect();
+                    let data = (-1..)
+                        .take(1)
+                        .map(|x| Data::Value(x))
+                        .chain(items.iter().map(|_id| self.get_local_var(_id)))
+                        .collect();
                     self.heap[ptr.unwrap_ptr()] = data;
                 }
                 IStatement::DecUTuple(id) => {
                     let ptr = self.get_local_var(&id);
-                    for data in self.heap[ptr.unwrap_ptr()].clone().iter() {
+                    for data in self.heap[ptr.unwrap_ptr()].clone().iter().skip(1) {
                         if let Data::Pointer(_ptr) = data {
                             self.dec(*_ptr);
                         }
@@ -352,7 +356,7 @@ impl Interpreter {
                 IStatement::AssignUTupleField(id, i, ioperand) => {
                     let tuple_id = ioperand.unwrap_id();
                     let ptr = self.get_local_var(&tuple_id);
-                    let data = self.heap[ptr.unwrap_ptr()][i];
+                    let data = self.heap[ptr.unwrap_ptr()][1 + i];
                     self.local_variables.insert(id, data);
                 }
             }
@@ -450,10 +454,21 @@ impl Interpreter {
         format!("[{}: {}]", tag, rest)
     }
 
+    fn get_tuple_format(&self, ptr: usize) -> String {
+        let shit = self.heap[ptr].iter().skip(1).map(|data| match data {
+            Data::Value(x) => format!("{x}"),
+            Data::Pointer(p) => self.get_heap_format(*p),
+        }).join(", ");
+
+        format!("({})", shit)
+    }
+
     pub fn get_return_format(&self) -> String {
         if let Some(data) = self.get_return_value() {
             if data.is_val() {
                 format!("{}", data.unwrap_val())
+            } else if self.heap[data.unwrap_ptr()][0].unwrap_val() == -1 {
+                self.get_tuple_format(data.unwrap_ptr())
             } else {
                 self.get_heap_format(data.unwrap_ptr())
             }
