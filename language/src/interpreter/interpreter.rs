@@ -633,13 +633,23 @@ where
             }
             x if x.parse::<usize>().is_ok() => {
                 let data = Data::Pointer(x.parse().unwrap());
-                let s = interpreter.get_data_format(data);
-                println!("{s}");
+                let obj = MemObj::from_data(&data, &interpreter.heap);
+                if obj.is_list() {
+                    println!("{}", obj.list_string())
+                } else {
+                    let s = interpreter.get_data_format(data);
+                    println!("{s}");
+                }
             }
             x if interpreter.local_variables.contains_key(x) => {
                 let data = interpreter.get_local_var(x);
-                let s = interpreter.get_data_format(data);
-                println!("{s}");
+                let obj = MemObj::from_data(&data, &interpreter.heap);
+                if obj.is_list() {
+                    println!("{}", obj.list_string())
+                } else {
+                    let s = interpreter.get_data_format(data);
+                    println!("{s}");
+                }
             }
             _ => {
                 history.push(interpreter.clone());
