@@ -234,6 +234,7 @@ async function run_button_clicked() {
         wasm_bindgen.get_run();
 
         let run_value = wasm_bindgen.get_interpreter_output();
+        run_value = run_value.substring(1, run_value.length-1); //remove ""
         let output_value = "";
         if (run_value === "") {
             output_value = `<span style=\"color: green;\">${compiler_message}</span>`;
@@ -537,6 +538,10 @@ document.addEventListener("keydown", (event) => {
         // navigator.clipboard.writeText(editor.getValue());
         
         compile_and_populate();
+    }
+    else if (event.ctrlKey && event.key === 'q') {
+        event.preventDefault();
+        run_button_clicked();
     }
 });
 

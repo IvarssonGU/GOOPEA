@@ -204,13 +204,13 @@ next list = match list {
 
 List: (List, Maybe, Maybe)
 next_twice list = 
-    let (list, x1) = next list in //(Cons(Cons(Cons(Nil, 3), 4), 5), 6)
-        let (list, x2) = next list in //(Cons(Cons(Nil, 3), 4), 5)
-            (list, x1, x2); //(Cons(Cons(Nil, 3), 4), 6, 5)
+    let (list, x1) = next list in //(Cons(Cons(Cons(Nil, 3), 4), 5), Some 6)
+        let (list, x2) = next list in //(Cons(Cons(Nil, 3), 4), Some 5)
+            (list, x1, x2); //(Cons(Cons(Nil, 3), 4), Some 6, Some 5)
             
 (): (List, Maybe, Maybe)
 main = next_twice(Cons(Cons(Cons(Cons(Nil, 3), 4), 5), 6));`);
-            output_field.value = "(Cons(Cons(Nil, 3), 4), 6, 5)";
+            output_field.value = "(Cons(Cons(Nil, 3), 4), Some 6, Some 5)";
             break;
         case "type-error":
             code_field.setValue( 

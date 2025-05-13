@@ -52,8 +52,11 @@
 								<button class="toggle-header subsection">Keyboard shortcuts</button>
 								<div class="toggle-content">
 									<p class="tabbed"><mark><b>Ctrl-/</b></mark>: Toggle line comment</p>
+									<p class="tabbed"><mark><b>Ctrl-D</b></mark>: Delete the current line</p>
 									<p class="tabbed"><mark><b>Ctrl-S</b></mark>: Like the compile button except it doesn't switch tab; if you 
 										have an error, try the shortcut again to see if you have more errors. Or click the button if you're into that :/</p>
+									<p class="tabbed"><mark><b>Ctrl-Q</b></mark>: Like clicking the run button. Note that if you do this while active in the editor 
+										the output will only be visible for as long as you hold down the keys</p>
 									<p class="tabbed"><mark><b>Alt-Down</b></mark>: Copy current line and insert-paste it on line below</p>
 									<p class="tabbed"><mark><b>Shift-Alt-Up/Down</b></mark>: Swap the active line with the line above/below</p>
 									<p class="tabbed"><mark><b>Ctrl-Space</b></mark>: Autocomplete with the keywords and other words already on the page. 
@@ -67,7 +70,7 @@
 								<button class="toggle-header subsection">Examples</button>
 								<div class="toggle-content">
 									<p class="tabbed">It is important to note that not all examples compile as they are, so they are mostly just give you an idea of the language</p>
-									<p class="tabbed"><mark><b>Reverse</b></mark>: reverses the list created in main</p>
+									<p class="tabbed"><mark><b>Reverse</b></mark>: reverses the list created in main and maybe sums it depending on which main is not commented</p>
 									<p class="tabbed"><mark><b>Treeflip</b></mark>: flips a tree around the vertical axis and then sums it</p>
 									<p class="tabbed"><mark><b>Arithmetic</b></mark>: operations</p>
 									<p class="tabbed"><mark><b>Complex match</b></mark>: converts a Cat to a Dog and then returns that</p>
@@ -394,7 +397,7 @@ sortedElems(list) = let tree = insertList(Empty, list) in flatten(tree);</span>
 									<p class="multiline"> An intermediate representation is a step the compiler makes between the source code
 										and the target code language. The three IRs for GOOPEA can be viewed in the "Editor" page under the "Compilation" tab: 
 										stir (Sequentially Transformed IR), rc (RefCounted), and reuse.
-										Note: the reuse IR is only different from stir if there is something to reuse.
+										Note: the reuse IR is only different from stir if there is something to reuse (fip keyword used).
 									</p>
 								</div>
 							</td>
