@@ -11,16 +11,13 @@ insert(value, tree) = match tree {
     }
 };
 
-(List, List) : List
-concat(xs, ys) = match xs {
-    Nil: ys,
-    Cons(x, xx): Cons(x, concat(xx, ys))
-};
-
 Tree : List
-inorder tree = match tree {
-    Empty: Nil,
-    Node(h, l, v, r): concat(inorder(l), Cons(v, inorder(r)))
+inorder tree = inorderHelper(tree, Nil);
+
+(Tree, List) : List
+inorderHelper(tree, acc) = match tree {
+    Empty: acc,
+    Node(h, l, v, r): inorderHelper(l, Cons(v, inorderHelper(r, acc)))
 };
 
 List : Tree
