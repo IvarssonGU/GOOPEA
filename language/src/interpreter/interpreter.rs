@@ -285,8 +285,8 @@ impl Interpreter {
                     self.local_variables.insert(id, val);
                 }
                 IStatement::AssignBinaryOperation(id, operator, ioperand, ioperand1) => {
-                    let lhs = self.eval_op(&ioperand);
-                    let rhs = self.eval_op(&ioperand1);
+                    let lhs = make63bit(self.eval_op(&ioperand));
+                    let rhs = make63bit(self.eval_op(&ioperand1));
                     let val = match operator {
                         Operator::Equal => (lhs == rhs) as i64,
                         Operator::NotEqual => (lhs != rhs) as i64,
@@ -695,6 +695,10 @@ where
     }
 
     println!("Peak memory was {} words", max_mem);
+    println!(
+        "Heap left: {} words",
+        interpreter.get_allocated_mem_size()
+    )
 }
 
 impl HMT for Interpreter {
