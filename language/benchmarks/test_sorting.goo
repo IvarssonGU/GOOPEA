@@ -34,4 +34,4 @@ mergeSort(list) = match list {
 };
 
 (): List
-main = mergeSort(randList(42, 1000, 100));
+main = mergeSort(randList(42, 200, 100));

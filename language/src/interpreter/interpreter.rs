@@ -8,7 +8,8 @@ use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
-use std::time::Instant;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
@@ -94,6 +95,7 @@ pub struct Interpreter {
     variable_stack: Vec<HashMap<String, Data>>,
     return_value: Option<Data>,
     steps: u64,
+    malloc_time: Duration,
 }
 // init
 impl Interpreter {
@@ -108,7 +110,13 @@ impl Interpreter {
             variable_stack: Vec::new(),
             return_value: None,
             steps: 0,
+            malloc_time: Duration::ZERO,
         }
+    }
+
+    pub fn with_malloc_time(mut self, duration: Duration) -> Self {
+        self.malloc_time = duration;
+        self
     }
 
     pub fn from_program(program: &CompiledProgram) -> Self {
@@ -162,6 +170,7 @@ impl Interpreter {
     }
 
     fn malloc(&mut self, width: usize) -> Data {
+        sleep(self.malloc_time);
         for n in 1..self.heap.len() {
             if self.heap[n].is_empty() {
                 self.heap[n] = vec![Data::Value(0); width];
@@ -689,15 +698,19 @@ where
 {
     assert!(path.as_ref().is_dir());
 
-    fn test(code: String, header: String) -> Vec<String> {
+    let nanos = 1;
+
+    fn test(code: String, header: String, nanos: u64) -> Vec<String> {
         let compiled = _compile_string(code);
-        let mut interpreter = Interpreter::from_program(&compiled);
+        let mut interpreter =
+            Interpreter::from_program(&compiled).with_malloc_time(Duration::from_nanos(nanos));
         let now = Instant::now();
         interpreter.run_until_done();
         let elapsed = now.elapsed();
         let steps = interpreter.steps;
 
-        interpreter = Interpreter::from_program(&compiled);
+        interpreter =
+            Interpreter::from_program(&compiled);
         let mut max_mem = 0;
         while let Some(x) = interpreter.step() {
             match x {
@@ -710,7 +723,8 @@ where
 
         vec![
             header,
-            format!("{steps} steps in {} ms", elapsed.as_micros() as f64 / 1000.),
+            format!("{} ms", elapsed.as_micros() as f64 / 1000.),
+            format!("{steps} steps"),
             format!(
                 "{} steps/s",
                 (steps as u128 * 1_000_000) / elapsed.as_micros()
@@ -725,9 +739,9 @@ where
 
             let code = preprocess(shit);
             let code_nofip = code.replace("fip ", "");
-            
-            let fip = test(code, "FIP".to_string());
-            let nofip = test(code_nofip, "NO FIP".to_string());
+
+            let fip = test(code, "FIP".to_string(), nanos);
+            let nofip = test(code_nofip, "NO FIP".to_string(), nanos);
 
             println!("");
             println!("{:?}", file.file_name());
@@ -756,135 +770,5 @@ where
     }
 
     println!("Peak memory was {} words", max_mem);
-    println!(
-        "Heap left: {} words",
-        interpreter.get_allocated_mem_size()
-    )
-}
-
-impl HMT for Interpreter {
-    fn next(&self) -> Self {
-        let mut next = self.clone();
-        next.step();
-        next
-    }
-}
-
-fn _run_until_next_mem(h: &mut HistoryMagic<Interpreter>) {
-    h.next();
-    while let Some(s) = h.get().statements.get(0) {
-        match s {
-            IStatement::AssignMalloc(..)
-            | IStatement::Inc(_)
-            | IStatement::Dec(_)
-            | IStatement::AssignToField(..) => {
-                break;
-            }
-            _ => {
-                h.next();
-            }
-        }
-    }
-}
-
-fn _run_until_next_ptr(h: &mut HistoryMagic<Interpreter>) {
-    h.next();
-    while let Some(s) = h.get().statements.get(0) {
-        if let IStatement::AssignMalloc(_, _) = s {
-            break;
-        } else if let IStatement::Dec(op) = s {
-            match *op {
-                IOperand::Int(i) if i == 1 => {
-                    break;
-                }
-                _ => (),
-            }
-        } else if let IStatement::AssignToField(_, _, op) = s {
-            if h.get().op_to_data(&op).is_ptr() {
-                break;
-            }
-        }
-        h.next();
-    }
-}
-
-fn _run_until_done(h: &mut HistoryMagic<Interpreter>) {
-    while !h.get().statements.is_empty() {
-        h.next();
-    }
-}
-
-fn _run_until_return(h: &mut HistoryMagic<Interpreter>) {
-    let s = h.get().function_names_stack.len();
-
-    while h.get().function_names_stack.len() >= s && !h.get().statements.is_empty() {
-        h.next();
-    }
-}
-
-fn _run_step_over(h: &mut HistoryMagic<Interpreter>) {
-    let s = h.get().function_names_stack.len();
-    h.next();
-    while h.get().function_names_stack.len() > s && !h.get().statements.is_empty() {
-        h.next();
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_brutal(src: &str) {
-    let core_ir = _compile(src);
-    let mut interpreter = Interpreter::from_program(&core_ir);
-
-    let mut history = Vec::new();
-    let now = Instant::now();
-    while let Some(_) = interpreter.step() {
-        history.push(interpreter.clone());
-    }
-    let elapsed = now.elapsed().as_millis();
-    let _: String = input("Check mem use now..");
-    println!("brutal: {} ms ({})", elapsed, history.len());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_magic(src: &str) {
-    let core_ir = _compile(src);
-    let interpreter = Interpreter::from_program(&core_ir);
-
-    let mut history = HistoryMagic::from_init(100, interpreter);
-
-    let now = Instant::now();
-    _run_until_return(&mut history);
-    let elapsed = now.elapsed().as_millis();
-    let _: String = input("Check mem use now..");
-    println!("magic: {} ms ({})", elapsed, history.history.len());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_nosave(src: &str) {
-    let core_ir = _compile(src);
-    let mut interpreter = Interpreter::from_program(&core_ir);
-
-    let now = Instant::now();
-    while let Some(_) = interpreter.step() {}
-    let elapsed = now.elapsed().as_millis();
-    let _: String = input("Check mem use now..");
-    println!("no save: {} ms ({})", elapsed, 0);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_test_save1000(src: &str) {
-    let core_ir = _compile(src);
-    let mut interpreter = Interpreter::from_program(&core_ir);
-
-    let n = 1000;
-    let mut c = 0;
-    let mut history = vec![Interpreter::new(); n];
-    let now = Instant::now();
-    while let Some(_) = interpreter.step() {
-        history[c % n] = interpreter.clone();
-        c += 1;
-    }
-    let elapsed = now.elapsed().as_millis();
-    let _: String = input("Check mem use now..");
-    println!("no save: {} ms ({})", elapsed, 0);
+    println!("Heap left: {} words", interpreter.get_allocated_mem_size())
 }
