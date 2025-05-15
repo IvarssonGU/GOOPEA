@@ -53,6 +53,7 @@ fn main() {
     // -i / --interpret för interpreter
     // cargo run (--release) -- -f examples/test.goo -i
 
+
     let args = Args::parse();
     let file = args.file;
     match (args.interpret, args.preprocess) {
@@ -70,8 +71,12 @@ fn main() {
         }
         (true, false) => {
             if args.benchmark {
-                interpreter::interpreter_bench(&file);
-                interpreter::interpreter_bench_peak_mem(file);
+                if file.is_dir() {
+                    interpreter::interpreter_bench_fip(&file);
+                } else {
+                    interpreter::interpreter_bench(&file);
+                    interpreter::interpreter_bench_peak_mem(file);
+                }
             } else {
                 interpreter::interpreter_test(file);
             }

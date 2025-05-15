@@ -1,0 +1,37 @@
+#include ../tests/list.goo
+
+fip (List, List): List
+merge(a, b) = match a {
+    Cons(x, xs): match b {
+        Cons(y, ys): match x <= y {
+            True: Cons(x, merge(xs, b)),
+            False: Cons(y, merge(a, ys))
+        },
+        Nil: a
+    },
+    Nil: b
+};
+
+fip (List, List, List, Int): (List, List)
+splitHelper(list, left, right, n) = match list {
+    Nil: (left, right),
+    Cons(x, xs): match n == 0 {
+        True: splitHelper(xs, Cons(x, left), right, 1),
+        False: splitHelper(xs, left, Cons(x, right), 0)
+    }
+};
+
+fip List: (List, List)
+split(list) = splitHelper(list, Nil, Nil, 0);
+
+fip List: List
+mergeSort(list) = match list { 
+    Cons(_, xs): match xs {
+        Cons(_, _): let (left, right) = split list in merge(mergeSort left, mergeSort right),
+        Nil: list
+    },
+    Nil: Nil
+};
+
+(): List
+main = mergeSort(randList(42, 1000, 100));

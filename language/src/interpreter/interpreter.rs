@@ -586,16 +586,21 @@ impl Debug for Data {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn _compile<P>(path: P) -> CompiledProgram
-where
-    P: AsRef<Path>,
-{
-    let code = preprocess(path);
+pub fn _compile_string(code: String) -> CompiledProgram {
     let base_program = BaseSliceProgram::new(&code).unwrap();
     let scoped_program = ScopedProgram::new(base_program).unwrap();
     let typed_program = TypedProgram::new(scoped_program).unwrap();
     let compiled = compiler::compile::compile_typed(&typed_program);
     compiled
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn _compile<P>(path: P) -> CompiledProgram
+where
+    P: AsRef<Path>,
+{
+    let code = preprocess(path);
+    _compile_string(code)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -675,6 +680,62 @@ where
         "{} steps/s",
         (steps as u128 * 1_000_000) / elapsed.as_micros()
     );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn interpreter_bench_fip<P>(path: P)
+where
+    P: AsRef<Path>,
+{
+    assert!(path.as_ref().is_dir());
+
+    fn test(code: String, header: String) -> Vec<String> {
+        let compiled = _compile_string(code);
+        let mut interpreter = Interpreter::from_program(&compiled);
+        let now = Instant::now();
+        interpreter.run_until_done();
+        let elapsed = now.elapsed();
+        let steps = interpreter.steps;
+
+        interpreter = Interpreter::from_program(&compiled);
+        let mut max_mem = 0;
+        while let Some(x) = interpreter.step() {
+            match x {
+                IStatement::AssignMalloc(_, _) | IStatement::AssignUTuple(_, _, _) => {
+                    max_mem = max_mem.max(interpreter.get_allocated_mem_size());
+                }
+                _ => (),
+            }
+        }
+
+        vec![
+            header,
+            format!("{steps} steps in {} ms", elapsed.as_micros() as f64 / 1000.),
+            format!(
+                "{} steps/s",
+                (steps as u128 * 1_000_000) / elapsed.as_micros()
+            ),
+            format!("Max memory: {} words", max_mem),
+        ]
+    }
+
+    for entry in path.as_ref().read_dir().unwrap() {
+        if let Ok(file) = entry {
+            let shit = file.path();
+
+            let code = preprocess(shit);
+            let code_nofip = code.replace("fip ", "");
+            
+            let fip = test(code, "FIP".to_string());
+            let nofip = test(code_nofip, "NO FIP".to_string());
+
+            println!("");
+            println!("{:?}", file.file_name());
+            for line in concat_columns(&nofip, &fip, "    -    ") {
+                println!("{}", line)
+            }
+        }
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
