@@ -39,16 +39,6 @@ editor.on('keyup', function () {
     continuous_compilation();
 })
 
-// for (elem in document.getElementsByClassName("diff-views")) {
-//     elem.addEventListener("scroll", (e) => {
-//         if (e.target === document.getElementById("diff1")) {
-//             sync_scroll(e.target, document.getElementById("diff2"))
-//         } else {
-//             sync_scroll(e.target, document.getElementById("diff1"))
-//         }
-//     });
-// }
-
 function autocomplete_hints(cm) {
     let replaced_with_space = editor.getValue().replace(/(\s|[^A-Za-z_\d*]|(?<![A-Za-z_])\d+(?![A-Za-z_]))+/g, ' ');
     replaced_with_space = replaced_with_space.concat(" match let in fip enum Int"); //keywords
@@ -506,14 +496,6 @@ function copy_step() {
     navigator.clipboard.writeText(document.getElementById("steps").value);
     setTimeout(function() {copied_ack.classList.toggle("appearing");}, 1000); //untoggles after 1s
 }
-
-// function sync_scroll(scrolled, other) {
-//     other.scrollTo({
-//         top: scrolled.scrollTop,
-//         left: 0,
-//         behavior: "instant",
-//     });
-// }
 
 //changes theme of codemirror editor
 function change_editor_theme(opt) {

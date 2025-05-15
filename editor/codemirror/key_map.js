@@ -74,7 +74,4 @@ var key_binds = {
     "Ctrl-Space": function(cm) {
         autocomplete_hints(cm);
     },
-    // "Ctrl-Space": function(cm) {
-    //     cm.autocomplete();
-    // },
 };

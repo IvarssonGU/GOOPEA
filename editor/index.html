@@ -43,14 +43,13 @@
 					<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide"><p>&#X23ED;&#xfe0e;</p></button>
 					<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide"><p>&#X23FA;&#xfe0e;</p></button>
 					<!-- compiler buttons -->
-					<!-- <button onclick="switch_compiler_tab(0)" class="compiler-button styled-button hide current-tab" id="info-tab">Info</button> -->
 					<button onclick="switch_compiler_tab(1)" class="compiler-button styled-button hide" id="diff-tab">Diff view</button>
 					<button onclick="switch_compiler_tab(2)" class="compiler-button styled-button hide current-tab" id="steps-tab">Code view</button>
+					<!-- info view -->
 					<div class="output-container">
 						<div id="output" readonly="true" placeholder="not implemented yet" height="100%"></div>
-						<!-- <textarea id="info" readonly="true" placeholder="click compile, run, or debug to view compiler message here" height="100%" class="hide"></textarea> -->
 						<div class="steps-container hide" id="steps-container">
-							<table width="100%">
+							<table width="100%" height="100%">
 								<tr>
 									<td>
 										<label for="step-select" class="big-label">Step:</label>
