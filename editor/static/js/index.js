@@ -39,16 +39,6 @@ editor.on('keyup', function () {
     continuous_compilation();
 })
 
-// for (elem in document.getElementsByClassName("diff-views")) {
-//     elem.addEventListener("scroll", (e) => {
-//         if (e.target === document.getElementById("diff1")) {
-//             sync_scroll(e.target, document.getElementById("diff2"))
-//         } else {
-//             sync_scroll(e.target, document.getElementById("diff1"))
-//         }
-//     });
-// }
-
 function autocomplete_hints(cm) {
     let replaced_with_space = editor.getValue().replace(/(\s|[^A-Za-z_\d*]|(?<![A-Za-z_])\d+(?![A-Za-z_]))+/g, ' ');
     replaced_with_space = replaced_with_space.concat(" match let in fip enum Int"); //keywords
@@ -234,6 +224,7 @@ async function run_button_clicked() {
         wasm_bindgen.get_run();
 
         let run_value = wasm_bindgen.get_interpreter_output();
+        run_value = run_value.substring(1, run_value.length-1); //remove ""
         let output_value = "";
         if (run_value === "") {
             output_value = `<span style=\"color: green;\">${compiler_message}</span>`;
@@ -506,14 +497,6 @@ function copy_step() {
     setTimeout(function() {copied_ack.classList.toggle("appearing");}, 1000); //untoggles after 1s
 }
 
-// function sync_scroll(scrolled, other) {
-//     other.scrollTo({
-//         top: scrolled.scrollTop,
-//         left: 0,
-//         behavior: "instant",
-//     });
-// }
-
 //changes theme of codemirror editor
 function change_editor_theme(opt) {
     switch (opt) {
@@ -537,6 +520,10 @@ document.addEventListener("keydown", (event) => {
         // navigator.clipboard.writeText(editor.getValue());
         
         compile_and_populate();
+    }
+    else if (event.ctrlKey && event.key === 'q') {
+        event.preventDefault();
+        run_button_clicked();
     }
 });
 
