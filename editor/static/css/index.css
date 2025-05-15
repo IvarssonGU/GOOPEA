@@ -144,7 +144,7 @@ textarea {
     margin-left: -10px;
     margin-bottom: -0.75px;
 }
-#steps-tab, #diff-tab, #info-tab {
+#steps-tab, #diff-tab {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
 }
