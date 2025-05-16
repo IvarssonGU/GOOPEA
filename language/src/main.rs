@@ -2,6 +2,8 @@
 #![feature(btree_cursors)]
 #![feature(mixed_integer_ops_unsigned_sub)]
 
+use std::time::Duration;
+
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 
@@ -53,7 +55,6 @@ fn main() {
     // -i / --interpret för interpreter
     // cargo run (--release) -- -f examples/test.goo -i
 
-
     let args = Args::parse();
     let file = args.file;
     match (args.interpret, args.preprocess) {
@@ -72,7 +73,10 @@ fn main() {
         (true, false) => {
             if args.benchmark {
                 if file.is_dir() {
-                    interpreter::interpreter_bench_fip(&file);
+                    println!("file, fip, malloc_time_ns, exec_time_ms, steps, steps/s, max_mem_words");
+                    interpreter::interpreter_bench_fip(&file, Duration::from_nanos(0));
+                    interpreter::interpreter_bench_fip(&file, Duration::from_nanos(5));
+                    interpreter::interpreter_bench_fip(&file, Duration::from_nanos(50));
                 } else {
                     interpreter::interpreter_bench(&file);
                     interpreter::interpreter_bench_peak_mem(file);

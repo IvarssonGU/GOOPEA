@@ -1,4 +1,3 @@
-use super::historymagic::{HMT, HistoryMagic};
 use super::iast::*;
 use super::mempeek::MemObj;
 use crate::ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
@@ -692,25 +691,34 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_bench_fip<P>(path: P)
+pub fn interpreter_bench_fip<P>(path: P, malloc_time: Duration)
 where
     P: AsRef<Path>,
 {
     assert!(path.as_ref().is_dir());
 
-    let nanos = 1;
-
-    fn test(code: String, header: String, nanos: u64) -> Vec<String> {
+    fn test(code: String, malloc_time: Duration) -> String {
         let compiled = _compile_string(code);
-        let mut interpreter =
-            Interpreter::from_program(&compiled).with_malloc_time(Duration::from_nanos(nanos));
-        let now = Instant::now();
-        interpreter.run_until_done();
-        let elapsed = now.elapsed();
+
+        let mut interpreter = Interpreter::new();
+        let mut elapsed = Duration::ZERO;
+
+        let avg_time = {
+            let count = 10;
+            let mut time = Duration::ZERO;
+            for _ in 0..count {
+                interpreter = Interpreter::from_program(&compiled).with_malloc_time(malloc_time);
+                let now = Instant::now();
+                interpreter.run_until_done();
+                elapsed = now.elapsed();
+                time += elapsed;
+            }
+            time / count
+        };
+
         let steps = interpreter.steps;
 
-        interpreter =
-            Interpreter::from_program(&compiled);
+        interpreter = Interpreter::from_program(&compiled);
         let mut max_mem = 0;
         while let Some(x) = interpreter.step() {
             match x {
@@ -721,16 +729,13 @@ where
             }
         }
 
-        vec![
-            header,
-            format!("{} ms", elapsed.as_micros() as f64 / 1000.),
-            format!("{steps} steps"),
-            format!(
-                "{} steps/s",
-                (steps as u128 * 1_000_000) / elapsed.as_micros()
-            ),
-            format!("Max memory: {} words", max_mem),
-        ]
+        format!(
+            "{}, {}, {}, {}",
+            avg_time.as_micros() as f64 / 1000.,
+            steps,
+            (steps as u128 * 1_000_000) / elapsed.as_micros(),
+            max_mem
+        )
     }
 
     for entry in path.as_ref().read_dir().unwrap() {
@@ -740,14 +745,21 @@ where
             let code = preprocess(shit);
             let code_nofip = code.replace("fip ", "");
 
-            let fip = test(code, "FIP".to_string(), nanos);
-            let nofip = test(code_nofip, "NO FIP".to_string(), nanos);
+            print!(
+                "{:?}, true, {}, ",
+                file.file_name(),
+                malloc_time.as_nanos()
+            );
+            let fip = test(code, malloc_time);
+            println!("{fip}");
 
-            println!("");
-            println!("{:?}", file.file_name());
-            for line in concat_columns(&nofip, &fip, "    -    ") {
-                println!("{}", line)
-            }
+            print!(
+                "{:?}, false, {}, ",
+                file.file_name(),
+                malloc_time.as_nanos()
+            );
+            let nofip = test(code_nofip, malloc_time);
+            println!("{nofip}");
         }
     }
 }
