@@ -14,13 +14,13 @@ reverseHelper(list, acc) = match list {
 fip List: List
 reverseList list = reverseHelper(list, Nil);
 
-List: Int
+fip List: Int
 sumList list = match list {
     Nil: 0,
     Cons(x, xs): x + sumList xs
 };
 
-List: Int
+fip List: Int
 lenList list = match list {
     Nil: 0,
     Cons(x, xs): 1 + lenList xs
@@ -38,25 +38,25 @@ concatList(list1, list2) = match list1 {
     Cons(x, xs): Cons(x, concatList(xs, list2))
 };
 
-(Int, Int): List
+fip (Int, Int): List
 rangeListp(start, stop) = match start <= stop {
     True: Cons(start, rangeListp((start + 1), stop)),
     False: Nil
 };
 
-(Int, Int): List
+fip (Int, Int): List
 rangeListn(start, stop) = match start >= stop {
     True: Cons(start, rangeListn((start - 1), stop)),
     False: Nil
 };
 
-(Int, Int): List
+fip (Int, Int): List
 rangeList(start, stop) = match start <= stop {
     True: rangeListp(start, stop),
     False: rangeListn(start, stop)
 };
 
-(Int, Int, Int): List
+fip (Int, Int, Int): List
 randList(seed, len, mod) = match len > 0 {
     True: let a = next seed in 
         Cons((a % mod + mod) % mod, randList(a, len - 1, mod)),

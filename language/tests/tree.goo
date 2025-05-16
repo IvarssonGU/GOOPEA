@@ -6,7 +6,7 @@
 
 enum BST = Empty, Node(BST, Int, BST);
 
-(BST, Int): BST
+fip (BST, Int): BST
 insert(tree, value) = match tree {
     Empty: Node(Empty, value, Empty),
     Node(left, x, right): match value == x {
@@ -18,19 +18,19 @@ insert(tree, value) = match tree {
     }
 };
 
-(BST, List): BST
+fip (BST, List): BST
 insertList(tree, list) = match list {
     Cons(x, xs): insertList(insert(tree, x), xs),
     Nil: tree
 };
 
-BST: List
+fip BST: List
 flatten(tree) = match tree {
     Empty: Nil,
     Node(left, x, right): concatList(concatList(flatten(left), Cons(x, Nil)), flatten(right))
 };
 
-List: List
+fip List: List
 sortedElems(list) = let tree = insertList(Empty, list) in flatten(tree);
 
 #endif TREE_LIB

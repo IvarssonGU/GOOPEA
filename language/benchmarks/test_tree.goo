@@ -1,0 +1,12 @@
+#include ../tests/tree.goo
+
+fip BST: Int
+sumTree(tree) = match tree {
+    Empty: 0,
+    Node(left, n, right): sumTree(left) + n + sumTree(right)
+};
+
+(): Int
+main = let list = randList(42, 1000, 10000) in
+    let tree = insertList(Empty, list) in
+    sumList(list) - sumTree(tree);
