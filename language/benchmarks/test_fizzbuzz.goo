@@ -1,0 +1,27 @@
+#include ../tests/list.goo
+
+enum FB = Num(Int), Fizz, Buzz, FizzBuzz;
+
+enum FBList = FBNil, FBCons(FB, FBList);
+
+fip Int: FB
+fizzbuzz x = let m3 = x % 3 in let m5 = x % 5 in
+    match (m3 + m5) == 0 {
+        True: FizzBuzz,
+        False: match m3 == 0 {
+            True: Fizz,
+            False: match m5 == 0 {
+                True: Buzz,
+                False: Num(x)
+            }
+        }
+    };
+
+fip List: FBList
+mapFB list = match list {
+    Nil: FBNil,
+    Cons(x, xs): FBCons(fizzbuzz x, mapFB xs)
+};
+
+(): FBList
+main = let list = rangeList(1, 500) in mapFB list;

@@ -1,0 +1,9 @@
+
+fip Int: Int
+fib x = match x < 2 {
+    True: 1,
+    False: fib(x - 1) + fib(x - 2)
+};
+
+(): Int
+main = fib(23);
