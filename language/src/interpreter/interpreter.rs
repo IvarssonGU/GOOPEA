@@ -330,16 +330,20 @@ impl Interpreter {
                 }
                 IStatement::AssignDropReuse(id, id1) => {
                     let reff = self.get_local_var(&id1);
-                    let ptr = reff.unwrap_ptr();
-                    if self.heap[ptr][2].unwrap_val() == 1 {
-                        for i in 3..self.heap[ptr].len() {
-                            if self.heap[ptr][i].is_ptr() {
-                                self.dec(self.heap[ptr][i].unwrap_ptr());
+
+                    if let Data::Pointer(ptr) = reff {
+                        if self.heap[ptr][2].unwrap_val() == 1 {
+                            for i in 3..self.heap[ptr].len() {
+                                if self.heap[ptr][i].is_ptr() {
+                                    self.dec(self.heap[ptr][i].unwrap_ptr());
+                                }
                             }
+                            self.local_variables.insert(id, Data::Pointer(ptr));
+                        } else {
+                            self.heap[ptr][2].dec();
+                            self.local_variables.insert(id, Data::Value(0));
                         }
-                        self.local_variables.insert(id, Data::Pointer(ptr));
                     } else {
-                        self.heap[ptr][2].dec();
                         self.local_variables.insert(id, Data::Value(0));
                     }
                 }
@@ -738,7 +742,11 @@ where
             let code = preprocess(shit);
             let code_nofip = code.replace("fip ", "");
 
-            print!("{:?}, true, {}, ", file.file_name(), malloc_time.as_micros());
+            print!(
+                "{:?}, true, {}, ",
+                file.file_name(),
+                malloc_time.as_micros()
+            );
             let fip = test(code, malloc_time);
             println!("{fip}");
 

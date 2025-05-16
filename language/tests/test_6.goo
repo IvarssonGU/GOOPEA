@@ -1,0 +1,10 @@
+enum List = Empty, Node(Int, List);
+
+fip List: List
+inc xs = match xs {
+    Empty: Empty,
+      Node(x, xs): Node(x+1, inc xs)
+};
+  
+(): List
+main = inc(Node(1, Node(2, Empty)));

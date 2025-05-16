@@ -74,7 +74,7 @@ mod tests_preprocessor {
     fn preprocessor_1() {
         let code = preprocess(test_file("test_1.goo"));
         println!("{code}");
-        assert_eq!(hash_str(&code), 5588971259074190600);
+        assert_eq!(hash_str(&code), 6592751422363609175);
     }
 }
 
@@ -145,6 +145,17 @@ mod tests_interpreter {
         assert_eq!(
             interpreter.get_return_format(),
             "[B: -2, [B: -1, [B: 0, [B: 1, 0]]]]"
+        );
+    }
+
+    #[test]
+    fn interpreter_6() {
+        let core_ir = _compile(test_file("test_6.goo"));
+        let mut interpreter = Interpreter::from_program(&core_ir);
+        interpreter.run_until_done();
+        assert_eq!(
+            interpreter.get_return_format(),
+            "[B: 2, [B: 3, 0]]"
         );
     }
 }
