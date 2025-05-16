@@ -169,6 +169,7 @@ impl Interpreter {
     }
 
     fn malloc(&mut self, width: usize) -> Data {
+        #[cfg(not(target_arch = "wasm32"))]
         sleep(self.malloc_time);
         for n in 1..self.heap.len() {
             if self.heap[n].is_empty() {
@@ -703,18 +704,10 @@ where
         let mut interpreter = Interpreter::new();
         let mut elapsed = Duration::ZERO;
 
-        let avg_time = {
-            let count = 10;
-            let mut time = Duration::ZERO;
-            for _ in 0..count {
-                interpreter = Interpreter::from_program(&compiled).with_malloc_time(malloc_time);
-                let now = Instant::now();
-                interpreter.run_until_done();
-                elapsed = now.elapsed();
-                time += elapsed;
-            }
-            time / count
-        };
+        interpreter = Interpreter::from_program(&compiled).with_malloc_time(malloc_time);
+        let now = Instant::now();
+        interpreter.run_until_done();
+        elapsed = now.elapsed();
 
         let steps = interpreter.steps;
 
@@ -731,7 +724,7 @@ where
 
         format!(
             "{}, {}, {}, {}",
-            avg_time.as_micros() as f64 / 1000.,
+            elapsed.as_micros() as f64 / 1000.,
             steps,
             (steps as u128 * 1_000_000) / elapsed.as_micros(),
             max_mem
@@ -745,18 +738,14 @@ where
             let code = preprocess(shit);
             let code_nofip = code.replace("fip ", "");
 
-            print!(
-                "{:?}, true, {}, ",
-                file.file_name(),
-                malloc_time.as_nanos()
-            );
+            print!("{:?}, true, {}, ", file.file_name(), malloc_time.as_micros());
             let fip = test(code, malloc_time);
             println!("{fip}");
 
             print!(
                 "{:?}, false, {}, ",
                 file.file_name(),
-                malloc_time.as_nanos()
+                malloc_time.as_micros()
             );
             let nofip = test(code_nofip, malloc_time);
             println!("{nofip}");
