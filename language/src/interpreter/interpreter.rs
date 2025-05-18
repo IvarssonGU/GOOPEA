@@ -6,13 +6,13 @@ use crate::preprocessor::preprocess;
 use input::*;
 use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
+use std::fmt;
 use std::fmt::Debug;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
-use std::{fmt, vec};
 
 #[derive(Clone, Copy)]
 pub enum Data {
@@ -222,8 +222,6 @@ impl Interpreter {
         self.local_variables.clear();
         self.local_variables
             .extend(f.args.clone().into_iter().zip(passed_args));
-
-        ()
     }
 
     pub fn step(&mut self) -> Option<IStatement> {

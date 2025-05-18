@@ -75,9 +75,10 @@ fn main() {
                 if file.is_dir() {
                     println!("file, fip, malloc_time_micros, exec_time_ms, steps, steps/s, max_mem_words");
                     interpreter::interpreter_bench_fip(&file, Duration::from_micros(0));
+                    interpreter::interpreter_bench_fip(&file, Duration::from_micros(2));
                     interpreter::interpreter_bench_fip(&file, Duration::from_micros(5));
+                    interpreter::interpreter_bench_fip(&file, Duration::from_micros(10));
                     interpreter::interpreter_bench_fip(&file, Duration::from_micros(25));
-                    interpreter::interpreter_bench_fip(&file, Duration::from_micros(50));
                 } else {
                     interpreter::interpreter_bench(&file);
                     interpreter::interpreter_bench_peak_mem(file);
