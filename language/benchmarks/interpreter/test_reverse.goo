@@ -1,4 +1,4 @@
-#include ../tests/list.goo
+#include ../../tests/list.goo
 
 (): Int
 main = sumList(reverseList(reverseList(reverseList(reverseList(rangeList(1, 500))))));

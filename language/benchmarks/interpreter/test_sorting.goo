@@ -1,4 +1,4 @@
-#include ../tests/list.goo
+#include ../../tests/list.goo
 
 fip (List, List): List
 merge(a, b) = match a {

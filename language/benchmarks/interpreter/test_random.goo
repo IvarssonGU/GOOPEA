@@ -1,4 +1,4 @@
-#include ../tests/rand.goo
+#include ../../tests/rand.goo
 
 enum DualList = Nil, Cons(Int, Int, DualList);
 

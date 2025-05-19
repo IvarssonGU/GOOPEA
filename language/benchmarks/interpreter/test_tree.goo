@@ -1,4 +1,4 @@
-#include ../tests/tree.goo
+#include ../../tests/tree.goo
 
 fip BST: Int
 sumTree(tree) = match tree {

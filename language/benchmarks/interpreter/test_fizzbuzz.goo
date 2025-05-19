@@ -1,4 +1,4 @@
-#include ../tests/list.goo
+#include ../../tests/list.goo
 
 enum FB = Num(Int), Fizz, Buzz, FizzBuzz;
 
