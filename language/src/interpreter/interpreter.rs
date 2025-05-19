@@ -451,6 +451,11 @@ impl Interpreter {
     }
 
     fn get_heap_format(&self, ptr: usize) -> String {
+        let maybelist = MemObj::from_data(&Data::Pointer(ptr), &self.heap);
+        if maybelist.is_list() {
+            return maybelist.list_string();
+        }
+
         let data = self.heap[ptr].clone();
         let tag = data[0].unwrap_val();
         let tag = ('A' as u8) + tag as u8;
@@ -606,6 +611,15 @@ pub fn _compile_string(code: String) -> CompiledProgram {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+pub fn _compile_string_scoped_rc(code: String) -> CompiledProgram {
+    let base_program = BaseSliceProgram::new(&code).unwrap();
+    let scoped_program = ScopedProgram::new(base_program).unwrap();
+    let typed_program = TypedProgram::new(scoped_program).unwrap();
+    let compiled = compiler::compile::compile_with_scoped_rc(&typed_program);
+    compiled
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn _compile<P>(path: P) -> CompiledProgram
 where
     P: AsRef<Path>,
@@ -700,9 +714,7 @@ where
 {
     assert!(path.as_ref().is_dir());
 
-    fn test(code: String, malloc_time: Duration) -> String {
-        let compiled = _compile_string(code);
-
+    fn test(compiled: CompiledProgram, malloc_time: Duration) -> String {
         let mut interpreter = Interpreter::from_program(&compiled).with_malloc_time(malloc_time);
         let now = Instant::now();
         interpreter.run_until_done();
@@ -735,22 +747,31 @@ where
 
             let code = preprocess(shit);
             let code_nofip = code.replace("fip ", "");
+            let code_scoped_rc = code.clone();
 
             let fip = format!(
-                "{:?}, true, {}, {}",
+                "{:?}, fip, {}, {}",
                 file.file_name(),
                 malloc_time.as_micros(),
-                test(code, malloc_time)
+                test(_compile_string(code), malloc_time)
             );
             lines.push(fip);
 
             let nofip = format!(
-                "{:?}, false, {}, {}",
+                "{:?}, nofip, {}, {}",
                 file.file_name(),
                 malloc_time.as_micros(),
-                test(code_nofip, malloc_time)
+                test(_compile_string(code_nofip), malloc_time)
             );
             lines.push(nofip);
+
+            let scoped_rc = format!(
+                "{:?}, sc_rc, {}, {}",
+                file.file_name(),
+                malloc_time.as_micros(),
+                test(_compile_string_scoped_rc(code_scoped_rc), malloc_time)
+            );
+            lines.push(scoped_rc);
         }
     }
     lines.join("\n")
