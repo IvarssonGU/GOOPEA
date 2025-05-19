@@ -1,6 +1,5 @@
 use logos::Logos;
 use logos::SpannedIter;
-use std::fmt::Display;
 use std::num::ParseIntError;
 
 pub type Spanned<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
@@ -92,22 +91,4 @@ pub enum Token {
     CapitalIdentifier(String),
     #[regex("_*[a-z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
     NonCapitalIdentifier(String)
-}
-
-pub fn lexer(src: &str) -> Vec<Token> {
-    //creates a lexer instance from the input
-    let lexer = Token::lexer(&src);
-
-    //splits the input into tokens, using the lexer
-    let mut tokens = vec![];
-    for (token, span) in lexer.spanned() {
-        match token {
-            Ok(token) => tokens.push(token),
-            Err(e) => {
-                println!("lexer error at {:?} {:?}", span, e)
-            }
-        }
-    }
-
-    tokens
 }

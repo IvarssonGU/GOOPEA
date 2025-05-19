@@ -12,10 +12,7 @@ mod preprocessor;
 lalrpop_mod!(pub grammar);
 
 use ast::{base::BaseSliceProgram, scoped::ScopedProgram, typed::TypedProgram};
-use compiler::{
-    compile::{CompiledProgram, compile_typed},
-    core::Prog,
-};
+use compiler::compile::{CompiledProgram, compile_typed};
 use error::Result;
 use interpreter::Interpreter;
 use lalrpop_util::lalrpop_mod;
