@@ -11,7 +11,7 @@ df['fip'] = df['fip'].astype(bool)
 for file_name in df['file'].unique():
     file_df = df[df['file'] == file_name]
 
-    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+    fig, axs = plt.subplots(1, 2, figsize=(8, 5), gridspec_kw={'width_ratios': [1, 2]})
     fig.suptitle(f"{file_name}", fontsize=14)
 
     # Subplot 1: Bar chart for max_mem_words at malloc_time_micros == 0
@@ -24,12 +24,13 @@ for file_name in df['file'].unique():
     axs[0].set_ylabel('max_mem_words')
     # Better visualization
     axs[0].set_ylim(bottom=0)
+    axs[0].set
 
     # Subplot 2: Line chart for exec_time_ms vs malloc_time_micros
     for fip_value, color in zip([True, False], ['green', 'red']):
         sub_df = file_df[file_df['fip'] == fip_value].sort_values(by='malloc_time_micros')
         axs[1].plot(sub_df['malloc_time_micros'], sub_df['exec_time_ms'], 
-                    marker='o', label=f'FIP {fip_value}', color=color)
+                    marker='o' if fip_value else 's', label=f'FIP {fip_value}', color=color)
     
     axs[1].set_title('Execution Time vs Malloc Time')
     axs[1].set_xlabel('malloc_time_micros')
@@ -39,4 +40,4 @@ for file_name in df['file'].unique():
     axs[1].legend()
     
     plt.tight_layout()
-    plt.savefig(f"../{file_name}.png")
+    plt.savefig(f"../{file_name}.pdf")

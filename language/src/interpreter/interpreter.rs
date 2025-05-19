@@ -694,7 +694,7 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn interpreter_bench_fip<P>(path: P, malloc_time: Duration)
+pub fn interpreter_bench_fip<P>(path: P, malloc_time: Duration) -> String
 where
     P: AsRef<Path>,
 {
@@ -703,14 +703,10 @@ where
     fn test(code: String, malloc_time: Duration) -> String {
         let compiled = _compile_string(code);
 
-        let mut interpreter = Interpreter::new();
-        let mut elapsed = Duration::ZERO;
-
-        interpreter = Interpreter::from_program(&compiled).with_malloc_time(malloc_time);
+        let mut interpreter = Interpreter::from_program(&compiled).with_malloc_time(malloc_time);
         let now = Instant::now();
         interpreter.run_until_done();
-        elapsed = now.elapsed();
-
+        let elapsed = now.elapsed();
         let steps = interpreter.steps;
 
         interpreter = Interpreter::from_program(&compiled);
@@ -732,7 +728,7 @@ where
             max_mem
         )
     }
-
+    let mut lines = Vec::new();
     for entry in path.as_ref().read_dir().unwrap() {
         if let Ok(file) = entry {
             let shit = file.path();
@@ -740,23 +736,24 @@ where
             let code = preprocess(shit);
             let code_nofip = code.replace("fip ", "");
 
-            print!(
-                "{:?}, true, {}, ",
+            let fip = format!(
+                "{:?}, true, {}, {}",
                 file.file_name(),
-                malloc_time.as_micros()
+                malloc_time.as_micros(),
+                test(code, malloc_time)
             );
-            let fip = test(code, malloc_time);
-            println!("{fip}");
+            lines.push(fip);
 
-            print!(
-                "{:?}, false, {}, ",
+            let nofip = format!(
+                "{:?}, false, {}, {}",
                 file.file_name(),
-                malloc_time.as_micros()
+                malloc_time.as_micros(),
+                test(code_nofip, malloc_time)
             );
-            let nofip = test(code_nofip, malloc_time);
-            println!("{nofip}");
+            lines.push(nofip);
         }
     }
+    lines.join("\n")
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -73,12 +73,15 @@ fn main() {
         (true, false) => {
             if args.benchmark {
                 if file.is_dir() {
-                    println!("file, fip, malloc_time_micros, exec_time_ms, steps, steps/s, max_mem_words");
+                    // warmup, needed for cache reasons
                     interpreter::interpreter_bench_fip(&file, Duration::from_micros(0));
-                    interpreter::interpreter_bench_fip(&file, Duration::from_micros(2));
-                    interpreter::interpreter_bench_fip(&file, Duration::from_micros(5));
-                    interpreter::interpreter_bench_fip(&file, Duration::from_micros(10));
-                    interpreter::interpreter_bench_fip(&file, Duration::from_micros(25));
+                    // write lines to std out
+                    println!("file, fip, malloc_time_micros, exec_time_ms, steps, steps/s, max_mem_words");
+                    println!("{}", interpreter::interpreter_bench_fip(&file, Duration::from_micros(0)));
+                    println!("{}", interpreter::interpreter_bench_fip(&file, Duration::from_micros(1)));
+                    println!("{}", interpreter::interpreter_bench_fip(&file, Duration::from_micros(2)));
+                    println!("{}", interpreter::interpreter_bench_fip(&file, Duration::from_micros(5)));
+                    println!("{}", interpreter::interpreter_bench_fip(&file, Duration::from_micros(10)));
                 } else {
                     interpreter::interpreter_bench(&file);
                     interpreter::interpreter_bench_peak_mem(file);
