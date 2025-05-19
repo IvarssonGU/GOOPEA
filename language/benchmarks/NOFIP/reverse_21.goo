@@ -1,0 +1,76 @@
+enum List = Nil, Cons(Int, List);
+Int: List
+build x = match x == 0 {
+    True: Nil,
+    False: Cons(x, build(x - 1))
+};
+(List, List): List
+reverseHelper(list, acc) = match list {
+    Nil: acc,
+    Cons(x, xs): reverseHelper(xs, Cons(x, acc))
+};
+List: List
+reverse1 list = reverseHelper(list, Nil);
+
+List: List
+reverse2 xs = reverse1(reverse1(xs));
+
+List: List
+reverse4 xs = reverse2(reverse2(xs));
+
+List: List
+reverse8 xs = reverse4(reverse4(xs));
+
+List: List
+reverse16 xs = reverse8(reverse8(xs));
+
+List: List
+reverse32 xs = reverse16(reverse16(xs));
+
+List: List
+reverse64 xs = reverse32(reverse32(xs));
+
+List: List
+reverse128 xs = reverse64(reverse64(xs));
+
+List: List
+reverse256 xs = reverse128(reverse128(xs));
+
+List: List
+reverse512 xs = reverse256(reverse256(xs));
+
+List: List
+reverse1024 xs = reverse512(reverse512(xs));
+
+List: List
+reverse2048 xs = reverse1024(reverse1024(xs));
+
+List: List
+reverse4096 xs = reverse2048(reverse2048(xs));
+
+List: List
+reverse8192 xs = reverse4096(reverse4096(xs));
+
+List: List
+reverse16384 xs = reverse8192(reverse8192(xs));
+
+List: List
+reverse32768 xs = reverse16384(reverse16384(xs));
+
+List: List
+reverse65536 xs = reverse32768(reverse32768(xs));
+
+List: List
+reverse131072 xs = reverse65536(reverse65536(xs));
+
+List: List
+reverse262144 xs = reverse131072(reverse131072(xs));
+
+List: List
+reverse524288 xs = reverse262144(reverse262144(xs));
+
+List: List
+reverse1048576 xs = reverse524288(reverse524288(xs));
+
+(): List
+main = reverse1048576(build(100));

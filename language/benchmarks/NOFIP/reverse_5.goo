@@ -1,0 +1,28 @@
+enum List = Nil, Cons(Int, List);
+Int: List
+build x = match x == 0 {
+    True: Nil,
+    False: Cons(x, build(x - 1))
+};
+(List, List): List
+reverseHelper(list, acc) = match list {
+    Nil: acc,
+    Cons(x, xs): reverseHelper(xs, Cons(x, acc))
+};
+List: List
+reverse1 list = reverseHelper(list, Nil);
+
+List: List
+reverse2 xs = reverse1(reverse1(xs));
+
+List: List
+reverse4 xs = reverse2(reverse2(xs));
+
+List: List
+reverse8 xs = reverse4(reverse4(xs));
+
+List: List
+reverse16 xs = reverse8(reverse8(xs));
+
+(): List
+main = reverse16(build(100));
