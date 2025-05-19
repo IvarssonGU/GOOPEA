@@ -1,7 +1,7 @@
 use super::interpreter::Data;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use serde_json::{to_string, to_string_pretty};
+use serde_json::to_string_pretty;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MemPeek {
@@ -31,7 +31,7 @@ impl MemObj {
     fn is_val(&self) -> bool {
         match self {
             MemObj::Value(_) => true,
-            MemObj::Pointer(mem_peek) => false,
+            MemObj::Pointer(_) => false,
         }
     }
 

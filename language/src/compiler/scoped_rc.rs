@@ -1,4 +1,4 @@
-use std::{collections::HashSet, vec};
+use std::collections::HashSet;
 
 use super::{
     crux::Type,

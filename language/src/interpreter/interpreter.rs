@@ -253,14 +253,6 @@ impl Interpreter {
                         self.variable_stack.pop().expect("this should not happen");
                     self.function_names_stack.pop();
                 }
-                IStatement::Print(ioperand) => println!(
-                    "> {:?}",
-                    match ioperand {
-                        IOperand::Ident(id) => self.get_local_var(&id),
-                        IOperand::Negate(_) => panic!("Should not happen"),
-                        IOperand::Int(i) => Data::Value(i),
-                    }
-                ),
                 IStatement::Inc(ioperand) => {
                     let id = ioperand.unwrap_id();
                     let data = self.get_local_var(&id);
@@ -437,6 +429,7 @@ impl Interpreter {
     }
 }
 // website interaction
+#[allow(unused)]
 impl Interpreter {
     pub fn get_memory_raw(&self) -> Vec<Vec<Data>> {
         self.heap.clone()

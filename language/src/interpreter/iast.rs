@@ -27,14 +27,6 @@ impl IOperand {
             IOperand::Negate(_) => panic!("Not an identifier"),
         }
     }
-
-    pub fn unwrap_int(&self) -> i64 {
-        match self {
-            IOperand::Ident(_) => panic!("Not an int"),
-            IOperand::Int(i) => *i,
-            IOperand::Negate(_) => panic!("Not an int"),
-        }
-    }
 }
 
 impl Display for IOperand {
@@ -51,7 +43,6 @@ impl Display for IOperand {
 pub enum IStatement {
     IfExpr(Vec<(IOperand, Vec<IStatement>)>),
     Return(IOperand),
-    Print(IOperand),
     AssignMalloc(String, u32),
     Assign(String, IOperand),
     AssignToField(String, i64, IOperand),
@@ -141,7 +132,6 @@ impl Display for IStatement {
             ),
             IStatement::AssignMalloc(id, s) => write!(f, "{id} = malloc({s})"),
             IStatement::Return(ioperand) => write!(f, "Return({ioperand})"),
-            IStatement::Print(ioperand) => write!(f, "Print({})", ioperand),
             IStatement::Inc(ioperand) => write!(f, "Inc({})", ioperand),
             IStatement::Dec(ioperand) => write!(f, "Dec({})", ioperand),
             IStatement::Assign(id, ioperand) => write!(f, "{id} = {}", ioperand),
