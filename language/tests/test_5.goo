@@ -13,8 +13,8 @@ next(iter) = match iter {
 };
 
 Iter: List
-fromIter(iter) = let (o, iter2) = next iter in match o {
-    Some(x): Cons(x, fromIter iter2),
+fromIter(iter) = let (o, iter') = next iter in match o {
+    Some(x): Cons(x, fromIter iter'),
     None: Nil
 };
 
