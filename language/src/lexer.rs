@@ -89,6 +89,6 @@ pub enum Token {
     // String(String),
     #[regex("_*[A-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
     CapitalIdentifier(String),
-    #[regex("_*[a-z][_0-9a-zA-Z]*[']*", |lex| lex.slice().to_string())]
+    #[regex("_*[a-z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
     NonCapitalIdentifier(String)
 }
