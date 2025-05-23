@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Data {
     Value(i64),
     Pointer(usize),
@@ -402,6 +402,30 @@ impl Interpreter {
             } else if let IStatement::AssignToField(_, _, op) = s {
                 if self.op_to_data(&op).is_ptr() {
                     break;
+                }
+            }
+            self.step();
+        }
+    }
+
+    pub fn run_until_delta_data(&mut self) {
+        self.step();
+        while let Some(s) = self.statements.get(0) {
+            if let IStatement::AssignMalloc(_, _) = s {
+                break;
+            } else if let IStatement::Dec(op) = s {
+                match *op {
+                    IOperand::Int(i) if i == 1 => {
+                        break;
+                    }
+                    _ => (),
+                }
+            } else if let IStatement::AssignToField(id, i, op) = s {
+                if *i > 2 {
+                    let ptr = self.get_local_var(id).unwrap_ptr();
+                    if self.heap[ptr][*i as usize] != self.op_to_data(op) {
+                        break;
+                    }
                 }
             }
             self.step();
