@@ -30,13 +30,15 @@ var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
     matchBrackets: true,
     extraKeys: key_binds,
     styleSelectedText: true,
+    indentUnit: 4,
+    smartIndent: false,
 });
 
 if (!navigator.userAgent.includes("Chrome")) {
     editor.setSize("100%", "100%");
 }
-editor.on('keyup', function () {
-    continuous_compilation();
+editor.on('keyup', function (event) {
+    if (!(event.ctrlKey && event.key === 'q')) continuous_compilation();
 })
 
 function autocomplete_hints(cm) {
@@ -215,6 +217,8 @@ async function run_button_clicked() {
 
 	await wasm_bindgen('./pkg/editor_bg.wasm');
 
+    if (!document.getElementById("restore-button").classList.contains("hide")) document.getElementById("restore-button").classList.toggle("hide");
+
     let code = editor.getValue();
     localStorage.setItem("code", code);
 
@@ -280,6 +284,7 @@ async function debug_button_clicked() {
 
     let code = editor.getValue();
     localStorage.setItem("code", code);
+    if (!document.getElementById("restore-button").classList.contains("hide")) document.getElementById("restore-button").classList.toggle("hide");
 
     if (await compile_and_populate()) {
         write_compilation_message();
@@ -307,6 +312,7 @@ async function debug_button_clicked() {
 async function compile_button_clicked() {
     let code = editor.getValue();
     localStorage.setItem("code", code);
+    if (!document.getElementById("restore-button").classList.contains("hide")) document.getElementById("restore-button").classList.toggle("hide");
 
     if (await compile_and_populate()) {
         write_compilation_message();
@@ -339,6 +345,10 @@ function run_return_clicked() {
 }
 function run_done_clicked() {
     wasm_bindgen.get_run();
+    update_visualization();
+}
+function delta_data_clicked(){
+    wasm_bindgen.get_delta_data();
     update_visualization();
 }
 

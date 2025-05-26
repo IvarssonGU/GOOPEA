@@ -39,6 +39,7 @@
 					<!-- debug buttons -->
 					<button onclick="step_back_clicked()" title="One step back" id="back-button" class="debug-button styled-button hide"><p>&#X23F4;&#xfe0e;</p></button>
 					<button onclick="step_forward_clicked()" title="One step forward" id="step-button" class="debug-button styled-button hide"><p>&#X23F5;&#xfe0e;</p></button>
+					<button onclick="delta_data_clicked()" title="Run until next data modification" id="delta-data-button" class="debug-button styled-button hide"><p>&#X2206;</p></button>
 					<button onclick="run_mem_clicked()" title="Run until next memory modification" id="run-mem-button" class="debug-button styled-button hide"><p>&#X23E9;&#xfe0e;</p></button>
 					<button onclick="run_return_clicked()" title="Run until function return" id="run-return-button" class="debug-button styled-button hide"><p>&#X23ED;&#xfe0e;</p></button>
 					<button onclick="run_done_clicked()" title="Run until done" id="rud-button" class="debug-button styled-button hide"><p>&#X23FA;&#xfe0e;</p></button>
@@ -117,7 +118,7 @@
 			</tr>
 			<tr id="text-row">
 				<td colspan="2" id="code-cell">
-					<textarea id="code"></textarea>
+					<textarea id="code" height="100%"></textarea>
 				</td>
 			</tr>
 			<tr>

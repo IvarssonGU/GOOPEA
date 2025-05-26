@@ -210,7 +210,9 @@ next_twice list =
             
 (): (List, Maybe, Maybe)
 main = next_twice(Cons(Cons(Cons(Cons(Nil, 3), 4), 5), 6));`);
-            output_field.value = "(Cons(Cons(Nil, 3), 4), Some 6, Some 5)";
+            output_field.value = `([B: [B: 0, 3], 4], [B: 6], [B: 5])
+
+aka (Cons(Cons(Nil, 3), 4), Some 6, Some 5)`;
             break;
         case "type-error":
             code_field.setValue( 
@@ -344,11 +346,11 @@ main = fib(10);`);
 Node: Node
 build x = Children(Child(x), Child(x));
   
-(): ()
+(): (Node)
 main = build (Data 5);`);
             output_field.value = `[B: [A: [A: 5]], [A: [A: 5]]]
             
-aka Children(Child(data 5), Child(Data 5))`;
+aka Children(Child(Data 5), Child(Data 5))`;
             break;
         case "inorder":
             code_field.setValue( 
@@ -393,6 +395,23 @@ toInt(p) = match p {
 () : Int
 main = toInt(from_List(Cons(7, Cons(2, Cons(3, Nil)))));`);
             output_field.value = "49";
+            break;
+        case "square":
+            code_field.setValue( 
+`enum List = Nil, Cons(Int, List);
+
+(): List
+build = Cons(2, Cons(3, Cons(4, Nil)));
+
+fip List: List
+square list = match list{
+	Nil: Nil,
+    Cons(x, xs): Cons(x*x, square xs)
+};
+
+fip (): List
+main = square build;`);
+            output_field.value = "[4, 9, 16]";
             break;
         default:
             code_field.setValue( 

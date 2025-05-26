@@ -154,6 +154,13 @@ pub fn get_until_return() -> String {
 }
 
 #[wasm_bindgen]
+pub fn get_delta_data() -> String {
+    language::store_interpreter();
+    language::run_delta_data();
+    language::get_interpreter_state()
+}
+
+#[wasm_bindgen]
 pub fn get_state() -> String {
     language::get_interpreter_state()
 }

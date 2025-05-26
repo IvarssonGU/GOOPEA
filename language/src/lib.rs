@@ -105,6 +105,12 @@ pub fn run_interpreter() {
     });
 }
 
+pub fn run_delta_data() {
+    INTERPRETER.with_borrow_mut(|interpreter| {
+        interpreter.run_until_delta_data();
+    });
+}
+
 pub fn get_interpreter_state() -> String {
     INTERPRETER.with_borrow(|interpreter| format!("{:?}", interpreter))
 }

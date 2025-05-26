@@ -125,7 +125,7 @@ textarea {
     height: 20px;
     margin-bottom: 0px;
 }
-#back-button, #step-button, #run-mem-button, #run-return-button, #rud-button {
+#back-button, #step-button, #run-mem-button, #run-return-button, #rud-button, #delta-data-button {
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
 }
@@ -137,6 +137,10 @@ textarea {
 }
 #rud-button p{
     margin-top: -2px;
+}
+#delta-data-button p{
+    font-weight: bold;
+    margin-top: 0.5px;
 }
 
 .compiler-button {

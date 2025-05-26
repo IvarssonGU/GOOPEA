@@ -4,8 +4,8 @@ let toggle_contents = document.getElementsByClassName("toggle-content");
 //loading and unloading
 document.addEventListener("DOMContentLoaded", () => {
     for (var i = 0; i < toggle_headers.length; i++) {
-        toggle_contents[i].style.display = 'block'; //change back to none for starting collapsed p1
-        toggle_headers[i].classList.toggle("open"); //remove for starting collapsed p2
+        toggle_contents[i].style.display = 'none'; //change back to none for starting collapsed p1, block for open
+        // toggle_headers[i].classList.toggle("open"); //remove for starting collapsed p2
 
         //add on-click function to toggle contents
         toggle_headers[i].addEventListener("click", function() {
