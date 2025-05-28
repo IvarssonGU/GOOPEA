@@ -403,15 +403,29 @@ main = toInt(from_List(Cons(7, Cons(2, Cons(3, Nil)))));`);
 (): List
 build = Cons(2, Cons(3, Cons(4, Nil)));
 
-fip List: List
-square list = match list{
+List: List
+squareList list = match list{
 	Nil: Nil,
-    Cons(x, xs): Cons(x*x, square xs)
+    Cons(x, xs): Cons(x*x, squareList xs)
 };
 
-fip (): List
-main = square build;`);
+(): List
+main = squareList build;`);
             output_field.value = "[4, 9, 16]";
+            break;
+        case "addone":
+            code_field.setValue( 
+`enum List = Nil, Cons(Int, List);
+
+List: List
+addOne list = match list{
+	Nil: Nil,
+    Cons(x, xs): Cons(x + 1, addOne xs)
+};
+
+(): List
+main = addOne Cons(2, Cons(3, Cons(4, Nil)));`);
+            output_field.value = "[3, 4, 5]";
             break;
         default:
             code_field.setValue( 

@@ -1,8 +1,8 @@
 CodeMirror.defineSimpleMode("GOOPEA", {
     start: [
-        {regex: /(?:fip|match|enum|let|in|Int)\b/, token: "keyword"},
+        {regex: /(?:fip|match|enum|let|in)\b/, token: "keyword"},
         {regex: /Nil|Cons|Empty|Node|Some|None|Nothing|Just/, token: "def"}, //constructors
-        {regex: /True|False/, token: "atom"},
+        {regex: /True|False|Int/, token: "atom"},
         {regex: /[\{\[\()]/, token: "bracket", indent: true},
         {regex: /[\}\]\)]/, token: "bracket", dedent: true},
         // {regex: /[A-Z][a-z]*([A-Z][a-z]*)*(?=\()/, token: "def"},

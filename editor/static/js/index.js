@@ -147,10 +147,20 @@ window.onbeforeunload = function() {
 };
 
 async function continuous_compilation() {
-    if (await compile_and_populate()) {
-        write_compilation_message();
-    } else {
-        write_error_message();
+    if (editor.getValue() === "") { //editor empty
+        output_textarea.innerHTML = `<span style=\"white-space: pre-wrap;\">-- start writing in the code field to get a compiler message --</span>`
+        debug_textarea.value = "";
+        ccode_value = "";
+        stir_value = "";
+        reuse_value = "";
+        rc_value = "";
+    }
+    else {
+        if (await compile_and_populate()) {
+            write_compilation_message();
+        } else {
+            write_error_message();
+        }
     }
 }
 
@@ -269,7 +279,14 @@ function update_runtime(runtime) {
 
 function clear_button_clicked() {
     editor.setValue("");
+    debugging = false;
     output_textarea.innerHTML = "";
+    debug_textarea.value = "";
+    ccode_value = "";
+    stir_value = "";
+    reuse_value = "";
+    rc_value = "";
+    continuous_compilation();
 }
 
 function restore_code() {
@@ -294,7 +311,7 @@ async function debug_button_clicked() {
         if (visualization_div.classList.contains("hide")) visualization_div.classList.toggle("hide");
         update_visualization();
 
-        debugging = true;
+        debugging = true; // to show debugging buttons
         // if (debugging) for (var i = 0; i < debug_buttons.length; i++) debug_buttons[i].classList.toggle("hide");
         
         switch_tab(1);
